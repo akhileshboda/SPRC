@@ -1,0 +1,29 @@
+/* Kindred SPRC – Custom style overrides (Sprint 1)
+   Bootstrap 5 handles the heavy lifting; this file exists as
+   a clean extension point for Sprint 2/3 additions. */
+
+/* Ensure full-viewport height works reliably on all browsers */
+body {
+  min-height: 100vh;
+}
+
+/* Slightly softer card corners beyond Bootstrap's default */
+.card {
+  border-radius: 0.75rem;
+}
+
+/* ── Role badge colour helpers (available for Sprint 2/3 use) ── */
+.badge-ADMIN {
+  background-color: #dc3545;
+  color: #fff;
+}
+
+.badge-PARTICIPANT {
+  background-color: #198754;
+  color: #fff;
+}
+
+.badge-VOLUNTEER {
+  background-color: #0dcaf0;
+  color: #000;
+}
