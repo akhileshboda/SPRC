@@ -6,53 +6,66 @@ Kindred is a role-based web application designed to connect special-needs partic
 
 ---
 
-## Features (Sprint 1)
+## Features
 
-- **Secure Login** — credential validation against a localStorage user store
-- **Session Management** — persistent sessions via `localStorage`, with protected route guards
+- **Secure Login** — credential validation through a backend API with password hashing (`bcrypt`)
+- **Session Management** — server-side sessions via secure `httpOnly` cookies
 - **Role-Based Access Control (RBAC)** — dynamic dashboard content based on user role (`ADMIN`, `VOLUNTEER`, `PARTICIPANT`)
 - **Account Management** — administrators can register new staff/volunteers with a confirmation modal and simulated welcome email notification
 - **User Table** — live System Users table with role badges and per-row delete functionality
-- **Participant Records (Req 201)** — administrators can enter participant information, special needs, and contact details, then view/manage persistent participant records
+- **Participant Records (Req 201)** — administrators can create, edit, and delete participant records with special-needs details
 - **Forgot Password** — simulated password reset flow on the login page
 
 ---
 
-## Test Credentials
+## Security Notes
 
-| Name | Email | Password | Role |
-|---|---|---|---|
-| Lisa Williams | `lisawilliams@kindred.com` | `lisa123` | Administrator |
-| April Williams | `april@email.com` | `april123` | Participant / Guardian |
-| Volunteer Staff | `volunteer@kindred.org` | `vol123` | Volunteer |
-
-> **Note:** User data is stored in `localStorage` under the key `kindred_users`. New accounts created by an administrator are immediately usable for login.
+- Passwords are not stored in frontend files or `localStorage`.
+- Passwords are hashed in SQLite using `bcrypt`.
+- Sessions are managed on the server (`express-session`) using `httpOnly` cookies.
+- Database file is stored under `data/kindred.db` (ignored via `.gitignore`).
 
 ---
 
-## Getting Started
+## Getting Started (Secure Version)
 
-No build tools or server required. Open directly in a browser:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start server:
+   ```bash
+   npm start
+   ```
+3. Open:
+   - `http://localhost:3000/login.html`
 
+### Initial admin account
+
+On the first run, the server seeds one admin account and prints credentials in the terminal.
+
+- Default email: `admin@kindred.local` (or `ADMIN_EMAIL` if set)
+- Password:
+  - Uses `ADMIN_PASSWORD` from your environment, or
+  - Auto-generated once on first DB creation and printed to terminal
+
+If you want fixed credentials, set these before running:
+
+```powershell
+$env:ADMIN_EMAIL="your_admin@email.com"
+$env:ADMIN_PASSWORD="YourStrongPassword!"
+$env:SESSION_SECRET="your-long-random-secret"
+npm start
 ```
-login.html
-```
-
-1. Open `login.html` in any modern browser
-2. Sign in with one of the test credentials above
-3. The dashboard will render content specific to that role
-
-To reset all data back to seed users, clear `localStorage` in your browser's DevTools (`Application → Local Storage → Clear`).
 
 ### Test: Participant Records (Administrator Story 201)
 
-1. Sign in as admin:
-   - Email: `lisawilliams@kindred.com`
-   - Password: `lisa123`
+1. Sign in as admin (seeded account shown in server terminal output).
 2. In the **Management Console**, fill out **Create Participant Record**.
 3. Click **Save Participant Record**.
 4. Verify the new entry appears in the **Participant Records** table.
-5. Refresh the page; verify the record is still present (localStorage persistence).
+5. Click **Edit** to modify the record and save updates.
+6. Refresh the page; verify the record is still present (SQLite persistence).
 
 ---
 
@@ -60,11 +73,13 @@ To reset all data back to seed users, clear `localStorage` in your browser's Dev
 
 ```
 SPRC/
+├── server.js         # Express server + API + SQLite initialization
+├── data/             # SQLite database location (generated at runtime)
 ├── login.html        # Public entry point
 ├── dashboard.html    # Protected, role-aware dashboard
 ├── js/
-│   ├── auth.js       # Auth module: session, login, user store (IIFE/localStorage)
-│   └── admin.js      # Admin panel: register form, users table, toast notifications
+│   ├── auth.js       # Frontend API client for auth/users/participants
+│   └── admin.js      # Admin panel UI handlers (forms, table, edit/delete)
 └── css/
     └── styles.css    # Minimal Bootstrap 5 overrides
 ```
@@ -75,8 +90,11 @@ SPRC/
 
 - **HTML5 / CSS3**
 - **Bootstrap 5.3** (CDN)
-- **Vanilla JavaScript** — no frameworks, no build tools
-- **localStorage** — client-side data persistence (mock backend)
+- **Vanilla JavaScript** (frontend)
+- **Node.js + Express** (backend API/server)
+- **SQLite3** (database)
+- **bcryptjs** (password hashing)
+- **express-session** (server-side sessions)
 
 ---
 

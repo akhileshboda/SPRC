@@ -4,7 +4,7 @@
  * Depends on auth.js being loaded first (uses the global Auth namespace).
  * Only meaningful when an ADMIN session is active.
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Role badge helper ─────────────────────────────────────────────────────
 
@@ -22,12 +22,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Render users table ────────────────────────────────────────────────────
 
-  function renderUsersTable() {
+  async function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
 
-    const users   = Auth.getUsers();
-    const session = Auth.getSession();
+    const users = await Auth.getUsers();
+    const session = await Auth.getSession();
 
     if (users.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted px-3">No users found.</td></tr>';
@@ -36,6 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     tbody.innerHTML = users.map(u => {
       const isSelf = session && session.email.toLowerCase() === u.email.toLowerCase();
+      const canEdit = u.role === 'VOLUNTEER' || u.role === 'PARTICIPANT';
+      const editBtn = canEdit
+        ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(u.email)}">Edit</button>`
+        : '';
       const deleteBtn = isSelf
         ? `<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>`
         : `<button class="btn btn-outline-danger btn-sm" data-email="${escapeHtml(u.email)}">Delete</button>`;
@@ -50,27 +54,36 @@ document.addEventListener('DOMContentLoaded', () => {
             </span>
           </td>
           <td class="text-muted small">${escapeHtml(u.dateAdded)}</td>
-          <td class="pe-3" style="width: 1%; white-space: nowrap;">${deleteBtn}</td>
+          <td class="pe-3" style="width: 1%; white-space: nowrap;">${editBtn}${deleteBtn}</td>
         </tr>
       `;
     }).join('');
 
+    tbody.querySelectorAll('button[data-user-edit-email]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await startUserEdit(btn.dataset.userEditEmail);
+      });
+    });
+
     // Wire delete buttons via event delegation on the tbody.
     tbody.querySelectorAll('button[data-email]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const result = Auth.removeUser(btn.dataset.email);
+      btn.addEventListener('click', async () => {
+        const result = await Auth.removeUser(btn.dataset.email);
         if (result.success) {
-          renderUsersTable();
+          if (editingUserEmail && editingUserEmail.toLowerCase() === btn.dataset.email.toLowerCase()) {
+            resetUserFormState();
+          }
+          await renderUsersTable();
         }
       });
     });
   }
 
-  function renderParticipantsTable() {
+  async function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
 
-    const participants = Auth.getParticipants();
+    const participants = await Auth.getParticipants();
     if (participants.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
       return;
@@ -101,19 +114,19 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
 
     tbody.querySelectorAll('button[data-participant-edit-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        startParticipantEdit(btn.dataset.participantEditId);
+      btn.addEventListener('click', async () => {
+        await startParticipantEdit(btn.dataset.participantEditId);
       });
     });
 
     tbody.querySelectorAll('button[data-participant-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const result = Auth.removeParticipant(btn.dataset.participantId);
+      btn.addEventListener('click', async () => {
+        const result = await Auth.removeParticipant(btn.dataset.participantId);
         if (result.success) {
           if (editingParticipantId && editingParticipantId === btn.dataset.participantId) {
             resetParticipantFormState();
           }
-          renderParticipantsTable();
+          await renderParticipantsTable();
         }
       });
     });
@@ -158,11 +171,58 @@ document.addEventListener('DOMContentLoaded', () => {
   const registerError = document.getElementById('registerError');
   const toastEl       = document.getElementById('adminToast');
   const toastMsgEl    = document.getElementById('adminToastMsg');
+  const userSubmitBtn = document.getElementById('userSubmitBtn');
+  const userCancelEditBtn = document.getElementById('userCancelEditBtn');
+  const regFirstNameEl = document.getElementById('regFirstName');
+  const regLastNameEl = document.getElementById('regLastName');
+  const regEmailEl = document.getElementById('regEmail');
+  const regPasswordEl = document.getElementById('regPassword');
+  const regRoleEl = document.getElementById('regRole');
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const participantSubmitBtn = document.getElementById('participantSubmitBtn');
   const participantCancelEditBtn = document.getElementById('participantCancelEditBtn');
+  let editingUserEmail = null;
   let editingParticipantId = null;
+
+  function splitFullName(fullName) {
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
+  }
+
+  function resetUserFormState() {
+    if (!registerForm) return;
+    registerForm.reset();
+    registerForm.classList.remove('was-validated');
+    registerError.classList.add('d-none');
+    editingUserEmail = null;
+    regPasswordEl.required = true;
+    regPasswordEl.placeholder = 'Temporary password';
+    if (userSubmitBtn) userSubmitBtn.textContent = 'Create Account';
+    if (userCancelEditBtn) userCancelEditBtn.classList.add('d-none');
+  }
+
+  async function startUserEdit(userEmail) {
+    const users = await Auth.getUsers();
+    const user = users.find((u) => u.email.toLowerCase() === String(userEmail).toLowerCase());
+    if (!user || user.role === 'ADMIN') return;
+
+    const nameParts = splitFullName(user.name);
+    regFirstNameEl.value = nameParts.firstName;
+    regLastNameEl.value = nameParts.lastName;
+    regEmailEl.value = user.email;
+    regRoleEl.value = user.role;
+    regPasswordEl.value = '';
+    regPasswordEl.required = false;
+    regPasswordEl.placeholder = 'Leave blank to keep current password';
+
+    editingUserEmail = user.email;
+    registerError.classList.add('d-none');
+    registerForm.classList.remove('was-validated');
+    if (userSubmitBtn) userSubmitBtn.textContent = 'Update Account';
+    if (userCancelEditBtn) userCancelEditBtn.classList.remove('d-none');
+    registerForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   function resetParticipantFormState() {
     if (!participantForm) return;
@@ -174,8 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (participantCancelEditBtn) participantCancelEditBtn.classList.add('d-none');
   }
 
-  function startParticipantEdit(participantId) {
-    const participant = Auth.getParticipants().find(p => p.id === participantId);
+  async function startParticipantEdit(participantId) {
+    const participants = await Auth.getParticipants();
+    const participant = participants.find((p) => String(p.id) === String(participantId));
     if (!participant || !participantForm) return;
 
     document.getElementById('participantFirstName').value = participant.firstName || '';
@@ -196,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (registerForm) {
-    registerForm.addEventListener('submit', function (e) {
+    registerForm.addEventListener('submit', async function (e) {
       e.preventDefault();
 
       const form = this;
@@ -205,14 +266,30 @@ document.addEventListener('DOMContentLoaded', () => {
       // Field-level HTML5 validation first.
       if (!form.checkValidity()) return;
 
-      // Stash form data and open the confirmation modal instead of creating immediately.
-      pendingUser = {
-        name:     document.getElementById('regName').value,
-        email:    document.getElementById('regEmail').value,
-        password: document.getElementById('regPassword').value,
-        role:     document.getElementById('regRole').value
+      const fullName = `${regFirstNameEl.value} ${regLastNameEl.value}`.trim();
+      const payload = {
+        name: fullName,
+        email: regEmailEl.value,
+        password: regPasswordEl.value,
+        role: regRoleEl.value
       };
 
+      if (editingUserEmail) {
+        const result = await Auth.updateUser(editingUserEmail, payload);
+        if (result.success) {
+          resetUserFormState();
+          toastMsgEl.textContent = `Success: Account for ${fullName} updated.`;
+          bootstrap.Toast.getOrCreateInstance(toastEl).show();
+          await renderUsersTable();
+        } else {
+          registerError.textContent = result.message;
+          registerError.classList.remove('d-none');
+        }
+        return;
+      }
+
+      // Create mode: open confirmation modal before persisting.
+      pendingUser = payload;
       populateModalSummary(pendingUser);
       confirmModal.show();
     });
@@ -223,8 +300,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  if (userCancelEditBtn) {
+    userCancelEditBtn.addEventListener('click', () => {
+      resetUserFormState();
+    });
+  }
+
   if (participantForm) {
-    participantForm.addEventListener('submit', function (e) {
+    participantForm.addEventListener('submit', async function (e) {
       e.preventDefault();
 
       const form = this;
@@ -245,8 +328,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const result = editingParticipantId
         ? Auth.updateParticipant(editingParticipantId, payload)
         : Auth.addParticipant(payload);
+      const resolved = await result;
 
-      if (result.success) {
+      if (resolved.success) {
         const isEditing = Boolean(editingParticipantId);
         resetParticipantFormState();
 
@@ -255,9 +339,9 @@ document.addEventListener('DOMContentLoaded', () => {
           : 'Participant record saved successfully.';
         bootstrap.Toast.getOrCreateInstance(toastEl).show();
 
-        renderParticipantsTable();
+        await renderParticipantsTable();
       } else {
-        participantError.textContent = result.message;
+        participantError.textContent = resolved.message;
         participantError.classList.remove('d-none');
       }
     });
@@ -276,18 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Confirm button (inside modal) ─────────────────────────────────────────
 
   if (confirmBtn) {
-    confirmBtn.addEventListener('click', () => {
+    confirmBtn.addEventListener('click', async () => {
       if (!pendingUser) return;
 
-      const result = Auth.addUser(pendingUser);
+      const result = await Auth.addUser(pendingUser);
 
       confirmModal.hide();
 
       if (result.success) {
         // Reset form state.
-        registerForm.reset();
-        registerForm.classList.remove('was-validated');
-        registerError.classList.add('d-none');
+        resetUserFormState();
 
         // Show success toast.
         const roleName = ROLE_LABEL[pendingUser.role] || pendingUser.role;
@@ -295,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bootstrap.Toast.getOrCreateInstance(toastEl).show();
 
         // Refresh the users table immediately.
-        renderUsersTable();
+        await renderUsersTable();
 
       } else {
         // Duplicate email — surface the error on the form (modal is already closing).
@@ -316,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
-  renderUsersTable();
-  renderParticipantsTable();
+  await renderUsersTable();
+  await renderParticipantsTable();
 
 });
