@@ -200,14 +200,40 @@
 
     <!-- ── PARTICIPANT Panel ── -->
     <section id="panel-PARTICIPANT" class="d-none">
-      <div class="card shadow-sm">
+      <div class="card shadow-sm mb-4">
         <div class="card-header bg-success text-white fw-semibold">
-          My Opportunities
+          My Profile
         </div>
         <div class="card-body">
-          <p class="card-text text-muted mb-0">
-            Your matched resource opportunities and program listings will appear here in Sprint 2.
-          </p>
+          <p class="text-muted small mb-3">Update your participant's interests, capabilities, and health concerns so we can match the best opportunities.</p>
+          <form id="guardianForm" novalidate>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Interests</label>
+              <textarea id="guardianInterests" class="form-control" rows="2" placeholder="e.g. painting, music, outdoor activities" required></textarea>
+              <div class="invalid-feedback">Please enter at least one interest.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Capabilities</label>
+              <textarea id="guardianCapabilities" class="form-control" rows="2" placeholder="e.g. can work in groups, comfortable with light physical activity" required></textarea>
+              <div class="invalid-feedback">Please describe capabilities.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Health Concerns</label>
+              <textarea id="guardianHealthConcerns" class="form-control" rows="2" placeholder="e.g. peanut allergy, requires wheelchair access"></textarea>
+            </div>
+            <div id="guardianError" class="alert alert-danger d-none"></div>
+            <div id="guardianSuccess" class="alert alert-success d-none">Profile updated successfully!</div>
+            <button type="submit" class="btn btn-success">Save Profile</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white fw-semibold">
+          Matched Opportunities
+        </div>
+        <div class="card-body" id="matchedOpportunities">
+          <p class="text-muted mb-0">Fill out your profile above to see matched opportunities.</p>
         </div>
       </div>
     </section>
@@ -316,6 +342,7 @@
     });
   </script>
   <script src="js/admin.js"></script>
+  <script src="js/guardian.js"></script>
 </body>
 
 </html>
