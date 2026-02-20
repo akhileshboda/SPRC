@@ -13,6 +13,7 @@ Kindred is a role-based web application designed to connect special-needs partic
 - **Role-Based Access Control (RBAC)** — dynamic dashboard content based on user role (`ADMIN`, `VOLUNTEER`, `PARTICIPANT`)
 - **Account Management** — administrators can register new staff/volunteers with a confirmation modal and simulated welcome email notification
 - **User Table** — live System Users table with role badges and per-row delete functionality
+- **Participant Records (Req 201)** — administrators can enter participant information, special needs, and contact details, then view/manage persistent participant records
 - **Forgot Password** — simulated password reset flow on the login page
 
 ---
@@ -42,6 +43,16 @@ login.html
 3. The dashboard will render content specific to that role
 
 To reset all data back to seed users, clear `localStorage` in your browser's DevTools (`Application → Local Storage → Clear`).
+
+### Test: Participant Records (Administrator Story 201)
+
+1. Sign in as admin:
+   - Email: `lisawilliams@kindred.com`
+   - Password: `lisa123`
+2. In the **Management Console**, fill out **Create Participant Record**.
+3. Click **Save Participant Record**.
+4. Verify the new entry appears in the **Participant Records** table.
+5. Refresh the page; verify the record is still present (localStorage persistence).
 
 ---
 

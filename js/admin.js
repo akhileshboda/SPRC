@@ -66,6 +66,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderParticipantsTable() {
+    const tbody = document.getElementById('participantsTableBody');
+    if (!tbody) return;
+
+    const participants = Auth.getParticipants();
+    if (participants.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = participants.map(p => `
+      <tr>
+        <td class="ps-3">
+          <div class="fw-semibold">${escapeHtml(p.fullName)}</div>
+          <div class="text-muted small">Age ${escapeHtml(p.age)}</div>
+        </td>
+        <td>${escapeHtml(p.guardian)}</td>
+        <td class="small text-muted">
+          <div>${escapeHtml(p.contactEmail)}</div>
+          <div>${escapeHtml(p.contactPhone)}</div>
+        </td>
+        <td class="small">
+          <div class="fw-semibold">Needs</div>
+          <div class="text-muted">${escapeHtml(p.specialNeeds)}</div>
+          ${p.notes ? `<div class="mt-1"><span class="fw-semibold">Notes:</span> ${escapeHtml(p.notes)}</div>` : ''}
+        </td>
+        <td class="text-muted small">${escapeHtml(p.dateAdded)}</td>
+        <td class="pe-3" style="width: 1%; white-space: nowrap;">
+          <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(p.id)}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('button[data-participant-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const result = Auth.removeParticipant(btn.dataset.participantId);
+        if (result.success) {
+          renderParticipantsTable();
+        }
+      });
+    });
+  }
+
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
     return String(str)
@@ -105,6 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const registerError = document.getElementById('registerError');
   const toastEl       = document.getElementById('adminToast');
   const toastMsgEl    = document.getElementById('adminToastMsg');
+  const participantForm = document.getElementById('participantForm');
+  const participantError = document.getElementById('participantError');
 
   if (registerForm) {
     registerForm.addEventListener('submit', function (e) {
@@ -131,6 +176,45 @@ document.addEventListener('DOMContentLoaded', () => {
     // Hide the error banner when the user starts correcting the form.
     registerForm.addEventListener('input', () => {
       registerError.classList.add('d-none');
+    });
+  }
+
+  if (participantForm) {
+    participantForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const form = this;
+      form.classList.add('was-validated');
+      if (!form.checkValidity()) return;
+
+      const result = Auth.addParticipant({
+        firstName: document.getElementById('participantFirstName').value,
+        lastName: document.getElementById('participantLastName').value,
+        age: document.getElementById('participantAge').value,
+        guardian: document.getElementById('participantGuardian').value,
+        contactEmail: document.getElementById('participantEmail').value,
+        contactPhone: document.getElementById('participantPhone').value,
+        specialNeeds: document.getElementById('participantSpecialNeeds').value,
+        notes: document.getElementById('participantNotes').value
+      });
+
+      if (result.success) {
+        form.reset();
+        form.classList.remove('was-validated');
+        participantError.classList.add('d-none');
+
+        toastMsgEl.textContent = 'Participant record saved successfully.';
+        bootstrap.Toast.getOrCreateInstance(toastEl).show();
+
+        renderParticipantsTable();
+      } else {
+        participantError.textContent = result.message;
+        participantError.classList.remove('d-none');
+      }
+    });
+
+    participantForm.addEventListener('input', () => {
+      participantError.classList.add('d-none');
     });
   }
 
@@ -178,5 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Init ──────────────────────────────────────────────────────────────────
 
   renderUsersTable();
+  renderParticipantsTable();
 
 });

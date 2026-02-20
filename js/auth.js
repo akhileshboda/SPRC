@@ -8,6 +8,7 @@ const Auth = (() => {
 
   const SESSION_KEY = 'kindred_session';
   const USERS_KEY   = 'kindred_users';
+  const PARTICIPANTS_KEY = 'kindred_participants';
 
   // Seed data — written to localStorage on first load only.
   // Replace addUser() / _getAllUsers() with fetch() calls when a backend is added.
@@ -24,10 +25,24 @@ const Auth = (() => {
     }
   }
 
+  function _initParticipants() {
+    if (!localStorage.getItem(PARTICIPANTS_KEY)) {
+      localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify([]));
+    }
+  }
+
   // Returns the full user array (passwords included) — for internal use only.
   function _getAllUsers() {
     try {
       return JSON.parse(localStorage.getItem(USERS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function _getAllParticipants() {
+    try {
+      return JSON.parse(localStorage.getItem(PARTICIPANTS_KEY)) || [];
     } catch {
       return [];
     }
@@ -42,8 +57,25 @@ const Auth = (() => {
   function getSession() {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+
+      const session = JSON.parse(raw);
+      const isValidSession =
+        session
+        && typeof session.email === 'string'
+        && session.email.trim() !== ''
+        && typeof session.role === 'string'
+        && session.role.trim() !== '';
+
+      // Clean up malformed/legacy sessions to prevent redirect loops.
+      if (!isValidSession) {
+        localStorage.removeItem(SESSION_KEY);
+        return null;
+      }
+
+      return session;
     } catch {
+      localStorage.removeItem(SESSION_KEY);
       return null;
     }
   }
@@ -160,8 +192,133 @@ e   * @returns {{ success: boolean, message?: string }}
     return { success: true };
   }
 
+  /**
+   * Returns all participant records (newest first).
+   * @returns {{ id: string, firstName: string, lastName: string, fullName: string, age: number, guardian: string, contactEmail: string, contactPhone: string, specialNeeds: string, notes: string, dateAdded: string }[]}
+   */
+  function getParticipants() {
+    return _getAllParticipants()
+      .slice()
+      .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))
+      .map(({
+        id,
+        name,
+        firstName,
+        lastName,
+        age,
+        guardian,
+        contactEmail,
+        contactPhone,
+        specialNeeds,
+        notes,
+        dateAdded
+      }) => ({
+        id,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        fullName: `${firstName || ''} ${lastName || ''}`.trim() || name || '',
+        age,
+        guardian,
+        contactEmail,
+        contactPhone,
+        specialNeeds,
+        notes: notes || '',
+        dateAdded
+      }));
+  }
+
+  /**
+   * Adds a participant record for admin tracking.
+   * Duplicate check is based on participant name + guardian + contact email.
+   * @param {{ firstName?: string, lastName?: string, name?: string, age: number, guardian: string, contactEmail: string, contactPhone: string, specialNeeds: string, notes?: string }} participant
+   * @returns {{ success: boolean, message?: string }}
+   */
+  function addParticipant({
+    firstName,
+    lastName,
+    name,
+    age,
+    guardian,
+    contactEmail,
+    contactPhone,
+    specialNeeds,
+    notes = ''
+  }) {
+    const participants = _getAllParticipants();
+    const resolvedFirstName = (firstName || '').trim();
+    const resolvedLastName = (lastName || '').trim();
+    const fallbackName = (name || '').trim();
+    const fullName = `${resolvedFirstName} ${resolvedLastName}`.trim() || fallbackName;
+    const normalizedName = fullName.toLowerCase();
+    const normalizedGuardian = guardian.trim().toLowerCase();
+    const normalizedEmail = contactEmail.trim().toLowerCase();
+
+    const duplicate = participants.some(p => {
+      const existingFullName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || (p.name || '');
+      return existingFullName.trim().toLowerCase() === normalizedName
+        && (p.guardian || '').trim().toLowerCase() === normalizedGuardian
+        && (p.contactEmail || '').trim().toLowerCase() === normalizedEmail;
+    });
+
+    if (duplicate) {
+      return {
+        success: false,
+        message: 'A participant record with the same participant, guardian, and contact email already exists.'
+      };
+    }
+
+    participants.push({
+      id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      name: fullName,
+      age: Number(age),
+      guardian: guardian.trim(),
+      contactEmail: normalizedEmail,
+      contactPhone: contactPhone.trim(),
+      specialNeeds: specialNeeds.trim(),
+      notes: notes.trim(),
+      createdAtMs: Date.now(),
+      dateAdded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    });
+
+    localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify(participants));
+    return { success: true };
+  }
+
+  /**
+   * Removes a participant record by id.
+   * @param {string} id
+   * @returns {{ success: boolean, message?: string }}
+   */
+  function removeParticipant(id) {
+    const participants = _getAllParticipants();
+    const filtered = participants.filter(p => p.id !== id);
+
+    if (filtered.length === participants.length) {
+      return { success: false, message: 'Participant record not found.' };
+    }
+
+    localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify(filtered));
+    return { success: true };
+  }
+
   // Seed the user store immediately when the script loads.
   _initUsers();
+  _initParticipants();
 
-  return { getSession, setSession, clearSession, login, requireAuth, logout, getUsers, addUser, removeUser };
+  return {
+    getSession,
+    setSession,
+    clearSession,
+    login,
+    requireAuth,
+    logout,
+    getUsers,
+    addUser,
+    removeUser,
+    getParticipants,
+    addParticipant,
+    removeParticipant
+  };
 })();
