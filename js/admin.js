@@ -94,15 +94,25 @@ document.addEventListener('DOMContentLoaded', () => {
         </td>
         <td class="text-muted small">${escapeHtml(p.dateAdded)}</td>
         <td class="pe-3" style="width: 1%; white-space: nowrap;">
+          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(p.id)}">Edit</button>
           <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(p.id)}">Delete</button>
         </td>
       </tr>
     `).join('');
 
+    tbody.querySelectorAll('button[data-participant-edit-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        startParticipantEdit(btn.dataset.participantEditId);
+      });
+    });
+
     tbody.querySelectorAll('button[data-participant-id]').forEach(btn => {
       btn.addEventListener('click', () => {
         const result = Auth.removeParticipant(btn.dataset.participantId);
         if (result.success) {
+          if (editingParticipantId && editingParticipantId === btn.dataset.participantId) {
+            resetParticipantFormState();
+          }
           renderParticipantsTable();
         }
       });
@@ -150,6 +160,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const toastMsgEl    = document.getElementById('adminToastMsg');
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
+  const participantSubmitBtn = document.getElementById('participantSubmitBtn');
+  const participantCancelEditBtn = document.getElementById('participantCancelEditBtn');
+  let editingParticipantId = null;
+
+  function resetParticipantFormState() {
+    if (!participantForm) return;
+    participantForm.reset();
+    participantForm.classList.remove('was-validated');
+    participantError.classList.add('d-none');
+    editingParticipantId = null;
+    if (participantSubmitBtn) participantSubmitBtn.textContent = 'Save Participant Record';
+    if (participantCancelEditBtn) participantCancelEditBtn.classList.add('d-none');
+  }
+
+  function startParticipantEdit(participantId) {
+    const participant = Auth.getParticipants().find(p => p.id === participantId);
+    if (!participant || !participantForm) return;
+
+    document.getElementById('participantFirstName').value = participant.firstName || '';
+    document.getElementById('participantLastName').value = participant.lastName || '';
+    document.getElementById('participantAge').value = participant.age || '';
+    document.getElementById('participantGuardian').value = participant.guardian || '';
+    document.getElementById('participantEmail').value = participant.contactEmail || '';
+    document.getElementById('participantPhone').value = participant.contactPhone || '';
+    document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
+    document.getElementById('participantNotes').value = participant.notes || '';
+
+    editingParticipantId = participant.id;
+    participantError.classList.add('d-none');
+    participantForm.classList.remove('was-validated');
+    if (participantSubmitBtn) participantSubmitBtn.textContent = 'Update Participant Record';
+    if (participantCancelEditBtn) participantCancelEditBtn.classList.remove('d-none');
+    participantForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   if (registerForm) {
     registerForm.addEventListener('submit', function (e) {
@@ -187,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
       form.classList.add('was-validated');
       if (!form.checkValidity()) return;
 
-      const result = Auth.addParticipant({
+      const payload = {
         firstName: document.getElementById('participantFirstName').value,
         lastName: document.getElementById('participantLastName').value,
         age: document.getElementById('participantAge').value,
@@ -196,14 +240,19 @@ document.addEventListener('DOMContentLoaded', () => {
         contactPhone: document.getElementById('participantPhone').value,
         specialNeeds: document.getElementById('participantSpecialNeeds').value,
         notes: document.getElementById('participantNotes').value
-      });
+      };
+
+      const result = editingParticipantId
+        ? Auth.updateParticipant(editingParticipantId, payload)
+        : Auth.addParticipant(payload);
 
       if (result.success) {
-        form.reset();
-        form.classList.remove('was-validated');
-        participantError.classList.add('d-none');
+        const isEditing = Boolean(editingParticipantId);
+        resetParticipantFormState();
 
-        toastMsgEl.textContent = 'Participant record saved successfully.';
+        toastMsgEl.textContent = isEditing
+          ? 'Participant record updated successfully.'
+          : 'Participant record saved successfully.';
         bootstrap.Toast.getOrCreateInstance(toastEl).show();
 
         renderParticipantsTable();
@@ -215,6 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     participantForm.addEventListener('input', () => {
       participantError.classList.add('d-none');
+    });
+  }
+
+  if (participantCancelEditBtn) {
+    participantCancelEditBtn.addEventListener('click', () => {
+      resetParticipantFormState();
     });
   }
 

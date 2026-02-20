@@ -287,6 +287,71 @@ e   * @returns {{ success: boolean, message?: string }}
   }
 
   /**
+   * Updates an existing participant record by id.
+   * Duplicate check excludes the record being edited.
+   * @param {string} id
+   * @param {{ firstName?: string, lastName?: string, name?: string, age: number, guardian: string, contactEmail: string, contactPhone: string, specialNeeds: string, notes?: string }} participant
+   * @returns {{ success: boolean, message?: string }}
+   */
+  function updateParticipant(id, {
+    firstName,
+    lastName,
+    name,
+    age,
+    guardian,
+    contactEmail,
+    contactPhone,
+    specialNeeds,
+    notes = ''
+  }) {
+    const participants = _getAllParticipants();
+    const idx = participants.findIndex(p => p.id === id);
+    if (idx === -1) {
+      return { success: false, message: 'Participant record not found.' };
+    }
+
+    const resolvedFirstName = (firstName || '').trim();
+    const resolvedLastName = (lastName || '').trim();
+    const fallbackName = (name || '').trim();
+    const fullName = `${resolvedFirstName} ${resolvedLastName}`.trim() || fallbackName;
+    const normalizedName = fullName.toLowerCase();
+    const normalizedGuardian = guardian.trim().toLowerCase();
+    const normalizedEmail = contactEmail.trim().toLowerCase();
+
+    const duplicate = participants.some((p, pIdx) => {
+      if (pIdx === idx) return false;
+      const existingFullName = `${p.firstName || ''} ${p.lastName || ''}`.trim() || (p.name || '');
+      return existingFullName.trim().toLowerCase() === normalizedName
+        && (p.guardian || '').trim().toLowerCase() === normalizedGuardian
+        && (p.contactEmail || '').trim().toLowerCase() === normalizedEmail;
+    });
+
+    if (duplicate) {
+      return {
+        success: false,
+        message: 'A participant record with the same participant, guardian, and contact email already exists.'
+      };
+    }
+
+    const existing = participants[idx];
+    participants[idx] = {
+      ...existing,
+      firstName: resolvedFirstName,
+      lastName: resolvedLastName,
+      name: fullName,
+      age: Number(age),
+      guardian: guardian.trim(),
+      contactEmail: normalizedEmail,
+      contactPhone: contactPhone.trim(),
+      specialNeeds: specialNeeds.trim(),
+      notes: notes.trim()
+    };
+
+    localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify(participants));
+    return { success: true };
+  }
+
+  /**
    * Removes a participant record by id.
    * @param {string} id
    * @returns {{ success: boolean, message?: string }}
@@ -319,6 +384,7 @@ e   * @returns {{ success: boolean, message?: string }}
     removeUser,
     getParticipants,
     addParticipant,
+    updateParticipant,
     removeParticipant
   };
 })();
