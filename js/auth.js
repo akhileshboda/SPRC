@@ -32,8 +32,30 @@ const Auth = (() => {
   ];
 
   function initStores() {
-    if (!localStorage.getItem(USERS_KEY)) {
+    const rawUsers = localStorage.getItem(USERS_KEY);
+    if (!rawUsers) {
       localStorage.setItem(USERS_KEY, JSON.stringify(SEED_USERS));
+    } else {
+      let users = [];
+      try {
+        users = JSON.parse(rawUsers) || [];
+      } catch {
+        users = [];
+      }
+
+      // Keep existing data, but guarantee baseline seeded logins exist.
+      const existingEmails = new Set(users.map((u) => String(u.email || '').toLowerCase()));
+      let changed = false;
+      SEED_USERS.forEach((seedUser) => {
+        if (!existingEmails.has(seedUser.email.toLowerCase())) {
+          users.push(seedUser);
+          changed = true;
+        }
+      });
+
+      if (changed || !Array.isArray(users)) {
+        localStorage.setItem(USERS_KEY, JSON.stringify(Array.isArray(users) ? users : SEED_USERS));
+      }
     }
     if (!localStorage.getItem(PARTICIPANTS_KEY)) {
       localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify([]));
