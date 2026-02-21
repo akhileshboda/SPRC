@@ -37,8 +37,8 @@ login.html
 ### Test: Participant Records (Administrator Story 201)
 
 1. Sign in as admin:
-   - Email: `admin@kindred.local`
-   - Password: `admin123`
+   - Email: `lisawilliams@kindred.org`
+   - Password: `lisa123`
 2. In the **Management Console**, fill out **Create Participant Record**.
 3. Click **Save Participant Record**.
 4. Verify the new entry appears in the **Participant Records** table.

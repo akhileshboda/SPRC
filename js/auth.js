@@ -9,9 +9,9 @@ const Auth = (() => {
 
   const SEED_USERS = [
     {
-      name: 'System Administrator',
-      email: 'admin@kindred.local',
-      password: 'admin123',
+      name: 'Lisa Williams',
+      email: 'lisawilliams@kindred.org',
+      password: 'lisa123',
       role: 'ADMIN',
       dateAdded: 'Jan 1, 2025'
     },
@@ -127,6 +127,14 @@ const Auth = (() => {
   async function logout() {
     localStorage.removeItem(SESSION_KEY);
     window.location.replace('login.html');
+  }
+
+  async function clearLocalData({ reseed = true } = {}) {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(USERS_KEY);
+    localStorage.removeItem(PARTICIPANTS_KEY);
+    if (reseed) initStores();
+    return { success: true };
   }
 
   async function getUsers() {
@@ -294,6 +302,7 @@ const Auth = (() => {
     login,
     requireAuth,
     logout,
+    clearLocalData,
     getUsers,
     addUser,
     updateUser,
