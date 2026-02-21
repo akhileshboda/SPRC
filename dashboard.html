@@ -6,227 +6,328 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kindred – Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<body>
+<body class="d-flex flex-column" style="min-height: 100vh;">
 
-  <!-- ════════════════ NAVBAR ════════════════ -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-      <span class="navbar-brand fw-bold">Kindred</span>
-      <div class="ms-auto d-flex align-items-center gap-3">
-        <!-- Populated by JS with the logged-in user's email and role badge -->
-        <span id="navUserInfo" class="text-white-50 small"></span>
-        <button id="logoutBtn" class="btn btn-outline-light btn-sm">Logout</button>
+  <!-- ════════════════ MOBILE TOP BAR (visible only <768px) ════════════════ -->
+  <header id="mobileTopBar" class="d-flex d-md-none align-items-center px-3 py-2 bg-dark">
+    <button class="btn btn-outline-light btn-sm me-2"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#sidebarOffcanvas"
+            aria-controls="sidebarOffcanvas"
+            aria-label="Open navigation">
+      <i class="bi bi-list fs-5"></i>
+    </button>
+    <span class="text-white fw-bold">Kindred</span>
+  </header>
+
+  <!-- ════════════════ APP SHELL ════════════════ -->
+  <div id="appShell" class="d-flex flex-grow-1">
+
+    <!-- ─── DESKTOP SIDEBAR (always visible ≥768px) ─── -->
+    <nav id="desktopSidebar"
+         class="d-none d-md-flex flex-column bg-dark text-white"
+         style="width: 260px; min-width: 260px;"
+         aria-label="Main navigation">
+      <div class="sidebar-brand">Kindred</div>
+      <!-- Nav links + user block are injected here by sidebar.js initSidebar() -->
+    </nav>
+
+    <!-- ─── MOBILE OFFCANVAS SIDEBAR ─── -->
+    <div class="offcanvas offcanvas-start bg-dark text-white"
+         tabindex="-1"
+         id="sidebarOffcanvas"
+         aria-labelledby="sidebarOffcanvasLabel"
+         style="width: 260px;">
+      <div class="offcanvas-header border-bottom border-secondary">
+        <span class="fw-bold text-white fs-5" id="sidebarOffcanvasLabel">Kindred</span>
+        <button type="button"
+                class="btn-close btn-close-white"
+                data-bs-dismiss="offcanvas"
+                aria-label="Close navigation"></button>
+      </div>
+      <div class="offcanvas-body d-flex flex-column p-0">
+        <!-- Nav links + user block are injected here by sidebar.js initSidebar() -->
       </div>
     </div>
-  </nav>
 
-  <!-- ════════════════ MAIN CONTENT ════════════════ -->
-  <main class="container my-5">
+    <!-- ─── MAIN CONTENT AREA ─── -->
+    <main id="mainContent" class="flex-grow-1 p-4">
 
-    <!-- Welcome heading (populated by JS) -->
-    <h4 id="welcomeHeading" class="mb-4 text-secondary"></h4>
+      <!-- ══ SECTION: Dashboard (shown by default) ══ -->
+      <section id="section-dashboard" class="content-section">
 
-    <!-- ── ADMIN Panel ── -->
-    <section id="panel-ADMIN" class="d-none">
+        <h4 id="welcomeHeading" class="mb-4 text-secondary"></h4>
 
-      <h5 class="text-danger fw-semibold mb-3">Management Console</h5>
-
-      <!-- Participant Records form -->
-      <div class="card shadow-sm mb-4">
-        <div class="card-header bg-success text-white fw-semibold">
-          Create Participant Record
-        </div>
-        <div class="card-body">
-          <div id="participantError" class="alert alert-danger d-none" role="alert"></div>
-          <form id="participantForm" novalidate>
-            <div class="row g-3">
-              <div class="col-md-3">
-                <label for="participantFirstName" class="form-label">Participant First Name</label>
-                <input type="text" class="form-control" id="participantFirstName" placeholder="e.g. Jordan" required>
-                <div class="invalid-feedback">Participant first name is required.</div>
-              </div>
-              <div class="col-md-3">
-                <label for="participantLastName" class="form-label">Participant Last Name</label>
-                <input type="text" class="form-control" id="participantLastName" placeholder="e.g. Lee" required>
-                <div class="invalid-feedback">Participant last name is required.</div>
-              </div>
-              <div class="col-md-3">
-                <label for="participantAge" class="form-label">Age</label>
-                <input type="number" class="form-control" id="participantAge" min="1" max="120" placeholder="e.g. 12" required>
-                <div class="invalid-feedback">Please provide a valid age.</div>
-              </div>
-              <div class="col-md-3">
-                <label for="participantGuardian" class="form-label">Parent / Guardian</label>
-                <input type="text" class="form-control" id="participantGuardian" placeholder="e.g. April Lee" required>
-                <div class="invalid-feedback">Parent/guardian name is required.</div>
-              </div>
-              <div class="col-md-6">
-                <label for="participantEmail" class="form-label">Contact Email</label>
-                <input type="email" class="form-control" id="participantEmail" placeholder="guardian@email.com" required>
-                <div class="invalid-feedback">A valid contact email is required.</div>
-              </div>
-              <div class="col-md-6">
-                <label for="participantPhone" class="form-label">Contact Phone</label>
-                <input type="tel" class="form-control" id="participantPhone" placeholder="e.g. (555) 555-0101" required>
-                <div class="invalid-feedback">Contact phone is required.</div>
-              </div>
-              <div class="col-12">
-                <label for="participantSpecialNeeds" class="form-label">Special Needs</label>
-                <textarea class="form-control" id="participantSpecialNeeds" rows="3"
-                  placeholder="Describe accommodations, support requirements, and needs..." required></textarea>
-                <div class="invalid-feedback">Special needs details are required.</div>
-              </div>
-              <div class="col-12">
-                <label for="participantNotes" class="form-label">Additional Notes (optional)</label>
-                <textarea class="form-control" id="participantNotes" rows="2"
-                  placeholder="Interests, capabilities, health concerns, or other notes"></textarea>
-              </div>
-              <div class="col-12">
-                <button type="submit" class="btn btn-success" id="participantSubmitBtn">Save Participant Record</button>
-                <button type="button" class="btn btn-outline-secondary ms-2 d-none" id="participantCancelEditBtn">Cancel Edit</button>
-              </div>
+        <!-- ADMIN: welcome card directing to sidebar sections -->
+        <div id="panel-ADMIN" class="d-none">
+          <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
+            <div class="card-body text-muted">
+              Select <strong>Participants</strong> or <strong>Users</strong> from the sidebar to manage records.
             </div>
-          </form>
+          </div>
         </div>
-      </div>
 
-      <!-- Participant Records table -->
-      <div class="card shadow-sm mb-4">
-        <div class="card-header bg-success-subtle fw-semibold">
-          Participant Records
+        <!-- PARTICIPANT: My Opportunities card -->
+        <div id="panel-PARTICIPANT" class="d-none">
+          <div class="card shadow-sm">
+            <div class="card-header bg-success text-white fw-semibold">
+              My Opportunities
+            </div>
+            <div class="card-body">
+              <p class="card-text text-muted mb-0">
+                Your matched resource opportunities and program listings will appear here in Sprint 2.
+              </p>
+            </div>
+          </div>
         </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th scope="col" class="ps-3">Participant</th>
-                <th scope="col">Guardian</th>
-                <th scope="col">Contact</th>
-                <th scope="col">Special Needs</th>
-                <th scope="col">Date Added</th>
-                <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="participantsTableBody"></tbody>
-          </table>
+
+        <!-- VOLUNTEER: Volunteer Portal card -->
+        <div id="panel-VOLUNTEER" class="d-none">
+          <div class="card shadow-sm">
+            <div class="card-header bg-info text-white fw-semibold">
+              Volunteer Portal
+            </div>
+            <div class="card-body">
+              <p class="card-text text-muted mb-0">
+                Volunteer scheduling, assignments, and impact tracking will appear here in Sprint 2.
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- Register New Staff/Volunteer form -->
-      <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white fw-semibold">
-          Register New Staff / Volunteer
+      </section>
+
+      <!-- ══ SECTION: Participants (ADMIN only) ══ -->
+      <section id="section-participants" class="content-section d-none">
+
+        <!-- LIST sub-view (default) -->
+        <div id="view-participants-list">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="text-success fw-semibold mb-0">Participant Records</h5>
+            <button id="newParticipantBtn" class="btn btn-success btn-sm" type="button">
+              <i class="bi bi-plus-lg me-1"></i>New Participant
+            </button>
+          </div>
+          <div class="card shadow-sm">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col" class="ps-3">Participant</th>
+                    <th scope="col">Guardian</th>
+                    <th scope="col">Contact</th>
+                    <th scope="col">Special Needs</th>
+                    <th scope="col">Date Added</th>
+                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="participantsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div class="card-body">
 
-          <!-- Inline error (duplicate email) -->
-          <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
+        <!-- FORM sub-view (hidden by default) -->
+        <div id="view-participants-form" class="d-none">
+          <div class="d-flex align-items-center mb-3">
+            <button id="backToParticipantsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
+              <i class="bi bi-arrow-left me-1"></i>Back
+            </button>
+            <h5 class="text-success fw-semibold mb-0" id="participantFormTitle">New Participant</h5>
+          </div>
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div id="participantError" class="alert alert-danger d-none" role="alert"></div>
+              <form id="participantForm" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label for="participantFirstName" class="form-label">Participant First Name</label>
+                    <input type="text" class="form-control" id="participantFirstName" placeholder="e.g. Jordan" required>
+                    <div class="invalid-feedback">Participant first name is required.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="participantLastName" class="form-label">Participant Last Name</label>
+                    <input type="text" class="form-control" id="participantLastName" placeholder="e.g. Lee" required>
+                    <div class="invalid-feedback">Participant last name is required.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="participantAge" class="form-label">Age</label>
+                    <input type="number" class="form-control" id="participantAge" min="1" max="120" placeholder="e.g. 12" required>
+                    <div class="invalid-feedback">Please provide a valid age.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="participantGuardian" class="form-label">Parent / Guardian</label>
+                    <input type="text" class="form-control" id="participantGuardian" placeholder="e.g. April Lee" required>
+                    <div class="invalid-feedback">Parent/guardian name is required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="participantEmail" class="form-label">Contact Email</label>
+                    <input type="email" class="form-control" id="participantEmail" placeholder="guardian@email.com" required>
+                    <div class="invalid-feedback">A valid contact email is required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="participantPhone" class="form-label">Contact Phone</label>
+                    <input type="tel" class="form-control" id="participantPhone" placeholder="e.g. (555) 555-0101" required>
+                    <div class="invalid-feedback">Contact phone is required.</div>
+                  </div>
+                  <div class="col-12">
+                    <label for="participantSpecialNeeds" class="form-label">Special Needs</label>
+                    <textarea class="form-control" id="participantSpecialNeeds" rows="3"
+                      placeholder="Describe accommodations, support requirements, and needs..." required></textarea>
+                    <div class="invalid-feedback">Special needs details are required.</div>
+                  </div>
+                  <div class="col-12">
+                    <label for="participantNotes" class="form-label">Additional Notes (optional)</label>
+                    <textarea class="form-control" id="participantNotes" rows="2"
+                      placeholder="Interests, capabilities, health concerns, or other notes"></textarea>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-success" id="participantSubmitBtn">Save Participant Record</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
 
-          <form id="registerForm" novalidate>
-            <div class="row g-3">
+      </section>
 
-              <div class="col-md-3">
-                <label for="regFirstName" class="form-label">First Name</label>
-                <input type="text" class="form-control" id="regFirstName" placeholder="e.g. Amy" required>
-                <div class="invalid-feedback">First name is required.</div>
-              </div>
+      <!-- ══ SECTION: Users (ADMIN only) ══ -->
+      <section id="section-users" class="content-section d-none">
 
-              <div class="col-md-3">
-                <label for="regLastName" class="form-label">Last Name</label>
-                <input type="text" class="form-control" id="regLastName" placeholder="e.g. Martin" required>
-                <div class="invalid-feedback">Last name is required.</div>
-              </div>
+        <!-- LIST sub-view (default) -->
+        <div id="view-users-list">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="text-primary fw-semibold mb-0">System Users</h5>
+            <button id="newUserBtn" class="btn btn-primary btn-sm" type="button">
+              <i class="bi bi-plus-lg me-1"></i>New User
+            </button>
+          </div>
+          <div class="card shadow-sm">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col" class="ps-3">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Date Added</th>
+                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
 
-              <div class="col-md-6">
-                <label for="regEmail" class="form-label">Email Address</label>
-                <input type="email" class="form-control" id="regEmail" placeholder="email@example.com" required>
-                <div class="invalid-feedback">A valid email address is required.</div>
-              </div>
+        <!-- FORM sub-view (hidden by default) -->
+        <div id="view-users-form" class="d-none">
+          <div class="d-flex align-items-center mb-3">
+            <button id="backToUsersBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
+              <i class="bi bi-arrow-left me-1"></i>Back
+            </button>
+            <h5 class="text-primary fw-semibold mb-0" id="userFormTitle">New User</h5>
+          </div>
+          <div class="card shadow-sm">
+            <div class="card-body">
 
-              <div class="col-md-6">
-                <label for="regPassword" class="form-label">Temporary Password</label>
-                <input type="password" class="form-control" id="regPassword" placeholder="Temporary password" required>
-                <div class="invalid-feedback">Password is required.</div>
-              </div>
+              <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
 
-              <div class="col-md-6">
-                <label for="regRole" class="form-label">Role</label>
-                <select class="form-select" id="regRole" required>
-                  <option value="" disabled selected>Select a role&hellip;</option>
-                  <option value="ADMIN">Administrator &ndash; Full system access</option>
-                  <option value="VOLUNTEER">Volunteer &ndash; Events and task updates</option>
-                  <option value="PARTICIPANT">Participant / Guardian &ndash; Personal profile and opportunities</option>
-                </select>
-                <div class="invalid-feedback">Please select a role.</div>
-              </div>
+              <form id="registerForm" novalidate>
+                <div class="row g-3">
 
-              <div class="col-12">
-                <button type="submit" class="btn btn-primary" id="userSubmitBtn">Create Account</button>
-                <button type="button" class="btn btn-outline-secondary ms-2 d-none" id="userCancelEditBtn">Cancel Edit</button>
-              </div>
+                  <div class="col-md-3">
+                    <label for="regFirstName" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="regFirstName" placeholder="e.g. Amy" required>
+                    <div class="invalid-feedback">First name is required.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="regLastName" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="regLastName" placeholder="e.g. Martin" required>
+                    <div class="invalid-feedback">Last name is required.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="regEmail" class="form-label">Email Address</label>
+                    <input type="email" class="form-control" id="regEmail" placeholder="email@example.com" required>
+                    <div class="invalid-feedback">A valid email address is required.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="regPassword" class="form-label">Temporary Password</label>
+                    <input type="password" class="form-control" id="regPassword" placeholder="Temporary password" required>
+                    <div class="invalid-feedback">Password is required.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="regRole" class="form-label">Role</label>
+                    <select class="form-select" id="regRole" required>
+                      <option value="" disabled selected>Select a role&hellip;</option>
+                      <option value="ADMIN">Administrator &ndash; Full system access</option>
+                      <option value="VOLUNTEER">Volunteer &ndash; Events and task updates</option>
+                      <option value="PARTICIPANT">Participant / Guardian &ndash; Personal profile and opportunities</option>
+                    </select>
+                    <div class="invalid-feedback">Please select a role.</div>
+                  </div>
+
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-primary" id="userSubmitBtn">Create Account</button>
+                  </div>
+
+                </div>
+              </form>
 
             </div>
-          </form>
-
+          </div>
         </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ── Confirm Save Participant Modal ── -->
+  <div class="modal fade" id="confirmSaveParticipantModal" tabindex="-1"
+       aria-labelledby="confirmSaveParticipantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="confirmSaveParticipantModalLabel">Confirm Participant Record</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="bg-light rounded p-3 mb-3">
+            <div class="row g-2 small">
+              <div class="col-4 text-muted fw-semibold">Name</div>
+              <div class="col-8" id="pModalName"></div>
+              <div class="col-4 text-muted fw-semibold">Age</div>
+              <div class="col-8" id="pModalAge"></div>
+              <div class="col-4 text-muted fw-semibold">Guardian</div>
+              <div class="col-8" id="pModalGuardian"></div>
+              <div class="col-4 text-muted fw-semibold">Contact</div>
+              <div class="col-8" id="pModalContact"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" id="confirmSaveParticipantBtn">Yes, Save Record</button>
+        </div>
+
       </div>
-
-      <!-- System Users table -->
-      <div class="card shadow-sm">
-        <div class="card-header bg-secondary text-white fw-semibold">
-          System Users
-        </div>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th scope="col" class="ps-3">Name</th>
-                <th scope="col">Email</th>
-                <th scope="col">Role</th>
-                <th scope="col">Date Added</th>
-                <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody">
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </section>
-
-    <!-- ── PARTICIPANT Panel ── -->
-    <section id="panel-PARTICIPANT" class="d-none">
-      <div class="card shadow-sm">
-        <div class="card-header bg-success text-white fw-semibold">
-          My Opportunities
-        </div>
-        <div class="card-body">
-          <p class="card-text text-muted mb-0">
-            Your matched resource opportunities and program listings will appear here in Sprint 2.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── VOLUNTEER Panel ── -->
-    <section id="panel-VOLUNTEER" class="d-none">
-      <div class="card shadow-sm">
-        <div class="card-header bg-info text-white fw-semibold">
-          Volunteer Portal
-        </div>
-        <div class="card-body">
-          <p class="card-text text-muted mb-0">
-            Volunteer scheduling, assignments, and impact tracking will appear here in Sprint 2.
-          </p>
-        </div>
-      </div>
-    </section>
-
-  </main>
+    </div>
+  </div>
 
   <!-- ── Confirm Account Creation Modal ── -->
   <div class="modal fade" id="confirmCreateModal" tabindex="-1" aria-labelledby="confirmCreateModalLabel"
@@ -241,7 +342,6 @@
 
         <div class="modal-body">
 
-          <!-- Summary of the account about to be created -->
           <div class="bg-light rounded p-3 mb-3">
             <div class="row g-2 small">
               <div class="col-4 text-muted fw-semibold">Name</div>
@@ -253,7 +353,6 @@
             </div>
           </div>
 
-          <!-- Simulated email notification statement -->
           <div class="alert alert-info mb-0 small" role="alert">
             <strong>A welcome email will be sent</strong> to <strong id="modalSummaryEmailTarget"></strong> containing
             their temporary password and step-by-step instructions to reset it before their first login.
@@ -270,7 +369,7 @@
     </div>
   </div>
 
-  <!-- Bootstrap Toast — success notification for account creation -->
+  <!-- Bootstrap Toast — success notification -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
     <div id="adminToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
       aria-atomic="true" data-bs-delay="4000">
@@ -284,34 +383,24 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/sidebar.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
       // ── Route Guard ──────────────────────────────────────────────────────
-      // Redirects to login.html automatically if no valid session exists.
       const session = await Auth.requireAuth();
-      if (!session) return; // Execution stops here if redirected.
-
-      // ── Populate Navbar ──────────────────────────────────────────────────
-      document.getElementById('navUserInfo').textContent =
-        `${session.email}  \u25B8  ${session.role}`;
+      if (!session) return;
 
       // ── Welcome Heading ──────────────────────────────────────────────────
       document.getElementById('welcomeHeading').textContent =
-        `Welcome back, ${session.email}`;
+        `Welcome back, ${session.name || session.email}`;
 
-      // ── RBAC Panel Reveal ────────────────────────────────────────────────
-      // Convention: panel IDs match "panel-{ROLE}".
-      // Adding a new role in Sprint 2 only requires a new <section> block above.
-      const panel = document.getElementById(`panel-${session.role}`);
-      if (panel) {
-        panel.classList.remove('d-none');
-      }
+      // ── Reveal role-specific content card in the Dashboard section ───────
+      document.getElementById(`panel-${session.role}`)?.classList.remove('d-none');
 
-      // ── Logout ───────────────────────────────────────────────────────────
-      document.getElementById('logoutBtn').addEventListener('click', () => {
-        Auth.logout();
-      });
+      // ── Init Sidebar + Set Initial Section ──────────────────────────────
+      initSidebar(session);
+      navigateTo('dashboard');
 
     });
   </script>

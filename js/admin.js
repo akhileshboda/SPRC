@@ -20,6 +20,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     PARTICIPANT: 'Participant / Guardian'
   };
 
+  // ── Sub-view helpers ──────────────────────────────────────────────────────
+
+  function showParticipantsListView() {
+    document.getElementById('view-participants-list').classList.remove('d-none');
+    document.getElementById('view-participants-form').classList.add('d-none');
+  }
+
+  function showParticipantsFormView(isEditing = false) {
+    document.getElementById('view-participants-list').classList.add('d-none');
+    document.getElementById('view-participants-form').classList.remove('d-none');
+    document.getElementById('participantFormTitle').textContent =
+      isEditing ? 'Edit Participant' : 'New Participant';
+  }
+
+  function showUsersListView() {
+    document.getElementById('view-users-list').classList.remove('d-none');
+    document.getElementById('view-users-form').classList.add('d-none');
+  }
+
+  function showUsersFormView(isEditing = false) {
+    document.getElementById('view-users-list').classList.add('d-none');
+    document.getElementById('view-users-form').classList.remove('d-none');
+    document.getElementById('userFormTitle').textContent =
+      isEditing ? 'Edit User' : 'New User';
+  }
+
   // ── Render users table ────────────────────────────────────────────────────
 
   async function renderUsersTable() {
@@ -142,8 +168,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       .replace(/'/g, '&#39;');
   }
 
-  // ── Confirmation modal ────────────────────────────────────────────────────
+  // ── Confirmation modals ───────────────────────────────────────────────────
 
+  // User account creation modal (existing)
   const confirmModalEl = document.getElementById('confirmCreateModal');
   const confirmModal   = confirmModalEl ? bootstrap.Modal.getOrCreateInstance(confirmModalEl) : null;
   const confirmBtn     = document.getElementById('confirmCreateBtn');
@@ -151,7 +178,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Holds validated form data while the modal is open.
   let pendingUser = null;
 
-  // Populate the modal summary panel with the about-to-be-created user's details.
+  // Participant record confirmation modal (new)
+  const confirmParticipantModalEl = document.getElementById('confirmSaveParticipantModal');
+  const confirmParticipantModal   = confirmParticipantModalEl
+    ? bootstrap.Modal.getOrCreateInstance(confirmParticipantModalEl) : null;
+  const confirmParticipantBtn = document.getElementById('confirmSaveParticipantBtn');
+
+  let pendingParticipant = null;
+
+  // Populate the user modal summary panel.
   function populateModalSummary({ name, email, role }) {
     document.getElementById('modalSummaryName').textContent  = name.trim();
     document.getElementById('modalSummaryEmail').textContent = email.trim().toLowerCase();
@@ -165,6 +200,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('modalSummaryEmailTarget').textContent = email.trim().toLowerCase();
   }
 
+  // Populate the participant modal summary panel.
+  function populateParticipantModalSummary({ firstName, lastName, age, guardian, contactEmail, contactPhone }) {
+    document.getElementById('pModalName').textContent    = `${firstName} ${lastName}`.trim();
+    document.getElementById('pModalAge').textContent     = age;
+    document.getElementById('pModalGuardian').textContent = guardian;
+    document.getElementById('pModalContact').textContent  = `${contactEmail} · ${contactPhone}`;
+  }
+
   // ── Register form handler ─────────────────────────────────────────────────
 
   const registerForm  = document.getElementById('registerForm');
@@ -172,7 +215,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toastEl       = document.getElementById('adminToast');
   const toastMsgEl    = document.getElementById('adminToastMsg');
   const userSubmitBtn = document.getElementById('userSubmitBtn');
-  const userCancelEditBtn = document.getElementById('userCancelEditBtn');
   const regFirstNameEl = document.getElementById('regFirstName');
   const regLastNameEl = document.getElementById('regLastName');
   const regEmailEl = document.getElementById('regEmail');
@@ -181,7 +223,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const participantSubmitBtn = document.getElementById('participantSubmitBtn');
-  const participantCancelEditBtn = document.getElementById('participantCancelEditBtn');
   let editingUserEmail = null;
   let editingParticipantId = null;
 
@@ -199,7 +240,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     regPasswordEl.required = true;
     regPasswordEl.placeholder = 'Temporary password';
     if (userSubmitBtn) userSubmitBtn.textContent = 'Create Account';
-    if (userCancelEditBtn) userCancelEditBtn.classList.add('d-none');
   }
 
   async function startUserEdit(userEmail) {
@@ -220,8 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     registerError.classList.add('d-none');
     registerForm.classList.remove('was-validated');
     if (userSubmitBtn) userSubmitBtn.textContent = 'Update Account';
-    if (userCancelEditBtn) userCancelEditBtn.classList.remove('d-none');
-    registerForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showUsersFormView(true);
   }
 
   function resetParticipantFormState() {
@@ -231,7 +270,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     participantError.classList.add('d-none');
     editingParticipantId = null;
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Save Participant Record';
-    if (participantCancelEditBtn) participantCancelEditBtn.classList.add('d-none');
   }
 
   async function startParticipantEdit(participantId) {
@@ -252,8 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     participantError.classList.add('d-none');
     participantForm.classList.remove('was-validated');
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Update Participant Record';
-    if (participantCancelEditBtn) participantCancelEditBtn.classList.remove('d-none');
-    participantForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showParticipantsFormView(true);
   }
 
   if (registerForm) {
@@ -281,6 +318,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           toastMsgEl.textContent = `Success: Account for ${fullName} updated.`;
           bootstrap.Toast.getOrCreateInstance(toastEl).show();
           await renderUsersTable();
+          showUsersListView();
         } else {
           registerError.textContent = result.message;
           registerError.classList.remove('d-none');
@@ -297,12 +335,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Hide the error banner when the user starts correcting the form.
     registerForm.addEventListener('input', () => {
       registerError.classList.add('d-none');
-    });
-  }
-
-  if (userCancelEditBtn) {
-    userCancelEditBtn.addEventListener('click', () => {
-      resetUserFormState();
     });
   }
 
@@ -325,25 +357,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         notes: document.getElementById('participantNotes').value
       };
 
-      const result = editingParticipantId
-        ? Auth.updateParticipant(editingParticipantId, payload)
-        : Auth.addParticipant(payload);
-      const resolved = await result;
-
-      if (resolved.success) {
-        const isEditing = Boolean(editingParticipantId);
-        resetParticipantFormState();
-
-        toastMsgEl.textContent = isEditing
-          ? 'Participant record updated successfully.'
-          : 'Participant record saved successfully.';
-        bootstrap.Toast.getOrCreateInstance(toastEl).show();
-
-        await renderParticipantsTable();
-      } else {
-        participantError.textContent = resolved.message;
-        participantError.classList.remove('d-none');
+      if (editingParticipantId) {
+        // Edit mode: update directly, no modal.
+        const resolved = await Auth.updateParticipant(editingParticipantId, payload);
+        if (resolved.success) {
+          resetParticipantFormState();
+          toastMsgEl.textContent = 'Participant record updated successfully.';
+          bootstrap.Toast.getOrCreateInstance(toastEl).show();
+          await renderParticipantsTable();
+          showParticipantsListView();
+        } else {
+          participantError.textContent = resolved.message;
+          participantError.classList.remove('d-none');
+        }
+        return;
       }
+
+      // Create mode: show confirmation modal before saving.
+      pendingParticipant = payload;
+      populateParticipantModalSummary(pendingParticipant);
+      confirmParticipantModal.show();
     });
 
     participantForm.addEventListener('input', () => {
@@ -351,13 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (participantCancelEditBtn) {
-    participantCancelEditBtn.addEventListener('click', () => {
-      resetParticipantFormState();
-    });
-  }
-
-  // ── Confirm button (inside modal) ─────────────────────────────────────────
+  // ── Confirm button (user account creation modal) ──────────────────────────
 
   if (confirmBtn) {
     confirmBtn.addEventListener('click', async () => {
@@ -376,8 +403,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         toastMsgEl.textContent = `Success: Account for ${pendingUser.name.trim()} created as ${roleName}.`;
         bootstrap.Toast.getOrCreateInstance(toastEl).show();
 
-        // Refresh the users table immediately.
+        // Refresh the users table and return to the list.
         await renderUsersTable();
+        showUsersListView();
 
       } else {
         // Duplicate email — surface the error on the form (modal is already closing).
@@ -396,9 +424,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ── Confirm button (participant record creation modal) ────────────────────
+
+  if (confirmParticipantBtn) {
+    confirmParticipantBtn.addEventListener('click', async () => {
+      if (!pendingParticipant) return;
+
+      const result = await Auth.addParticipant(pendingParticipant);
+
+      confirmParticipantModal.hide();
+
+      if (result.success) {
+        resetParticipantFormState();
+        toastMsgEl.textContent = 'Participant record saved successfully.';
+        bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        await renderParticipantsTable();
+        showParticipantsListView();
+      } else {
+        participantError.textContent = result.message;
+        participantError.classList.remove('d-none');
+      }
+
+      pendingParticipant = null;
+    });
+  }
+
+  if (confirmParticipantModalEl) {
+    confirmParticipantModalEl.addEventListener('hidden.bs.modal', () => {
+      pendingParticipant = null;
+    });
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
 
   await renderUsersTable();
   await renderParticipantsTable();
+
+  // Wire "New" buttons to reset the form and show the form sub-view.
+  document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
+    resetParticipantFormState();
+    showParticipantsFormView(false);
+  });
+
+  document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
+    resetParticipantFormState();
+    showParticipantsListView();
+  });
+
+  document.getElementById('newUserBtn')?.addEventListener('click', () => {
+    resetUserFormState();
+    showUsersFormView(false);
+  });
+
+  document.getElementById('backToUsersBtn')?.addEventListener('click', () => {
+    resetUserFormState();
+    showUsersListView();
+  });
 
 });
