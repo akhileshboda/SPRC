@@ -1,10 +1,12 @@
 /**
  * admin.js — Kindred SPRC Admin Panel Module
- * Handles the "Register New Staff/Volunteer" form and "System Users" table.
+ * Handles administrator workflows for users, participants, and events.
  * Depends on auth.js being loaded first (uses the global Auth namespace).
  * Only meaningful when an ADMIN session is active.
  */
 document.addEventListener('DOMContentLoaded', async () => {
+  const session = await Auth.getSession();
+  if (!session || session.role !== 'ADMIN') return;
 
   // ── Role badge helper ─────────────────────────────────────────────────────
 
@@ -18,6 +20,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     ADMIN:       'Administrator',
     VOLUNTEER:   'Volunteer',
     PARTICIPANT: 'Participant / Guardian'
+  };
+
+  const EVENT_CATEGORY_BADGE = {
+    Social: 'badge-event-social',
+    Educational: 'badge-event-educational',
+    Vocational: 'badge-event-vocational'
   };
 
   // ── Sub-view helpers ──────────────────────────────────────────────────────
@@ -44,6 +52,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('view-users-form').classList.remove('d-none');
     document.getElementById('userFormTitle').textContent =
       isEditing ? 'Edit User' : 'New User';
+  }
+
+  function showEventsListView() {
+    document.getElementById('view-events-list').classList.remove('d-none');
+    document.getElementById('view-events-form').classList.add('d-none');
+  }
+
+  function showEventsFormView(isEditing = false) {
+    document.getElementById('view-events-list').classList.add('d-none');
+    document.getElementById('view-events-form').classList.remove('d-none');
+    document.getElementById('eventFormTitle').textContent =
+      isEditing ? 'Edit Event' : 'New Event';
   }
 
   // ── Render users table ────────────────────────────────────────────────────
@@ -158,6 +178,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function renderEventsTable() {
+    const tbody = document.getElementById('eventsTableBody');
+    if (!tbody) return;
+
+    const events = await Auth.getEvents();
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No live events yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = events.map((event) => `
+      <tr>
+        <td class="ps-3">
+          <div class="fw-semibold text-dark">${escapeHtml(event.title)}</div>
+        </td>
+        <td>
+          <span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">
+            ${escapeHtml(event.category)}
+          </span>
+        </td>
+        <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
+        <td class="small">${escapeHtml(event.location)}</td>
+        <td class="small fw-semibold">${escapeHtml(event.cost)}</td>
+        <td class="small text-muted">
+          <div class="event-accommodations">${escapeHtml(event.accommodations)}</div>
+        </td>
+        <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
+        <td class="pe-3" style="width: 1%; white-space: nowrap;">
+          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">Edit</button>
+          <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('button[data-event-edit-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await startEventEdit(btn.dataset.eventEditId);
+      });
+    });
+
+    tbody.querySelectorAll('button[data-event-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const result = await Auth.removeEvent(btn.dataset.eventId);
+        if (result.success) {
+          if (editingEventId && editingEventId === btn.dataset.eventId) {
+            resetEventFormState();
+          }
+          showToast('Event removed from the live log.');
+          await renderEventsTable();
+        }
+      });
+    });
+  }
+
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
     return String(str)
@@ -223,8 +297,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const participantSubmitBtn = document.getElementById('participantSubmitBtn');
+  const eventForm = document.getElementById('eventForm');
+  const eventError = document.getElementById('eventError');
+  const eventSubmitBtn = document.getElementById('eventSubmitBtn');
   let editingUserEmail = null;
   let editingParticipantId = null;
+  let editingEventId = null;
+
+  function showToast(message) {
+    if (!toastEl || !toastMsgEl) return;
+    toastMsgEl.textContent = message;
+    bootstrap.Toast.getOrCreateInstance(toastEl).show();
+  }
 
   function splitFullName(fullName) {
     const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
@@ -272,6 +356,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Save Participant Record';
   }
 
+  function resetEventFormState() {
+    if (!eventForm) return;
+    eventForm.reset();
+    eventForm.classList.remove('was-validated');
+    eventError.classList.add('d-none');
+    editingEventId = null;
+    if (eventSubmitBtn) eventSubmitBtn.textContent = 'Publish Event';
+  }
+
   async function startParticipantEdit(participantId) {
     const participants = await Auth.getParticipants();
     const participant = participants.find((p) => String(p.id) === String(participantId));
@@ -291,6 +384,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     participantForm.classList.remove('was-validated');
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Update Participant Record';
     showParticipantsFormView(true);
+  }
+
+  async function startEventEdit(eventId) {
+    const events = await Auth.getEvents();
+    const event = events.find((item) => String(item.id) === String(eventId));
+    if (!event || !eventForm) return;
+
+    document.getElementById('eventTitle').value = event.title || '';
+    document.getElementById('eventCategory').value = event.category || '';
+    document.getElementById('eventDateTime').value = event.dateTime || '';
+    document.getElementById('eventLocation').value = event.location || '';
+    document.getElementById('eventCost').value = event.cost || '';
+    document.getElementById('eventAccommodations').value = event.accommodations || '';
+
+    editingEventId = event.id;
+    eventError.classList.add('d-none');
+    eventForm.classList.remove('was-validated');
+    if (eventSubmitBtn) eventSubmitBtn.textContent = 'Update Event';
+    showEventsFormView(true);
   }
 
   if (registerForm) {
@@ -315,8 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const result = await Auth.updateUser(editingUserEmail, payload);
         if (result.success) {
           resetUserFormState();
-          toastMsgEl.textContent = `Success: Account for ${fullName} updated.`;
-          bootstrap.Toast.getOrCreateInstance(toastEl).show();
+          showToast(`Success: Account for ${fullName} updated.`);
           await renderUsersTable();
           showUsersListView();
         } else {
@@ -362,8 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const resolved = await Auth.updateParticipant(editingParticipantId, payload);
         if (resolved.success) {
           resetParticipantFormState();
-          toastMsgEl.textContent = 'Participant record updated successfully.';
-          bootstrap.Toast.getOrCreateInstance(toastEl).show();
+          showToast('Participant record updated successfully.');
           await renderParticipantsTable();
           showParticipantsListView();
         } else {
@@ -384,6 +494,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (eventForm) {
+    eventForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const form = this;
+      form.classList.add('was-validated');
+      if (!form.checkValidity()) return;
+
+      const payload = {
+        title: document.getElementById('eventTitle').value,
+        category: document.getElementById('eventCategory').value,
+        dateTime: document.getElementById('eventDateTime').value,
+        location: document.getElementById('eventLocation').value,
+        cost: document.getElementById('eventCost').value,
+        accommodations: document.getElementById('eventAccommodations').value
+      };
+
+      const result = editingEventId
+        ? await Auth.updateEvent(editingEventId, payload)
+        : await Auth.addEvent(payload);
+      const wasEditingEvent = Boolean(editingEventId);
+
+      if (result.success) {
+        resetEventFormState();
+        showToast(
+          wasEditingEvent
+            ? 'Event updated and remains live for families.'
+            : `"${payload.title.trim()}" is now live for families to view.`
+        );
+        await renderEventsTable();
+        showEventsListView();
+      } else {
+        eventError.textContent = result.message;
+        eventError.classList.remove('d-none');
+      }
+    });
+
+    eventForm.addEventListener('input', () => {
+      eventError.classList.add('d-none');
+    });
+  }
+
   // ── Confirm button (user account creation modal) ──────────────────────────
 
   if (confirmBtn) {
@@ -400,8 +552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Show success toast.
         const roleName = ROLE_LABEL[pendingUser.role] || pendingUser.role;
-        toastMsgEl.textContent = `Success: Account for ${pendingUser.name.trim()} created as ${roleName}.`;
-        bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        showToast(`Success: Account for ${pendingUser.name.trim()} created as ${roleName}.`);
 
         // Refresh the users table and return to the list.
         await renderUsersTable();
@@ -436,8 +587,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (result.success) {
         resetParticipantFormState();
-        toastMsgEl.textContent = 'Participant record saved successfully.';
-        bootstrap.Toast.getOrCreateInstance(toastEl).show();
+        showToast('Participant record saved successfully.');
         await renderParticipantsTable();
         showParticipantsListView();
       } else {
@@ -459,6 +609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await renderUsersTable();
   await renderParticipantsTable();
+  await renderEventsTable();
 
   // Wire "New" buttons to reset the form and show the form sub-view.
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
@@ -469,6 +620,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
     resetParticipantFormState();
     showParticipantsListView();
+  });
+
+  document.getElementById('newEventBtn')?.addEventListener('click', () => {
+    resetEventFormState();
+    showEventsFormView(false);
+  });
+
+  document.getElementById('backToEventsBtn')?.addEventListener('click', () => {
+    resetEventFormState();
+    showEventsListView();
   });
 
   document.getElementById('newUserBtn')?.addEventListener('click', () => {

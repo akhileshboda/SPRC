@@ -109,6 +109,45 @@ body {
   word-break: break-all;
 }
 
+.event-log-table th {
+  white-space: nowrap;
+}
+
+.event-log-table td {
+  vertical-align: top;
+}
+
+.event-accommodations {
+  max-width: 22rem;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.badge-event-social,
+.badge-event-educational,
+.badge-event-vocational {
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.badge-event-social {
+  background-color: #fbe8ea;
+  border-color: #f3c7cf;
+  color: #8b2332;
+}
+
+.badge-event-educational {
+  background-color: #e5f1fb;
+  border-color: #bfdcf6;
+  color: #0f4c81;
+}
+
+.badge-event-vocational {
+  background-color: #e7f5ed;
+  border-color: #c4e8d1;
+  color: #1f6a43;
+}
+
 /* Fade-in animation when switching content sections */
 .content-section {
   animation: fadeIn 0.18s ease-in;

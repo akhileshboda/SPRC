@@ -5,155 +5,778 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kindred — Special Population Resource Connection</title>
+  <meta name="description"
+    content="Kindred connects individuals with special needs, their guardians, volunteers, and community organizations through a unified resource platform.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Bootstrap & Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="css/styles.css">
+
   <style>
-    .hero {
-      min-height: 100vh;
-      background: linear-gradient(160deg, #f8f9fa 0%, #e9f0fb 100%);
+    :root {
+      --k-indigo: #4F62B0;
+      --k-indigo-dk: #3a4a8a;
+      --k-indigo-lt: #eef0fa;
+      --k-teal: #2BB5A0;
+      --k-teal-lt: #e4f7f4;
+      --k-amber: #F5A623;
+      --k-amber-lt: #fef6e7;
+      --k-surface: #f7f8fc;
+      --k-border: #e2e6f3;
+      --k-text: #1a1d2e;
+      --k-muted: #6b7280;
+      --radius-card: 1rem;
+      --radius-pill: 2rem;
+      --shadow-card: 0 2px 16px rgba(79, 98, 176, 0.09);
+      --shadow-card-hover: 0 8px 32px rgba(79, 98, 176, 0.18);
     }
 
-    .feature-icon {
-      width: 48px;
-      height: 48px;
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--k-surface);
+      color: var(--k-text);
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ──────────────────────────────────────────────────── */
+    #mainNav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--k-border);
+      transition: box-shadow 0.25s ease;
+    }
+
+    #mainNav.scrolled {
+      box-shadow: 0 2px 20px rgba(79, 98, 176, 0.12);
+    }
+
+    .nav-logo {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--k-indigo);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+    }
+
+    .nav-logo span {
+      color: var(--k-teal);
+    }
+
+    .nav-links a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--k-muted);
+      text-decoration: none;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .nav-links a:hover {
+      color: var(--k-indigo);
+      background: var(--k-indigo-lt);
+    }
+
+    .nav-links a.active {
+      color: var(--k-indigo);
+      font-weight: 600;
+    }
+
+    .btn-nav-signin {
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.45rem 1.1rem;
+      border-radius: var(--radius-pill);
+      background: var(--k-indigo);
+      color: #fff;
+      border: none;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-nav-signin:hover {
+      background: var(--k-indigo-dk);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(79, 98, 176, 0.35);
+    }
+
+    /* ── Hero ────────────────────────────────────────────────────── */
+    #hero {
+      background: linear-gradient(135deg, #f0f2fc 0%, #e8f4f1 55%, #fdf6ec 100%);
+      padding: 5.5rem 0 5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #hero::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79, 98, 176, 0.09) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--k-indigo-lt);
+      color: var(--k-indigo);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 0.38rem 0.9rem;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(79, 98, 176, 0.2);
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-title {
+      font-size: clamp(2.2rem, 4.5vw, 3.25rem);
+      font-weight: 800;
+      line-height: 1.13;
+      letter-spacing: -1.2px;
+      color: var(--k-text);
+      margin-bottom: 1.1rem;
+    }
+
+    .hero-title .hi {
+      color: var(--k-indigo);
+    }
+
+    .hero-sub {
+      font-size: 1.05rem;
+      color: var(--k-muted);
+      line-height: 1.7;
+      max-width: 500px;
+      margin-bottom: 2.25rem;
+    }
+
+    .btn-primary-k {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.75rem;
+      border-radius: var(--radius-pill);
+      background: var(--k-indigo);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      border: none;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-primary-k:hover {
+      background: var(--k-indigo-dk);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(79, 98, 176, 0.38);
+    }
+
+    .btn-ghost-k {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.75rem;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--k-indigo);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      border: 1.5px solid rgba(79, 98, 176, 0.35);
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .btn-ghost-k:hover {
+      background: var(--k-indigo-lt);
+      border-color: var(--k-indigo);
+      color: var(--k-indigo);
+    }
+
+    /* Notice banner in hero */
+    .hero-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: rgba(255, 255, 255, 0.75);
+      border: 1px solid var(--k-border);
       border-radius: 0.75rem;
+      padding: 1rem 1.25rem;
+      max-width: 500px;
+      margin-top: 2rem;
+      backdrop-filter: blur(4px);
+    }
+
+    .hero-notice i {
+      color: var(--k-teal);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .hero-notice p {
+      font-size: 0.82rem;
+      color: var(--k-muted);
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .hero-notice strong {
+      color: var(--k-text);
+    }
+
+    /* ── Audience section ────────────────────────────────────────── */
+    #get-involved {
+      background: #fff;
+      border-top: 1px solid var(--k-border);
+      border-bottom: 1px solid var(--k-border);
+      padding: 5rem 0;
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--k-indigo);
+      background: var(--k-indigo-lt);
+      border-radius: var(--radius-pill);
+      padding: 0.3rem 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--k-text);
+      margin-bottom: 0.5rem;
+    }
+
+    .section-sub {
+      font-size: 0.975rem;
+      color: var(--k-muted);
+      max-width: 520px;
+      line-height: 1.65;
+    }
+
+    /* Audience cards */
+    .audience-card {
+      background: var(--k-surface);
+      border: 1.5px solid var(--k-border);
+      border-radius: var(--radius-card);
+      padding: 1.75rem;
+      height: 100%;
+      transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .audience-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-card-hover);
+      border-color: rgba(79, 98, 176, 0.25);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .audience-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 0.875rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.4rem;
+      font-size: 1.35rem;
+      margin-bottom: 1rem;
+    }
+
+    .audience-card h5 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.4rem;
+    }
+
+    .audience-card p {
+      font-size: 0.82rem;
+      color: var(--k-muted);
+      line-height: 1.6;
+      margin: 0 0 1rem;
+    }
+
+    .audience-card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: gap 0.15s ease;
+    }
+
+    .audience-card:hover .audience-card-link {
+      gap: 0.55rem;
+    }
+
+    /* ── How it works (reframed for community onboarding) ────────── */
+    #how-it-works {
+      padding: 5rem 0;
+      background: var(--k-surface);
+    }
+
+    .step-card {
+      text-align: center;
+      padding: 1.5rem;
+    }
+
+    .step-number-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--k-indigo-lt);
+      border: 2px solid rgba(79, 98, 176, 0.25);
+      color: var(--k-indigo);
+      font-size: 1.1rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+    }
+
+    .step-card h6 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.35rem;
+    }
+
+    .step-card p {
+      font-size: 0.8rem;
+      color: var(--k-muted);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* Steps connector line — drawn as a single rule on the row wrapper */
+    .steps-row {
+      position: relative;
+    }
+
+    .steps-row::before {
+      content: '';
+      position: absolute;
+      /* top-of-step-card padding (1.5rem=24px) + half circle height (25px) = 49px */
+      top: 49px;
+      /* from center of first col (12.5%) to center of last col (87.5%) */
+      left: 12.5%;
+      right: 12.5%;
+      height: 1px;
+      background: var(--k-border);
+      z-index: 0;
+    }
+
+    .step-number-circle {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Events preview strip ────────────────────────────────────── */
+    #events-preview {
+      background: linear-gradient(135deg, var(--k-indigo) 0%, #3a4a8a 100%);
+      padding: 4rem 0;
+      color: #fff;
+    }
+
+    #events-preview .section-label {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    #events-preview .section-title {
+      color: #fff;
+    }
+
+    #events-preview .section-sub {
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .preview-event-pill {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 0.875rem;
+      padding: 1rem 1.25rem;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .preview-event-pill:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateX(4px);
+    }
+
+    .preview-event-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 0.65rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
       flex-shrink: 0;
+    }
+
+    .preview-event-title {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .preview-event-meta {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .btn-events-browse {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.75rem;
+      border-radius: var(--radius-pill);
+      background: #fff;
+      color: var(--k-indigo);
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      border: none;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-events-browse:hover {
+      opacity: 0.93;
+      color: var(--k-indigo);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      background: #fff;
+      border-top: 1px solid var(--k-border);
+      padding: 1.75rem 0;
+    }
+
+    .footer-logo {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--k-indigo);
+    }
+
+    .footer-logo span {
+      color: var(--k-teal);
+    }
+
+    .fade-in {
+      animation: fadeInUp 0.5s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 768px) {
+      #hero {
+        padding: 3.5rem 0 3rem;
+      }
+
+      .hero-title {
+        font-size: 2rem;
+        letter-spacing: -0.7px;
+      }
     }
   </style>
 </head>
 
-<body class="bg-light">
+<body>
 
-  <!-- ════════════════ NAVBAR ════════════════ -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-    <div class="container">
-      <span class="navbar-brand fw-bold text-primary fs-4">Kindred</span>
-      <a href="login.html" class="btn btn-primary btn-sm">Sign In</a>
+  <!-- ════════════ NAVBAR ════════════ -->
+  <nav id="mainNav" aria-label="Main navigation">
+    <div class="container d-flex align-items-center justify-content-between py-3">
+
+      <a href="index.html" class="nav-logo" aria-label="Kindred home">Kindred<span>.</span></a>
+
+      <div class="nav-links d-none d-md-flex align-items-center gap-1">
+        <a href="index.html" class="active" aria-current="page">Home</a>
+        <a href="events.html">Events</a>
+      </div>
+
+      <a href="login.html" class="btn-nav-signin">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
+      </a>
+
     </div>
   </nav>
 
-  <!-- ════════════════ HERO ════════════════ -->
-  <section class="hero d-flex align-items-center">
-    <div class="container py-5">
+  <!-- ════════════ HERO ════════════ -->
+  <section id="hero" aria-labelledby="hero-heading">
+    <div class="container">
       <div class="row align-items-center g-5">
+        <div class="col-lg-7 fade-in">
 
-        <div class="col-lg-6">
-          <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold mb-3 px-3 py-2">
-            CNIT 280 &mdash; Term Project
-          </span>
-          <h1 class="display-5 fw-bold text-dark mb-3">
-            Connecting People to the Resources They Need
+          <div class="hero-eyebrow">
+            <i class="bi bi-heart-pulse"></i>
+            Welcome to Kindred
+          </div>
+
+          <h1 class="hero-title" id="hero-heading">
+            Your community,<br>
+            <span class="hi">connected.</span>
           </h1>
-          <p class="lead text-secondary mb-4">
-            Kindred is a role-based resource management system that bridges
-            special-needs participants with volunteers and program coordinators
-            through a secure, accessible platform.
+
+          <p class="hero-sub">
+            Kindred is a shared space for individuals with special needs, their families,
+            volunteers, and community organizations — bringing verified resources and
+            opportunities into one place.
           </p>
-          <div class="d-flex gap-3 flex-wrap">
-            <a href="login.html" class="btn btn-primary btn-lg px-4">Get Started</a>
-            <a href="#features" class="btn btn-outline-secondary btn-lg px-4">Learn More</a>
+
+          <div class="d-flex flex-wrap gap-3">
+            <a href="events.html" class="btn-primary-k" id="hero-events-btn">
+              <i class="bi bi-calendar2-event"></i>
+              Browse Events
+            </a>
+            <a href="login.html" class="btn-ghost-k" id="hero-signin-btn">
+              <i class="bi bi-person-circle"></i>
+              Sign In
+            </a>
           </div>
+
+          <div class="hero-notice">
+            <i class="bi bi-info-circle-fill"></i>
+            <p>
+              <strong>No account needed to browse events.</strong>
+              Participant and Guardian accounts are created by a Kindred coordinator.
+              Reach out to your local coordinator to get set up.
+            </p>
+          </div>
+
         </div>
 
-        <div class="col-lg-6">
-          <div class="card shadow border-0 p-4">
-            <p class="text-muted small fw-semibold text-uppercase mb-3">Quick Access &mdash; Test Accounts</p>
-            <div class="d-flex flex-column gap-3">
-
-              <div class="d-flex align-items-center gap-3 p-3 rounded bg-danger bg-opacity-10">
-                <div class="feature-icon bg-danger bg-opacity-10 text-danger">&#9670;</div>
-                <div class="flex-grow-1">
-                  <div class="fw-semibold text-dark small">Administrator</div>
-                  <div class="text-muted" style="font-size: 0.8rem;">Use your admin credentials</div>
-                </div>
-                <a href="login.html" class="btn btn-danger btn-sm">Sign In</a>
-              </div>
-
-              <div class="d-flex align-items-center gap-3 p-3 rounded bg-success bg-opacity-10">
-                <div class="feature-icon bg-success bg-opacity-10 text-success">&#9670;</div>
-                <div class="flex-grow-1">
-                  <div class="fw-semibold text-dark small">Participant / Guardian</div>
-                  <div class="text-muted" style="font-size: 0.8rem;">Accounts are created by administrators</div>
-                </div>
-                <a href="login.html" class="btn btn-success btn-sm">Sign In</a>
-              </div>
-
-              <div class="d-flex align-items-center gap-3 p-3 rounded bg-info bg-opacity-10">
-                <div class="feature-icon bg-info bg-opacity-10 text-info">&#9670;</div>
-                <div class="flex-grow-1">
-                  <div class="fw-semibold text-dark small">Volunteer</div>
-                  <div class="text-muted" style="font-size: 0.8rem;">Accounts are created by administrators</div>
-                </div>
-                <a href="login.html" class="btn btn-info btn-sm">Sign In</a>
-              </div>
-
-            </div>
-          </div>
+        <div class="col-lg-5 d-none d-lg-flex flex-column gap-2" id="heroEventPreviews" aria-hidden="true">
+          <!-- Populated dynamically from seed events -->
         </div>
-
       </div>
     </div>
   </section>
 
-  <!-- ════════════════ FEATURES ════════════════ -->
-  <section id="features" class="py-5 bg-white">
-    <div class="container py-4">
+  <!-- ════════════ WHO IS KINDRED FOR ════════════ -->
+  <section id="get-involved" aria-labelledby="involved-heading">
+    <div class="container">
 
       <div class="text-center mb-5">
-        <h2 class="fw-bold text-dark">Built for Every Role</h2>
-        <p class="text-secondary">One platform, three tailored experiences.</p>
+        <div class="section-label mx-auto"><i class="bi bi-people"></i> Get Involved</div>
+        <h2 class="section-title" id="involved-heading">Who is Kindred for?</h2>
+        <p class="section-sub mx-auto">
+          Kindred serves everyone who plays a role in supporting individuals with special needs.
+          Find your place in the community below.
+        </p>
       </div>
 
       <div class="row g-4">
 
-        <div class="col-md-4">
-          <div class="card h-100 shadow-sm border-0">
-            <div class="card-body p-4">
-              <div class="feature-icon bg-danger bg-opacity-10 text-danger mb-3">&#9656;</div>
-              <h5 class="fw-semibold">Administrator</h5>
-              <p class="text-muted small mb-0">
-                Create and manage staff accounts, assign roles, and oversee the
-                full system through the Management Console.
-              </p>
+        <!-- Participants -->
+        <div class="col-md-6 col-lg-3">
+          <a href="events.html" class="audience-card" aria-label="Participants — Browse community events">
+            <div class="audience-icon" style="background:#eef0fa; color:#4F62B0;">
+              <i class="bi bi-person-check-fill"></i>
             </div>
-            <div class="card-footer bg-transparent border-0 px-4 pb-4">
-              <span class="badge bg-danger">ADMIN</span>
-            </div>
-          </div>
+            <h5>Participants</h5>
+            <p>Discover social, educational, and vocational opportunities in your area — curated for your needs and
+              capabilities.</p>
+            <span class="audience-card-link" style="color:#4F62B0;">
+              Browse Events <i class="bi bi-arrow-right"></i>
+            </span>
+          </a>
         </div>
 
-        <div class="col-md-4">
-          <div class="card h-100 shadow-sm border-0">
-            <div class="card-body p-4">
-              <div class="feature-icon bg-success bg-opacity-10 text-success mb-3">&#9656;</div>
-              <h5 class="fw-semibold">Participant / Guardian</h5>
-              <p class="text-muted small mb-0">
-                Browse matched resource opportunities and program listings
-                tailored to individual needs and preferences.
-              </p>
+        <!-- Guardians -->
+        <div class="col-md-6 col-lg-3">
+          <a href="login.html" class="audience-card"
+            aria-label="Guardians — Sign in to manage your participant's profile">
+            <div class="audience-icon" style="background:#e4f7f4; color:#2BB5A0;">
+              <i class="bi bi-heart-pulse-fill"></i>
             </div>
-            <div class="card-footer bg-transparent border-0 px-4 pb-4">
-              <span class="badge bg-success">PARTICIPANT</span>
-            </div>
-          </div>
+            <h5>Guardians &amp; Families</h5>
+            <p>Manage your participant's profile, document accessibility needs, and stay up to date on matched
+              opportunities.</p>
+            <span class="audience-card-link" style="color:#2BB5A0;">
+              Sign In <i class="bi bi-arrow-right"></i>
+            </span>
+          </a>
         </div>
 
-        <div class="col-md-4">
-          <div class="card h-100 shadow-sm border-0">
-            <div class="card-body p-4">
-              <div class="feature-icon bg-info bg-opacity-10 text-info mb-3">&#9656;</div>
-              <h5 class="fw-semibold">Volunteer</h5>
-              <p class="text-muted small mb-0">
-                View upcoming events, update task statuses, and track your
-                contributions through the Volunteer Portal.
-              </p>
+        <!-- Volunteers -->
+        <div class="col-md-6 col-lg-3">
+          <a href="login.html" class="audience-card" aria-label="Volunteers — Sign in to access the volunteer portal">
+            <div class="audience-icon" style="background:#fef6e7; color:#F5A623;">
+              <i class="bi bi-hand-thumbs-up-fill"></i>
             </div>
-            <div class="card-footer bg-transparent border-0 px-4 pb-4">
-              <span class="badge bg-info text-dark">VOLUNTEER</span>
+            <h5>Volunteers</h5>
+            <p>Lend your time and skills to support community events and programs. View your assignments through the
+              Volunteer Portal.</p>
+            <span class="audience-card-link" style="color:#F5A623;">
+              Sign In <i class="bi bi-arrow-right"></i>
+            </span>
+          </a>
+        </div>
+
+        <!-- Organizations -->
+        <div class="col-md-6 col-lg-3">
+          <a href="events.html" class="audience-card" aria-label="Organizations — View the community opportunity board">
+            <div class="audience-icon" style="background:#e6f4e7; color:#2E7D32;">
+              <i class="bi bi-building-fill"></i>
+            </div>
+            <h5>Organizations &amp; Employers</h5>
+            <p>Partner with Kindred to post vocational programs and employment opportunities. Connect with coordinators
+              to get started.</p>
+            <span class="audience-card-link" style="color:#2E7D32;">
+              View Opportunities <i class="bi bi-arrow-right"></i>
+            </span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ HOW IT WORKS ════════════ -->
+  <section id="how-it-works" aria-labelledby="hiw-heading">
+    <div class="container">
+
+      <div class="text-center mb-5">
+        <div class="section-label mx-auto"><i class="bi bi-signpost-2"></i> Getting Started</div>
+        <h2 class="section-title" id="hiw-heading">Simple from day one</h2>
+        <p class="section-sub mx-auto">
+          Kindred is built for community members who need straightforward tools — not technical expertise.
+        </p>
+      </div>
+
+      <div class="row g-0 justify-content-center steps-row">
+        <div class="col-md-3">
+          <div class="step-card">
+            <div class="step-number-circle">1</div>
+            <h6>Browse Events</h6>
+            <p>No account needed. Explore verified community opportunities on the public Events board.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="step-card">
+            <div class="step-number-circle">2</div>
+            <h6>Get an Account</h6>
+            <p>Your Kindred coordinator creates your account and sends you sign-in credentials.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="step-card">
+            <div class="step-number-circle">3</div>
+            <h6>Build Your Profile</h6>
+            <p>Guardians complete participant profiles — so Kindred can match the right opportunities.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="step-card">
+            <div class="step-number-circle">4</div>
+            <h6>Stay Connected</h6>
+            <p>Show up, participate, and grow. Coordinators keep the board updated as new programs open.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════ EVENTS PREVIEW STRIP ════════════ -->
+  <section id="events-preview" aria-labelledby="preview-heading">
+    <div class="container">
+      <div class="row align-items-center g-5">
+
+        <div class="col-lg-5">
+          <div class="section-label"><i class="bi bi-calendar2-event"></i> Live Opportunities</div>
+          <h2 class="section-title" id="preview-heading">Events happening now</h2>
+          <p class="section-sub" style="color:rgba(255,255,255,0.72);">
+            New community programs are posted regularly. Browse the full board — no sign-in required.
+          </p>
+          <a href="events.html" class="btn-events-browse mt-3" id="preview-browse-btn">
+            <i class="bi bi-calendar2-event"></i> See All Events
+          </a>
+        </div>
+
+        <div class="col-lg-7">
+          <div class="d-flex flex-column gap-3" id="previewEventList">
+            <!-- Populated from localStorage events -->
+            <div class="preview-event-pill">
+              <div class="preview-event-icon" style="background:rgba(196,55,90,0.25);color:#f8a5b8;">
+                <i class="bi bi-people-fill"></i>
+              </div>
+              <div>
+                <div class="preview-event-title">Community Art Night</div>
+                <div class="preview-event-meta">Social &middot; Riverside Community Center</div>
+              </div>
+            </div>
+            <div class="preview-event-pill">
+              <div class="preview-event-icon" style="background:rgba(46,125,50,0.25);color:#7dd17f;">
+                <i class="bi bi-briefcase-fill"></i>
+              </div>
+              <div>
+                <div class="preview-event-title">Job Skills Workshop</div>
+                <div class="preview-event-meta">Vocational &middot; Downtown Career Center</div>
+              </div>
+            </div>
+            <div class="preview-event-pill">
+              <div class="preview-event-icon" style="background:rgba(21,101,192,0.25);color:#90b8f0;">
+                <i class="bi bi-book-fill"></i>
+              </div>
+              <div>
+                <div class="preview-event-title">Library Reading Program</div>
+                <div class="preview-event-meta">Educational &middot; Public Library</div>
+              </div>
             </div>
           </div>
         </div>
@@ -162,13 +785,16 @@
     </div>
   </section>
 
-  <!-- ════════════════ FOOTER ════════════════ -->
-  <footer class="bg-white border-top py-4">
-    <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-      <span class="fw-bold text-primary">Kindred</span>
-      <span class="text-muted small">
+  <!-- ════════════ FOOTER ════════════ -->
+  <footer>
+    <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+      <div>
+        <div class="footer-logo">Kindred<span>.</span></div>
+        <small class="d-block mt-1" style="color:#6b7280;">Special Population Resource Connection</small>
+      </div>
+      <small style="color:#6b7280;" class="text-center text-md-end">
         CNIT 280 Term Project &mdash; Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan
-      </span>
+      </small>
     </div>
   </footer>
 
@@ -176,11 +802,80 @@
   <script src="js/auth.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
-      // If already logged in, skip the landing page.
+
+      // ── Session redirect ────────────────────────────────────────────────────
       const session = await Auth.getSession();
       if (session) {
         window.location.replace('dashboard.html');
+        return;
       }
+
+      // ── Navbar scroll shadow ────────────────────────────────────────────────
+      const nav = document.getElementById('mainNav');
+      window.addEventListener('scroll', () => {
+        nav.classList.toggle('scrolled', window.scrollY > 12);
+      }, { passive: true });
+
+      // ── Populate hero preview cards with live events ────────────────────────
+      const events = await Auth.getEvents();
+
+      function escapeHtml(str) {
+        return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      const catMeta = {
+        Social: { icon: 'bi-people-fill', bg: 'rgba(196,55,90,0.12)', color: '#C4375A' },
+        Educational: { icon: 'bi-book-fill', bg: 'rgba(21,101,192,0.12)', color: '#1565C0' },
+        Vocational: { icon: 'bi-briefcase-fill', bg: 'rgba(46,125,50,0.12)', color: '#2E7D32' },
+      };
+
+      // Hero right column preview cards
+      const heroCol = document.getElementById('heroEventPreviews');
+      if (heroCol && events.length > 0) {
+        heroCol.innerHTML = events.slice(0, 3).map(ev => {
+          const m = catMeta[ev.category] || { icon: 'bi-calendar2-event', bg: 'var(--k-indigo-lt)', color: 'var(--k-indigo)' };
+          return `
+            <div style="background:#fff;border:1.5px solid var(--k-border);border-radius:0.875rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:0.9rem;box-shadow:var(--shadow-card);transition:transform 0.25s ease,box-shadow 0.25s ease;" class="hero-preview-card">
+              <div style="width:42px;height:42px;border-radius:0.65rem;background:${m.bg};color:${m.color};display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">
+                <i class="bi ${m.icon}"></i>
+              </div>
+              <div>
+                <div style="font-size:0.88rem;font-weight:700;color:var(--k-text);">${escapeHtml(ev.title)}</div>
+                <div style="font-size:0.75rem;color:var(--k-muted);">${escapeHtml(ev.category)} &middot; ${escapeHtml(ev.location || 'See details')}</div>
+              </div>
+            </div>`;
+        }).join('');
+
+        // Subtle hover lift
+        heroCol.querySelectorAll('.hero-preview-card').forEach(c => {
+          c.addEventListener('mouseenter', () => { c.style.transform = 'translateX(4px)'; c.style.boxShadow = 'var(--shadow-card-hover)'; });
+          c.addEventListener('mouseleave', () => { c.style.transform = ''; c.style.boxShadow = 'var(--shadow-card)'; });
+        });
+      }
+
+      // Events-preview strip (dark section)
+      const previewList = document.getElementById('previewEventList');
+      if (previewList && events.length > 0) {
+        const darkMeta = {
+          Social: { icon: 'bi-people-fill', bg: 'rgba(196,55,90,0.25)', color: '#f8a5b8' },
+          Educational: { icon: 'bi-book-fill', bg: 'rgba(21,101,192,0.25)', color: '#90b8f0' },
+          Vocational: { icon: 'bi-briefcase-fill', bg: 'rgba(46,125,50,0.25)', color: '#7dd17f' },
+        };
+        previewList.innerHTML = events.slice(0, 3).map(ev => {
+          const m = darkMeta[ev.category] || { icon: 'bi-calendar2-event', bg: 'rgba(255,255,255,0.15)', color: '#fff' };
+          return `
+            <div class="preview-event-pill">
+              <div class="preview-event-icon" style="background:${m.bg};color:${m.color};">
+                <i class="bi ${m.icon}"></i>
+              </div>
+              <div>
+                <div class="preview-event-title">${escapeHtml(ev.title)}</div>
+                <div class="preview-event-meta">${escapeHtml(ev.category)} &middot; ${escapeHtml(ev.location || 'See details')}</div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
     });
   </script>
 

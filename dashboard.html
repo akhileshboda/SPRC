@@ -68,20 +68,21 @@
           <div class="card shadow-sm">
             <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
             <div class="card-body text-muted">
-              Select <strong>Participants</strong> or <strong>Users</strong> from the sidebar to manage records.
+              Select <strong>Participants</strong>, <strong>Events</strong>, or <strong>Users</strong> from the
+              sidebar to manage records.
             </div>
           </div>
         </div>
 
-        <!-- PARTICIPANT: My Opportunities card -->
+        <!-- PARTICIPANT: My Events card -->
         <div id="panel-PARTICIPANT" class="d-none">
           <div class="card shadow-sm">
             <div class="card-header bg-success text-white fw-semibold">
-              My Opportunities
+              My Events
             </div>
             <div class="card-body">
               <p class="card-text text-muted mb-0">
-                Your matched resource opportunities and program listings will appear here in Sprint 2.
+                Your matched events and program listings will appear here in Sprint 2.
               </p>
             </div>
           </div>
@@ -198,6 +199,116 @@
 
       </section>
 
+      <!-- ══ SECTION: Events (ADMIN only) ══ -->
+      <section id="section-events" class="content-section d-none">
+
+        <!-- LIST sub-view (default) -->
+        <div id="view-events-list">
+          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+            <div>
+              <h5 class="text-dark fw-semibold mb-1">Event Management</h5>
+              <p class="text-muted mb-0">
+                Publish and maintain community events for families. Family-facing discovery remains a separate
+                next-phase view.
+              </p>
+            </div>
+            <button id="newEventBtn" class="btn btn-primary btn-sm text-nowrap align-self-start align-self-lg-center" type="button">
+              <i class="bi bi-plus-lg me-1"></i>New Event
+            </button>
+          </div>
+
+          <div class="card shadow-sm">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0 event-log-table">
+                <thead class="table-light">
+                  <tr>
+                    <th scope="col" class="ps-3">Event Title</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Date / Time</th>
+                    <th scope="col">Location</th>
+                    <th scope="col">Cost</th>
+                    <th scope="col">Participant Requirements &amp; Accommodations</th>
+                    <th scope="col">Date Added</th>
+                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="eventsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM sub-view (hidden by default) -->
+        <div id="view-events-form" class="d-none">
+          <div class="d-flex align-items-center mb-3">
+            <button id="backToEventsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
+              <i class="bi bi-arrow-left me-1"></i>Back
+            </button>
+            <h5 class="text-dark fw-semibold mb-0" id="eventFormTitle">New Event</h5>
+          </div>
+
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <div id="eventError" class="alert alert-danger d-none" role="alert"></div>
+
+              <form id="eventForm" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="eventTitle" class="form-label">Event Title</label>
+                    <input type="text" class="form-control" id="eventTitle" placeholder="e.g. Community Art Night" required>
+                    <div class="invalid-feedback">Event title is required.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="eventCategory" class="form-label">Category</label>
+                    <select class="form-select" id="eventCategory" required>
+                      <option value="" selected disabled>Select a category&hellip;</option>
+                      <option value="Social">Social</option>
+                      <option value="Educational">Educational</option>
+                      <option value="Vocational">Vocational</option>
+                    </select>
+                    <div class="invalid-feedback">Please select a category.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="eventCost" class="form-label">Cost</label>
+                    <input type="text" class="form-control" id="eventCost" placeholder="e.g. Free or $15" required>
+                    <div class="invalid-feedback">Cost information is required.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="eventDateTime" class="form-label">Date / Time</label>
+                    <input type="datetime-local" class="form-control" id="eventDateTime" required>
+                    <div class="invalid-feedback">Date and time are required.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="eventLocation" class="form-label">Location</label>
+                    <input type="text" class="form-control" id="eventLocation" placeholder="e.g. 145 Elm St, Indianapolis" required>
+                    <div class="invalid-feedback">Location is required.</div>
+                  </div>
+
+                  <div class="col-12">
+                    <label for="eventAccommodations" class="form-label">Participant Requirements &amp; Accommodations</label>
+                    <textarea class="form-control" id="eventAccommodations" rows="5"
+                      placeholder="Describe accessibility details, support needs, staff assistance, sensory considerations, age requirements, or participation expectations..."
+                      required></textarea>
+                    <div class="form-text">
+                      Include any information families need to decide whether this event matches participant needs.
+                    </div>
+                    <div class="invalid-feedback">Participant requirements and accommodations are required.</div>
+                  </div>
+
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-primary" id="eventSubmitBtn">Publish Event</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ══ SECTION: Users (ADMIN only) ══ -->
       <section id="section-users" class="content-section d-none">
 
@@ -273,7 +384,7 @@
                       <option value="" disabled selected>Select a role&hellip;</option>
                       <option value="ADMIN">Administrator &ndash; Full system access</option>
                       <option value="VOLUNTEER">Volunteer &ndash; Events and task updates</option>
-                      <option value="PARTICIPANT">Participant / Guardian &ndash; Personal profile and opportunities</option>
+                      <option value="PARTICIPANT">Participant / Guardian &ndash; Personal profile and events</option>
                     </select>
                     <div class="invalid-feedback">Please select a role.</div>
                   </div>

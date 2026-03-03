@@ -6,6 +6,83 @@ const Auth = (() => {
   const SESSION_KEY = 'kindred_session';
   const USERS_KEY = 'kindred_users';
   const PARTICIPANTS_KEY = 'kindred_participants';
+  // Keep the historical storage key so previously saved admin records still load.
+  const EVENTS_KEY = 'kindred_opportunities';
+
+  const SEED_EVENTS = [
+    {
+      id: 'seed_e1',
+      title: 'Community Art Night',
+      category: 'Social',
+      dateTime: '2026-04-05T18:00',
+      eventTimestamp: new Date('2026-04-05T18:00').getTime(),
+      location: 'Riverside Community Center, 200 Main St',
+      cost: 'Free',
+      accommodations: 'Wheelchair accessible entrance. Quiet sensory room available on request. Staff on-site to assist participants throughout the evening.',
+      createdAtMs: 1740000000000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_e2',
+      title: 'Job Skills Workshop',
+      category: 'Vocational',
+      dateTime: '2026-04-12T10:00',
+      eventTimestamp: new Date('2026-04-12T10:00').getTime(),
+      location: 'Downtown Career Center, 145 Elm St',
+      cost: 'Free',
+      accommodations: 'Ages 18+. Sign language interpreter available. Large-print materials provided. Participants should bring a government-issued ID.',
+      createdAtMs: 1740000001000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_e3',
+      title: 'Library Reading Program',
+      category: 'Educational',
+      dateTime: '2026-04-19T14:00',
+      eventTimestamp: new Date('2026-04-19T14:00').getTime(),
+      location: 'Public Library — Main Branch, 300 Oak Ave',
+      cost: 'Free',
+      accommodations: 'All ages welcome. Screen reader–compatible materials and audio books available. Sensory-friendly lighting maintained throughout.',
+      createdAtMs: 1740000002000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_e4',
+      title: 'Adaptive Cooking Class',
+      category: 'Vocational',
+      dateTime: '2026-04-26T11:00',
+      eventTimestamp: new Date('2026-04-26T11:00').getTime(),
+      location: 'Harvest Kitchen, 78 Birch Blvd',
+      cost: '$10 per session',
+      accommodations: 'Ages 16+. One-on-one aide support available. Kitchen fully accessible. Participants with food allergies should notify the coordinator 48 hours in advance.',
+      createdAtMs: 1740000003000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_e5',
+      title: 'Buddy Bowling Night',
+      category: 'Social',
+      dateTime: '2026-05-03T17:00',
+      eventTimestamp: new Date('2026-05-03T17:00').getTime(),
+      location: 'Kingpin Lanes, 555 Fairway Dr',
+      cost: 'Free',
+      accommodations: 'Open to all ages and abilities. Ramp bowling available. Noise-reducing headphones on loan. Volunteer buddies paired with each participant.',
+      createdAtMs: 1740000004000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_e6',
+      title: 'Digital Literacy Seminar',
+      category: 'Educational',
+      dateTime: '2026-05-10T13:00',
+      eventTimestamp: new Date('2026-05-10T13:00').getTime(),
+      location: 'Eastside Tech Hub, 900 Maple Ct',
+      cost: 'Free',
+      accommodations: 'Ages 14+. Assistive technology stations available. Step-by-step printed guides provided. Caregiver or guardian welcome to attend alongside participant.',
+      createdAtMs: 1740000005000,
+      dateAdded: 'Mar 3, 2026'
+    }
+  ];
 
   const SEED_USERS = [
     {
@@ -60,6 +137,11 @@ const Auth = (() => {
     if (!localStorage.getItem(PARTICIPANTS_KEY)) {
       localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify([]));
     }
+    const rawEvents = localStorage.getItem(EVENTS_KEY);
+    const parsedEvents = rawEvents ? (() => { try { return JSON.parse(rawEvents); } catch { return []; } })() : null;
+    if (!rawEvents || !Array.isArray(parsedEvents) || parsedEvents.length === 0) {
+      localStorage.setItem(EVENTS_KEY, JSON.stringify(SEED_EVENTS));
+    }
   }
 
   function getRawUsers() {
@@ -78,9 +160,35 @@ const Auth = (() => {
     }
   }
 
+  function getRawEvents() {
+    try {
+      return JSON.parse(localStorage.getItem(EVENTS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
   function splitName(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
+  }
+
+  function getEventTimestamp(dateTime) {
+    const timestamp = new Date(String(dateTime || '')).getTime();
+    return Number.isNaN(timestamp) ? null : timestamp;
+  }
+
+  function formatEventDateTime(dateTime) {
+    const timestamp = getEventTimestamp(dateTime);
+    if (timestamp === null) return String(dateTime || '').trim();
+
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(timestamp));
   }
 
   async function getSession() {
@@ -133,6 +241,7 @@ const Auth = (() => {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(USERS_KEY);
     localStorage.removeItem(PARTICIPANTS_KEY);
+    localStorage.removeItem(EVENTS_KEY);
     if (reseed) initStores();
     return { success: true };
   }
@@ -295,6 +404,111 @@ const Auth = (() => {
     return { success: true };
   }
 
+  function eventDuplicate(events, payload, skipId = null) {
+    const title = String(payload.title || '').trim().toLowerCase();
+    const location = String(payload.location || '').trim().toLowerCase();
+    const dateTime = String(payload.dateTime || '').trim();
+
+    return events.some((event) => {
+      if (skipId !== null && String(event.id) === String(skipId)) return false;
+      return String(event.title || '').trim().toLowerCase() === title
+        && String(event.location || '').trim().toLowerCase() === location
+        && String(event.dateTime || '').trim() === dateTime;
+    });
+  }
+
+  async function getEvents() {
+    const now = Date.now();
+
+    return getRawEvents()
+      .slice()
+      .sort((a, b) => {
+        const aTimestamp = a.eventTimestamp ?? null;
+        const bTimestamp = b.eventTimestamp ?? null;
+        const aUpcoming = aTimestamp !== null && aTimestamp >= now;
+        const bUpcoming = bTimestamp !== null && bTimestamp >= now;
+
+        if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+        if (aUpcoming && bUpcoming && aTimestamp !== bTimestamp) return aTimestamp - bTimestamp;
+        if (!aUpcoming && !bUpcoming && aTimestamp !== bTimestamp) return (bTimestamp || 0) - (aTimestamp || 0);
+        return (b.createdAtMs || 0) - (a.createdAtMs || 0);
+      })
+      .map((event) => ({
+        id: event.id,
+        title: event.title,
+        category: event.category,
+        dateTime: event.dateTime,
+        dateTimeLabel: formatEventDateTime(event.dateTime),
+        location: event.location,
+        cost: event.cost,
+        accommodations: event.accommodations,
+        dateAdded: event.dateAdded
+      }));
+  }
+
+  async function addEvent(payload) {
+    const events = getRawEvents();
+    if (eventDuplicate(events, payload)) {
+      return {
+        success: false,
+        message: 'An event with the same title, location, and date/time already exists.'
+      };
+    }
+
+    events.push({
+      id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      title: String(payload.title || '').trim(),
+      category: String(payload.category || '').trim(),
+      dateTime: String(payload.dateTime || '').trim(),
+      eventTimestamp: getEventTimestamp(payload.dateTime),
+      location: String(payload.location || '').trim(),
+      cost: String(payload.cost || '').trim(),
+      accommodations: String(payload.accommodations || '').trim(),
+      createdAtMs: Date.now(),
+      dateAdded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    });
+
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+    return { success: true };
+  }
+
+  async function updateEvent(id, payload) {
+    const events = getRawEvents();
+    const idx = events.findIndex((event) => String(event.id) === String(id));
+    if (idx === -1) return { success: false, message: 'Event not found.' };
+    if (eventDuplicate(events, payload, id)) {
+      return {
+        success: false,
+        message: 'An event with the same title, location, and date/time already exists.'
+      };
+    }
+
+    events[idx] = {
+      ...events[idx],
+      title: String(payload.title || '').trim(),
+      category: String(payload.category || '').trim(),
+      dateTime: String(payload.dateTime || '').trim(),
+      eventTimestamp: getEventTimestamp(payload.dateTime),
+      location: String(payload.location || '').trim(),
+      cost: String(payload.cost || '').trim(),
+      accommodations: String(payload.accommodations || '').trim()
+    };
+
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+    return { success: true };
+  }
+
+  async function removeEvent(id) {
+    const events = getRawEvents();
+    const filtered = events.filter((event) => String(event.id) !== String(id));
+    if (filtered.length === events.length) {
+      return { success: false, message: 'Event not found.' };
+    }
+
+    localStorage.setItem(EVENTS_KEY, JSON.stringify(filtered));
+    return { success: true };
+  }
+
   initStores();
 
   return {
@@ -310,6 +524,10 @@ const Auth = (() => {
     getParticipants,
     addParticipant,
     updateParticipant,
-    removeParticipant
+    removeParticipant,
+    getEvents,
+    addEvent,
+    updateEvent,
+    removeEvent
   };
 })();

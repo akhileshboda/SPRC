@@ -5,6 +5,7 @@
 const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',  roles: ['ADMIN', 'PARTICIPANT', 'VOLUNTEER'] },
   { id: 'participants', label: 'Participants', icon: 'bi-people',       roles: ['ADMIN'] },
+  { id: 'events', label: 'Events', icon: 'bi-calendar-event', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge', roles: ['ADMIN'] },
 ];
 
