@@ -157,3 +157,106 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Shared public navbar  (index.html · events.html · login.html)
+   Injected via nav.html + js/nav.js
+   ══════════════════════════════════════════════════════════════ */
+
+/* Design tokens shared by all front-facing pages */
+:root {
+  --k-indigo:    #4F62B0;
+  --k-indigo-dk: #3a4a8a;
+  --k-indigo-lt: #eef0fa;
+  --k-teal:      #2BB5A0;
+  --k-teal-lt:   #e4f7f4;
+  --k-amber:     #F5A623;
+  --k-amber-lt:  #fef6e7;
+  --k-surface:   #f7f8fc;
+  --k-border:    #e2e6f3;
+  --k-text:      #1a1d2e;
+  --k-muted:     #6b7280;
+  --radius-card: 1rem;
+  --radius-pill: 2rem;
+  --shadow-card:       0 2px 16px rgba(79, 98, 176, 0.09);
+  --shadow-card-hover: 0 8px 32px rgba(79, 98, 176, 0.18);
+}
+
+#mainNav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--k-border);
+  transition: box-shadow 0.25s ease;
+}
+
+#mainNav.scrolled {
+  box-shadow: 0 2px 20px rgba(79, 98, 176, 0.12);
+}
+
+.nav-logo {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--k-indigo);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+}
+
+.nav-logo span {
+  color: var(--k-teal);
+}
+
+.nav-links a {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--k-muted);
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  transition: color 0.15s, background 0.15s;
+}
+
+.nav-links a:hover {
+  color: var(--k-indigo);
+  background: var(--k-indigo-lt);
+}
+
+.nav-links a.active {
+  color: var(--k-indigo);
+  font-weight: 600;
+}
+
+.btn-nav-signin {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.45rem 1.1rem;
+  border-radius: var(--radius-pill);
+  background: var(--k-indigo);
+  color: #fff;
+  border: none;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-nav-signin:hover {
+  background: var(--k-indigo-dk);
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(79, 98, 176, 0.35);
+}
+
+/* Login page: 3-col grid pins logo left and centres links naturally */
+.nav-login-container {
+  display: grid !important; /* overrides Bootstrap's d-flex */
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+}
+
+.nav-login-container .nav-logo {
+  justify-self: start;
+}
+
+

@@ -54,73 +54,6 @@
             min-height: 100vh;
         }
 
-        /* ── Navbar ──────────────────────────────────────────────── */
-        #mainNav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--k-border);
-            transition: box-shadow 0.25s ease;
-        }
-
-        #mainNav.scrolled {
-            box-shadow: 0 2px 20px rgba(79, 98, 176, 0.12);
-        }
-
-        .nav-logo {
-            font-size: 1.35rem;
-            font-weight: 800;
-            color: var(--k-indigo);
-            letter-spacing: -0.5px;
-            text-decoration: none;
-        }
-
-        .nav-logo span {
-            color: var(--k-teal);
-        }
-
-        .nav-links a {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--k-muted);
-            text-decoration: none;
-            padding: 0.4rem 0.75rem;
-            border-radius: 0.5rem;
-            transition: color 0.15s, background 0.15s;
-        }
-
-        .nav-links a:hover {
-            color: var(--k-indigo);
-            background: var(--k-indigo-lt);
-        }
-
-        .nav-links a.active {
-            color: var(--k-indigo);
-            font-weight: 600;
-        }
-
-        .btn-nav-signin {
-            font-size: 0.875rem;
-            font-weight: 600;
-            padding: 0.45rem 1.1rem;
-            border-radius: var(--radius-pill);
-            background: var(--k-indigo);
-            color: #fff;
-            border: none;
-            text-decoration: none;
-            transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-        }
-
-        .btn-nav-signin:hover {
-            background: var(--k-indigo-dk);
-            color: #fff;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(79, 98, 176, 0.35);
-        }
-
         /* ── Page header ─────────────────────────────────────────── */
         #page-header {
             background: linear-gradient(135deg, #f0f2fc 0%, #e8f4f1 100%);
@@ -159,15 +92,24 @@
             max-width: 560px;
         }
 
+        /* ── Sticky page-top wrapper (nav + filter bar as one unit) ── */
+        #page-top {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        /* Nav inside wrapper no longer needs its own sticky */
+        #page-top #mainNav {
+            position: relative;
+            top: auto;
+        }
+
         /* ── Search & Filter ─────────────────────────────────────── */
         #filter-bar {
             background: #fff;
             border-bottom: 1px solid var(--k-border);
             padding: 1.1rem 0;
-            position: sticky;
-            top: 61px;
-            /* navbar height */
-            z-index: 90;
         }
 
         #searchBar {
@@ -192,6 +134,8 @@
 
         .search-wrapper {
             position: relative;
+            flex: 0 1 420px;
+            min-width: 0;
         }
 
         .search-wrapper .bi-search {
@@ -398,6 +342,7 @@
             line-height: 1.55;
             display: -webkit-box;
             -webkit-line-clamp: 3;
+            line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -529,23 +474,37 @@
 
 <body>
 
-    <!-- ════════════ NAVBAR ════════════ -->
-    <nav id="mainNav" aria-label="Main navigation">
-        <div class="container d-flex align-items-center justify-content-between py-3">
+    <!-- ════════════ STICKY HEADER (nav + filter bar) ════════════ -->
+    <div id="page-top">
+        <div id="nav-root"></div>
 
-            <a href="index.html" class="nav-logo" aria-label="Kindred home">Kindred<span>.</span></a>
+        <div id="filter-bar" role="search" aria-label="Filter events">
+            <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
 
-            <div class="nav-links d-none d-md-flex align-items-center gap-1">
-                <a href="index.html">Home</a>
-                <a href="events.html" class="active" aria-current="page">Events</a>
+                <div class="search-wrapper">
+                    <i class="bi bi-search"></i>
+                    <input type="search" id="searchBar" placeholder="Search events, locations, or keywords…"
+                        autocomplete="off" aria-label="Search events">
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <button class="filter-btn active" data-cat="All" aria-pressed="true">
+                        <i class="bi bi-grid-3x3-gap"></i> All
+                    </button>
+                    <button class="filter-btn" data-cat="Social" aria-pressed="false">
+                        <i class="bi bi-people"></i> Social
+                    </button>
+                    <button class="filter-btn" data-cat="Educational" aria-pressed="false">
+                        <i class="bi bi-book"></i> Educational
+                    </button>
+                    <button class="filter-btn" data-cat="Vocational" aria-pressed="false">
+                        <i class="bi bi-briefcase"></i> Vocational
+                    </button>
+                </div>
+
             </div>
-
-            <a href="login.html" class="btn-nav-signin">
-                <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
-            </a>
-
         </div>
-    </nav>
+    </div><!-- /#page-top -->
 
     <!-- ════════════ PAGE HEADER ════════════ -->
     <header id="page-header" aria-labelledby="page-title">
@@ -558,34 +517,6 @@
             </p>
         </div>
     </header>
-
-    <!-- ════════════ STICKY FILTER BAR ════════════ -->
-    <div id="filter-bar" role="search" aria-label="Filter events">
-        <div class="container d-flex flex-wrap align-items-center justify-content-between gap-3">
-
-            <div class="search-wrapper">
-                <i class="bi bi-search"></i>
-                <input type="search" id="searchBar" placeholder="Search events, locations, or keywords…"
-                    autocomplete="off" aria-label="Search events">
-            </div>
-
-            <div class="d-flex flex-wrap gap-2 align-items-center">
-                <button class="filter-btn active" data-cat="All" aria-pressed="true">
-                    <i class="bi bi-grid-3x3-gap"></i> All
-                </button>
-                <button class="filter-btn" data-cat="Social" aria-pressed="false">
-                    <i class="bi bi-people"></i> Social
-                </button>
-                <button class="filter-btn" data-cat="Educational" aria-pressed="false">
-                    <i class="bi bi-book"></i> Educational
-                </button>
-                <button class="filter-btn" data-cat="Vocational" aria-pressed="false">
-                    <i class="bi bi-briefcase"></i> Vocational
-                </button>
-            </div>
-
-        </div>
-    </div>
 
     <!-- ════════════ EVENTS GRID ════════════ -->
     <main id="events-main">
@@ -609,15 +540,10 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/nav.js"></script>
     <script src="js/auth.js"></script>
     <script>
-        // ── No session redirect here — events are fully public ────────────────────
-
-        // Navbar scroll shadow
-        const nav = document.getElementById('mainNav');
-        window.addEventListener('scroll', () => {
-            nav.classList.toggle('scrolled', window.scrollY > 12);
-        }, { passive: true });
+        // Scroll shadow is handled by js/nav.js
 
         // ── Events browser ────────────────────────────────────────────────────────
         let allEvents = [];
