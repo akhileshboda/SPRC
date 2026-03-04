@@ -14,6 +14,7 @@ Kindred is a role-based web application designed to connect special-needs partic
 - **Account Management** — administrators can register staff/volunteers with first and last name fields, plus confirmation modal
 - **User Table** — live System Users table with role badges, edit (volunteer/participant), and delete actions
 - **Participant Records (Req 201)** — administrators can create, edit, and delete participant records with special-needs details
+- **Volunteer Self-Registration (Story 402)** — volunteers can register personal information, select interests from a dropdown multi-select checklist, and update availability so they can be matched and contacted for relevant opportunities
 - **Forgot Password** — simulated password reset flow on the login page
 
 ---
@@ -45,6 +46,17 @@ login.html
 5. Click **Edit** to modify the record and save updates.
 6. Refresh the page; verify the record is still present (localStorage persistence).
 
+### Test: Volunteer Self-Registration (Volunteer Story 402)
+
+1. Sign in as volunteer:
+   - Email: `volunteer@kindred.org`
+   - Password: `vol123`
+2. In the **Volunteer Registration** card on the dashboard, fill in personal information.
+3. Open the **Interests** dropdown and check one or more interests.
+4. (Optional) Check **Other** and type a custom interest.
+5. Click **Save My Volunteer Profile**.
+6. Refresh and confirm the profile values are preloaded for editing.
+
 ---
 
 ## Project Structure
@@ -56,7 +68,9 @@ SPRC/
 ├── index.html        # Landing page
 ├── js/
 │   ├── auth.js       # Frontend auth/data module (localStorage)
-│   └── admin.js      # Admin panel UI handlers (forms, table, edit/delete)
+│   ├── admin.js      # Admin panel UI handlers (forms, table, edit/delete)
+│   ├── volunteer.js  # Volunteer self-registration handlers (profile + interests)
+│   └── sidebar.js    # Sidebar navigation and section switching
 └── css/
     └── styles.css    # Minimal Bootstrap 5 overrides
 ```
