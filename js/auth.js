@@ -6,6 +6,7 @@ const Auth = (() => {
   const SESSION_KEY = 'kindred_session';
   const USERS_KEY = 'kindred_users';
   const PARTICIPANTS_KEY = 'kindred_participants';
+  const VOLUNTEER_PROFILES_KEY = 'kindred_volunteer_profiles';
   // Keep the historical storage key so previously saved admin records still load.
   const EVENTS_KEY = 'kindred_opportunities';
 
@@ -137,6 +138,9 @@ const Auth = (() => {
     if (!localStorage.getItem(PARTICIPANTS_KEY)) {
       localStorage.setItem(PARTICIPANTS_KEY, JSON.stringify([]));
     }
+    if (!localStorage.getItem(VOLUNTEER_PROFILES_KEY)) {
+      localStorage.setItem(VOLUNTEER_PROFILES_KEY, JSON.stringify([]));
+    }
     const rawEvents = localStorage.getItem(EVENTS_KEY);
     const parsedEvents = rawEvents ? (() => { try { return JSON.parse(rawEvents); } catch { return []; } })() : null;
     if (!rawEvents || !Array.isArray(parsedEvents) || parsedEvents.length === 0) {
@@ -163,6 +167,14 @@ const Auth = (() => {
   function getRawEvents() {
     try {
       return JSON.parse(localStorage.getItem(EVENTS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getRawVolunteerProfiles() {
+    try {
+      return JSON.parse(localStorage.getItem(VOLUNTEER_PROFILES_KEY)) || [];
     } catch {
       return [];
     }
@@ -404,6 +416,46 @@ const Auth = (() => {
     return { success: true };
   }
 
+  async function getVolunteerProfile(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const profile = getRawVolunteerProfiles()
+      .find((p) => String(p.email || '').trim().toLowerCase() === normalizedEmail);
+    return profile || null;
+  }
+
+  async function saveVolunteerProfile(payload) {
+    const profiles = getRawVolunteerProfiles();
+    const email = String(payload.email || '').trim().toLowerCase();
+    if (!email) return { success: false, message: 'A volunteer email is required.' };
+
+    const record = {
+      firstName: String(payload.firstName || '').trim(),
+      lastName: String(payload.lastName || '').trim(),
+      phone: String(payload.phone || '').trim(),
+      email,
+      interests: String(payload.interests || '').trim(),
+      availability: String(payload.availability || '').trim(),
+      updatedAt: Date.now(),
+      updatedAtLabel: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    };
+
+    const idx = profiles.findIndex((p) => String(p.email || '').trim().toLowerCase() === email);
+    if (idx === -1) {
+      profiles.push(record);
+    } else {
+      profiles[idx] = { ...profiles[idx], ...record };
+    }
+
+    localStorage.setItem(VOLUNTEER_PROFILES_KEY, JSON.stringify(profiles));
+    return { success: true };
+  }
+
   function eventDuplicate(events, payload, skipId = null) {
     const title = String(payload.title || '').trim().toLowerCase();
     const location = String(payload.location || '').trim().toLowerCase();
@@ -525,6 +577,8 @@ const Auth = (() => {
     addParticipant,
     updateParticipant,
     removeParticipant,
+    getVolunteerProfile,
+    saveVolunteerProfile,
     getEvents,
     addEvent,
     updateEvent,

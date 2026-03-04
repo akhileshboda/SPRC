@@ -92,12 +92,61 @@
         <div id="panel-VOLUNTEER" class="d-none">
           <div class="card shadow-sm">
             <div class="card-header bg-info text-white fw-semibold">
-              Volunteer Portal
+              Volunteer Registration
             </div>
             <div class="card-body">
-              <p class="card-text text-muted mb-0">
-                Volunteer scheduling, assignments, and impact tracking will appear here in Sprint 2.
+              <p class="text-muted mb-3">
+                Register your profile so administrators can contact you for relevant opportunities.
               </p>
+
+              <div id="volunteerProfileStatus" class="alert alert-success d-none" role="alert"></div>
+              <div id="volunteerProfileError" class="alert alert-danger d-none" role="alert"></div>
+
+              <form id="volunteerProfileForm" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-3">
+                    <label for="volFirstName" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="volFirstName" required>
+                    <div class="invalid-feedback">First name is required.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="volLastName" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="volLastName" required>
+                    <div class="invalid-feedback">Last name is required.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="volPhone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="volPhone" placeholder="e.g. (555) 555-0101" required>
+                    <div class="invalid-feedback">Phone number is required.</div>
+                  </div>
+
+                  <div class="col-md-3">
+                    <label for="volEmail" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="volEmail" readonly>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="volInterests" class="form-label">Interests</label>
+                    <textarea class="form-control" id="volInterests" rows="3"
+                      placeholder="e.g. mentoring, sports events, educational workshops" required></textarea>
+                    <div class="invalid-feedback">Please provide your interests.</div>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="volAvailability" class="form-label">Availability</label>
+                    <textarea class="form-control" id="volAvailability" rows="3"
+                      placeholder="e.g. Weeknights after 6PM, Saturdays mornings"></textarea>
+                  </div>
+
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-info text-white fw-semibold" id="volunteerProfileSubmitBtn">
+                      Save My Volunteer Profile
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         </div>
@@ -516,6 +565,7 @@
     });
   </script>
   <script src="js/admin.js"></script>
+  <script src="js/volunteer.js"></script>
 </body>
 
 </html>
