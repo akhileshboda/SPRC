@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusEl = document.getElementById('volunteerProfileStatus');
   const errorEl = document.getElementById('volunteerProfileError');
   const submitBtn = document.getElementById('volunteerProfileSubmitBtn');
+  const interestsDropdownBtnEl = document.getElementById('volInterestsDropdownBtn');
+  const interestsSummaryEl = document.getElementById('volInterestsSummary');
   const firstNameEl = document.getElementById('volFirstName');
   const lastNameEl = document.getElementById('volLastName');
   const phoneEl = document.getElementById('volPhone');
@@ -26,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function hideMessages() {
     statusEl?.classList.add('d-none');
     errorEl?.classList.add('d-none');
-    interestsGroupEl?.classList.remove('border-danger');
+    interestsDropdownBtnEl?.classList.remove('border-danger');
     interestsFeedbackEl?.classList.add('d-none');
   }
 
@@ -40,6 +42,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!otherInterestTextEl) return;
     otherInterestTextEl.disabled = !enabled;
     if (!enabled) otherInterestTextEl.value = '';
+  }
+
+  function updateInterestsSummary() {
+    const selected = getSelectedInterests();
+    if (!interestsSummaryEl) return;
+
+    if (selected.length === 0) {
+      interestsSummaryEl.textContent = 'Select interests';
+      return;
+    }
+
+    const preview = selected.slice(0, 2).join(', ');
+    const extra = selected.length > 2 ? ` +${selected.length - 2} more` : '';
+    interestsSummaryEl.textContent = `${preview}${extra}`;
   }
 
   function getSelectedInterests() {
@@ -79,16 +95,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (otherText && otherInterestTextEl) {
       otherInterestTextEl.value = otherText;
     }
+    updateInterestsSummary();
   }
 
   function validateInterestsSelection() {
     const selected = getSelectedInterests();
     if (selected.length === 0) {
-      interestsGroupEl?.classList.add('border-danger');
+      interestsDropdownBtnEl?.classList.add('border-danger');
       interestsFeedbackEl?.classList.remove('d-none');
       return false;
     }
-    interestsGroupEl?.classList.remove('border-danger');
+    interestsDropdownBtnEl?.classList.remove('border-danger');
     interestsFeedbackEl?.classList.add('d-none');
     return true;
   }
@@ -114,11 +131,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   otherInterestCheckboxEl?.addEventListener('change', () => {
     setOtherInterestInputState();
+    updateInterestsSummary();
     hideMessages();
+  });
+
+  interestCheckboxEls().forEach((checkbox) => {
+    checkbox.addEventListener('change', () => {
+      updateInterestsSummary();
+      hideMessages();
+    });
+  });
+
+  otherInterestTextEl?.addEventListener('input', () => {
+    updateInterestsSummary();
   });
 
   form.addEventListener('input', hideMessages);
   setOtherInterestInputState();
+  updateInterestsSummary();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

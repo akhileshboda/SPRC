@@ -129,38 +129,44 @@
 
                   <div class="col-md-6">
                     <label class="form-label d-block mb-2">Interests</label>
-                    <div id="volInterestsGroup" class="border rounded p-3 bg-light">
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Mentoring" id="volInterestMentoring" name="volInterests">
-                        <label class="form-check-label" for="volInterestMentoring">Mentoring</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Educational Programs" id="volInterestEducational" name="volInterests">
-                        <label class="form-check-label" for="volInterestEducational">Educational Programs</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Community Events" id="volInterestCommunityEvents" name="volInterests">
-                        <label class="form-check-label" for="volInterestCommunityEvents">Community Events</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="volInterestSports" name="volInterests">
-                        <label class="form-check-label" for="volInterestSports">Sports &amp; Recreation</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Administrative Support" id="volInterestAdminSupport" name="volInterests">
-                        <label class="form-check-label" for="volInterestAdminSupport">Administrative Support</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Job Coaching" id="volInterestJobCoaching" name="volInterests">
-                        <label class="form-check-label" for="volInterestJobCoaching">Job Coaching</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Other" id="volInterestOther" name="volInterests">
-                        <label class="form-check-label" for="volInterestOther">Other</label>
-                      </div>
-                      <div class="mt-2">
-                        <input type="text" class="form-control form-control-sm" id="volInterestOtherText"
-                          placeholder="If other, specify your interest" disabled>
+                    <div class="dropdown">
+                      <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                        id="volInterestsDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <span id="volInterestsSummary">Select interests</span>
+                      </button>
+                      <div id="volInterestsGroup" class="dropdown-menu p-3 w-100" aria-labelledby="volInterestsDropdownBtn" style="max-height: 260px; overflow-y: auto;">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Mentoring" id="volInterestMentoring" name="volInterests">
+                          <label class="form-check-label" for="volInterestMentoring">Mentoring</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Educational Programs" id="volInterestEducational" name="volInterests">
+                          <label class="form-check-label" for="volInterestEducational">Educational Programs</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Community Events" id="volInterestCommunityEvents" name="volInterests">
+                          <label class="form-check-label" for="volInterestCommunityEvents">Community Events</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="volInterestSports" name="volInterests">
+                          <label class="form-check-label" for="volInterestSports">Sports &amp; Recreation</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Administrative Support" id="volInterestAdminSupport" name="volInterests">
+                          <label class="form-check-label" for="volInterestAdminSupport">Administrative Support</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Job Coaching" id="volInterestJobCoaching" name="volInterests">
+                          <label class="form-check-label" for="volInterestJobCoaching">Job Coaching</label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" value="Other" id="volInterestOther" name="volInterests">
+                          <label class="form-check-label" for="volInterestOther">Other</label>
+                        </div>
+                        <div class="mt-2">
+                          <input type="text" class="form-control form-control-sm" id="volInterestOtherText"
+                            placeholder="If other, specify your interest" disabled>
+                        </div>
                       </div>
                     </div>
                     <div class="invalid-feedback d-none" id="volInterestsFeedback">Select at least one interest.</div>
