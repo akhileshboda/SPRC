@@ -128,10 +128,42 @@
                   </div>
 
                   <div class="col-md-6">
-                    <label for="volInterests" class="form-label">Interests</label>
-                    <textarea class="form-control" id="volInterests" rows="3"
-                      placeholder="e.g. mentoring, sports events, educational workshops" required></textarea>
-                    <div class="invalid-feedback">Please provide your interests.</div>
+                    <label class="form-label d-block mb-2">Interests</label>
+                    <div id="volInterestsGroup" class="border rounded p-3 bg-light">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Mentoring" id="volInterestMentoring" name="volInterests">
+                        <label class="form-check-label" for="volInterestMentoring">Mentoring</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Educational Programs" id="volInterestEducational" name="volInterests">
+                        <label class="form-check-label" for="volInterestEducational">Educational Programs</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Community Events" id="volInterestCommunityEvents" name="volInterests">
+                        <label class="form-check-label" for="volInterestCommunityEvents">Community Events</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="volInterestSports" name="volInterests">
+                        <label class="form-check-label" for="volInterestSports">Sports &amp; Recreation</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Administrative Support" id="volInterestAdminSupport" name="volInterests">
+                        <label class="form-check-label" for="volInterestAdminSupport">Administrative Support</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Job Coaching" id="volInterestJobCoaching" name="volInterests">
+                        <label class="form-check-label" for="volInterestJobCoaching">Job Coaching</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="Other" id="volInterestOther" name="volInterests">
+                        <label class="form-check-label" for="volInterestOther">Other</label>
+                      </div>
+                      <div class="mt-2">
+                        <input type="text" class="form-control form-control-sm" id="volInterestOtherText"
+                          placeholder="If other, specify your interest" disabled>
+                      </div>
+                    </div>
+                    <div class="invalid-feedback d-none" id="volInterestsFeedback">Select at least one interest.</div>
                   </div>
 
                   <div class="col-md-6">

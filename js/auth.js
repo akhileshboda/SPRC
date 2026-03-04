@@ -428,12 +428,19 @@ const Auth = (() => {
     const email = String(payload.email || '').trim().toLowerCase();
     if (!email) return { success: false, message: 'A volunteer email is required.' };
 
+    const interests = Array.isArray(payload.interests)
+      ? payload.interests.map((item) => String(item).trim()).filter(Boolean)
+      : String(payload.interests || '')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+
     const record = {
       firstName: String(payload.firstName || '').trim(),
       lastName: String(payload.lastName || '').trim(),
       phone: String(payload.phone || '').trim(),
       email,
-      interests: String(payload.interests || '').trim(),
+      interests,
       availability: String(payload.availability || '').trim(),
       updatedAt: Date.now(),
       updatedAtLabel: new Date().toLocaleString('en-US', {
