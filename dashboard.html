@@ -401,7 +401,16 @@
                     <textarea class="form-control" id="adminVolAvailability" rows="4"
                       placeholder="e.g. Weeknights after 6PM, Saturday mornings"></textarea>
                   </div>
-
+                    
+                  <div class="col-md-6">
+                    <label for="adminVolBackgroundCheck" class="form-label">Background Check Status</label>
+                    <select class="form-select" id="adminVolBackgroundCheck">
+                      <option value="Not Started">Not Started</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Cleared">Cleared</option>
+                    </select>
+                  </div>
+                  
                   <div class="col-12">
                     <button type="submit" class="btn btn-info text-white" id="volunteerAdminSubmitBtn">Save Volunteer Profile</button>
                   </div>
