@@ -123,6 +123,34 @@ body {
   line-height: 1.5;
 }
 
+.volunteer-table th {
+  white-space: nowrap;
+}
+
+.volunteer-list-text {
+  max-width: 19rem;
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.volunteer-match-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.volunteer-match-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #bdddf7;
+  background: #e6f2fc;
+  color: #0c4d84;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .badge-event-social,
 .badge-event-educational,
 .badge-event-vocational {
@@ -258,5 +286,4 @@ body {
 .nav-login-container .nav-logo {
   justify-self: start;
 }
-
 

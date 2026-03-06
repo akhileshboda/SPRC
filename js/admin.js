@@ -66,6 +66,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       isEditing ? 'Edit Event' : 'New Event';
   }
 
+  function showVolunteersListView() {
+    document.getElementById('view-volunteers-list').classList.remove('d-none');
+    document.getElementById('view-volunteers-form').classList.add('d-none');
+  }
+
+  function showVolunteersFormView(isEditing = false) {
+    document.getElementById('view-volunteers-list').classList.add('d-none');
+    document.getElementById('view-volunteers-form').classList.remove('d-none');
+    document.getElementById('volunteerFormTitle').textContent =
+      isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile';
+  }
+
   // ── Render users table ────────────────────────────────────────────────────
 
   async function renderUsersTable() {
@@ -232,6 +244,125 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  function tokenize(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((part) => part.length > 2);
+  }
+
+  const INTEREST_CATEGORY_MAP = {
+    Mentoring: ['Educational', 'Vocational'],
+    'Educational Programs': ['Educational'],
+    'Community Events': ['Social'],
+    'Sports & Recreation': ['Social'],
+    'Administrative Support': ['Vocational'],
+    'Job Coaching': ['Vocational']
+  };
+
+  function computeVolunteerMatches(profile, events) {
+    const rawInterests = Array.isArray(profile.interests) ? profile.interests : [];
+    const normalizedInterests = rawInterests.map((interest) => String(interest).trim()).filter(Boolean);
+    const interestTokens = normalizedInterests.flatMap((interest) => {
+      const customInterest = interest.startsWith('Other:')
+        ? interest.replace(/^Other:\s*/i, '')
+        : interest;
+      return tokenize(customInterest);
+    });
+    const categoryHints = normalizedInterests.flatMap((interest) => {
+      if (interest.startsWith('Other:')) return [];
+      return INTEREST_CATEGORY_MAP[interest] || [];
+    });
+
+    const scored = events
+      .map((event) => {
+        let score = 0;
+        if (categoryHints.includes(event.category)) score += 3;
+
+        const eventTokens = new Set(tokenize(`${event.title} ${event.location} ${event.accommodations}`));
+        interestTokens.forEach((token) => {
+          if (eventTokens.has(token)) score += 1;
+        });
+
+        return { event, score };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    return scored.slice(0, 3).map((entry) => entry.event);
+  }
+
+  async function renderVolunteersTable() {
+    const tbody = document.getElementById('volunteerProfilesTableBody');
+    if (!tbody) return;
+
+    const [profiles, events] = await Promise.all([
+      Auth.getVolunteerProfiles(),
+      Auth.getEvents()
+    ]);
+
+    if (profiles.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = profiles.map((profile) => {
+      const interestsMarkup = profile.interests.length
+        ? escapeHtml(profile.interests.join(', '))
+        : '<span class="text-muted">Not provided</span>';
+      const availabilityMarkup = profile.availability
+        ? escapeHtml(profile.availability)
+        : '<span class="text-muted">Not provided</span>';
+
+      const matchedEvents = computeVolunteerMatches(profile, events);
+      const matchMarkup = matchedEvents.length
+        ? `<div class="volunteer-match-list">${matchedEvents
+            .map((event) => `<span class="volunteer-match-chip">${escapeHtml(event.title)}</span>`)
+            .join('')}</div>`
+        : '<span class="text-muted">No direct match yet</span>';
+
+      return `
+        <tr>
+          <td class="ps-3">
+            <div class="fw-semibold">${escapeHtml(profile.fullName)}</div>
+          </td>
+          <td class="small text-muted">
+            <div>${escapeHtml(profile.email)}</div>
+            <div>${escapeHtml(profile.phone)}</div>
+          </td>
+          <td class="small volunteer-list-text">${interestsMarkup}</td>
+          <td class="small text-muted volunteer-list-text">${availabilityMarkup}</td>
+          <td class="small">${matchMarkup}</td>
+          <td class="small text-muted">${escapeHtml(profile.updatedAtLabel)}</td>
+          <td class="pe-3" style="width: 1%; white-space: nowrap;">
+            <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-email="${escapeHtml(profile.email)}">Edit</button>
+            <button class="btn btn-outline-danger btn-sm" data-volunteer-email="${escapeHtml(profile.email)}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('button[data-volunteer-edit-email]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await startVolunteerEdit(btn.dataset.volunteerEditEmail);
+      });
+    });
+
+    tbody.querySelectorAll('button[data-volunteer-email]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const result = await Auth.removeVolunteerProfile(btn.dataset.volunteerEmail);
+        if (result.success) {
+          if (editingVolunteerEmail && editingVolunteerEmail.toLowerCase() === btn.dataset.volunteerEmail.toLowerCase()) {
+            resetVolunteerFormState();
+          }
+          showToast('Volunteer profile removed.');
+          await renderVolunteersTable();
+        }
+      });
+    });
+  }
+
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
     return String(str)
@@ -297,11 +428,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const participantSubmitBtn = document.getElementById('participantSubmitBtn');
+  const volunteerAdminForm = document.getElementById('volunteerAdminForm');
+  const volunteerAdminError = document.getElementById('volunteerAdminError');
+  const volunteerAdminSubmitBtn = document.getElementById('volunteerAdminSubmitBtn');
+  const adminVolFirstNameEl = document.getElementById('adminVolFirstName');
+  const adminVolLastNameEl = document.getElementById('adminVolLastName');
+  const adminVolPhoneEl = document.getElementById('adminVolPhone');
+  const adminVolEmailEl = document.getElementById('adminVolEmail');
+  const adminVolAvailabilityEl = document.getElementById('adminVolAvailability');
+  const adminVolInterestsFeedbackEl = document.getElementById('adminVolInterestsFeedback');
+  const adminVolInterestsGroupEl = document.getElementById('adminVolInterestsGroup');
+  const adminVolInterestOtherEl = document.getElementById('adminVolInterestOther');
+  const adminVolInterestOtherTextEl = document.getElementById('adminVolInterestOtherText');
+  const adminVolInterestCheckboxEls = () => Array.from(document.querySelectorAll('input[name="adminVolInterests"]'));
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const eventSubmitBtn = document.getElementById('eventSubmitBtn');
   let editingUserEmail = null;
   let editingParticipantId = null;
+  let editingVolunteerEmail = null;
   let editingEventId = null;
 
   function showToast(message) {
@@ -356,6 +501,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Save Participant Record';
   }
 
+  function setAdminVolunteerOtherInterestInputState() {
+    const enabled = Boolean(adminVolInterestOtherEl?.checked);
+    if (!adminVolInterestOtherTextEl) return;
+    adminVolInterestOtherTextEl.disabled = !enabled;
+    if (!enabled) adminVolInterestOtherTextEl.value = '';
+  }
+
+  function getAdminSelectedVolunteerInterests() {
+    const values = adminVolInterestCheckboxEls()
+      .filter((checkbox) => checkbox.checked)
+      .map((checkbox) => checkbox.value);
+    if (values.includes('Other')) {
+      const customInterest = String(adminVolInterestOtherTextEl?.value || '').trim();
+      if (customInterest) {
+        return values.map((value) => (value === 'Other' ? `Other: ${customInterest}` : value));
+      }
+    }
+    return values;
+  }
+
+  function setAdminSelectedVolunteerInterests(interests) {
+    const list = Array.isArray(interests)
+      ? interests
+      : String(interests || '')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+
+    let otherText = '';
+    adminVolInterestCheckboxEls().forEach((checkbox) => {
+      const hasCustomOther = list.some((value) => value.startsWith('Other:'));
+      if (checkbox.value === 'Other') {
+        checkbox.checked = list.includes('Other') || hasCustomOther;
+        if (hasCustomOther) {
+          const otherValue = list.find((value) => value.startsWith('Other:')) || '';
+          otherText = String(otherValue).replace(/^Other:\s*/i, '').trim();
+        }
+      } else {
+        checkbox.checked = list.includes(checkbox.value);
+      }
+    });
+
+    setAdminVolunteerOtherInterestInputState();
+    if (otherText && adminVolInterestOtherTextEl) {
+      adminVolInterestOtherTextEl.value = otherText;
+    }
+  }
+
+  function validateAdminVolunteerInterests() {
+    const selected = getAdminSelectedVolunteerInterests();
+    if (selected.length === 0) {
+      adminVolInterestsGroupEl?.classList.add('border-danger');
+      adminVolInterestsFeedbackEl?.classList.remove('d-none');
+      return false;
+    }
+    adminVolInterestsGroupEl?.classList.remove('border-danger');
+    adminVolInterestsFeedbackEl?.classList.add('d-none');
+    return true;
+  }
+
+  function resetVolunteerFormState() {
+    if (!volunteerAdminForm) return;
+    volunteerAdminForm.reset();
+    volunteerAdminForm.classList.remove('was-validated');
+    volunteerAdminError.classList.add('d-none');
+    adminVolInterestsGroupEl?.classList.remove('border-danger');
+    adminVolInterestsFeedbackEl?.classList.add('d-none');
+    editingVolunteerEmail = null;
+    if (volunteerAdminSubmitBtn) volunteerAdminSubmitBtn.textContent = 'Save Volunteer Profile';
+    setAdminVolunteerOtherInterestInputState();
+  }
+
   function resetEventFormState() {
     if (!eventForm) return;
     eventForm.reset();
@@ -384,6 +601,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     participantForm.classList.remove('was-validated');
     if (participantSubmitBtn) participantSubmitBtn.textContent = 'Update Participant Record';
     showParticipantsFormView(true);
+  }
+
+  async function startVolunteerEdit(volunteerEmail) {
+    const profiles = await Auth.getVolunteerProfiles();
+    const profile = profiles.find((item) => item.email.toLowerCase() === String(volunteerEmail).toLowerCase());
+    if (!profile || !volunteerAdminForm) return;
+
+    adminVolFirstNameEl.value = profile.firstName || '';
+    adminVolLastNameEl.value = profile.lastName || '';
+    adminVolPhoneEl.value = profile.phone || '';
+    adminVolEmailEl.value = profile.email || '';
+    adminVolAvailabilityEl.value = profile.availability || '';
+    setAdminSelectedVolunteerInterests(profile.interests);
+
+    editingVolunteerEmail = profile.email;
+    volunteerAdminError.classList.add('d-none');
+    volunteerAdminForm.classList.remove('was-validated');
+    if (volunteerAdminSubmitBtn) volunteerAdminSubmitBtn.textContent = 'Update Volunteer Profile';
+    showVolunteersFormView(true);
   }
 
   async function startEventEdit(eventId) {
@@ -494,6 +730,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (volunteerAdminForm) {
+    adminVolInterestOtherEl?.addEventListener('change', () => {
+      setAdminVolunteerOtherInterestInputState();
+      volunteerAdminError.classList.add('d-none');
+      validateAdminVolunteerInterests();
+    });
+
+    adminVolInterestCheckboxEls().forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        volunteerAdminError.classList.add('d-none');
+        validateAdminVolunteerInterests();
+      });
+    });
+
+    volunteerAdminForm.addEventListener('input', () => {
+      volunteerAdminError.classList.add('d-none');
+      adminVolInterestsGroupEl?.classList.remove('border-danger');
+      adminVolInterestsFeedbackEl?.classList.add('d-none');
+    });
+
+    volunteerAdminForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const form = this;
+      form.classList.add('was-validated');
+      const interestsValid = validateAdminVolunteerInterests();
+      if (!form.checkValidity() || !interestsValid) return;
+
+      const payload = {
+        firstName: adminVolFirstNameEl.value,
+        lastName: adminVolLastNameEl.value,
+        phone: adminVolPhoneEl.value,
+        email: adminVolEmailEl.value,
+        interests: getAdminSelectedVolunteerInterests(),
+        availability: adminVolAvailabilityEl.value
+      };
+
+      const result = await Auth.saveVolunteerProfile(payload);
+      if (result.success) {
+        const wasEditingVolunteer = Boolean(editingVolunteerEmail);
+        resetVolunteerFormState();
+        showToast(
+          wasEditingVolunteer
+            ? 'Volunteer profile updated successfully.'
+            : 'Volunteer profile saved successfully.'
+        );
+        await renderVolunteersTable();
+        showVolunteersListView();
+      } else {
+        volunteerAdminError.textContent = result.message || 'Unable to save volunteer profile.';
+        volunteerAdminError.classList.remove('d-none');
+      }
+    });
+  }
+
   if (eventForm) {
     eventForm.addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -535,6 +826,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       eventError.classList.add('d-none');
     });
   }
+
+  setAdminVolunteerOtherInterestInputState();
 
   // ── Confirm button (user account creation modal) ──────────────────────────
 
@@ -609,6 +902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await renderUsersTable();
   await renderParticipantsTable();
+  await renderVolunteersTable();
   await renderEventsTable();
 
   // Wire "New" buttons to reset the form and show the form sub-view.
@@ -630,6 +924,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToEventsBtn')?.addEventListener('click', () => {
     resetEventFormState();
     showEventsListView();
+  });
+
+  document.getElementById('newVolunteerBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersFormView(false);
+  });
+
+  document.getElementById('backToVolunteersBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersListView();
   });
 
   document.getElementById('newUserBtn')?.addEventListener('click', () => {
