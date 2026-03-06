@@ -652,6 +652,12 @@
             const session = await Auth.getSession();
             if (!session) { window.location.replace('login.html'); return; }
             
+            const signinBtn = document.getElementById('nav-signin-btn');
+            if (signinBtn && session) {
+                signinBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i>Back to Dashboard';
+                signinBtn.href = 'dashboard.html';
+            }
+            
             const grid = document.getElementById('eventsGrid');
             grid.innerHTML = renderSkeletons(6);
             await new Promise(r => setTimeout(r, 180));
