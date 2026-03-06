@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',  roles: ['ADMIN', 'PARTICIPANT', 'VOLUNTEER'] },
   { id: 'participants', label: 'Participants', icon: 'bi-people',       roles: ['ADMIN'] },
   { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',        roles: ['ADMIN'] },
-  { id: 'events', label: 'Events', icon: 'bi-calendar-event', roles: ['ADMIN'] },
+  { id: 'events', label: 'Events', icon: 'bi-calendar-event', roles: ['ADMIN', 'VOLUNTEER'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge', roles: ['ADMIN'] },
 ];
 
@@ -61,7 +61,11 @@ function initSidebar(session) {
   // Wire nav links (covers both desktop and offcanvas copies)
   document.querySelectorAll('.sidebar-nav-link').forEach(btn => {
     btn.addEventListener('click', () => {
-      navigateTo(btn.dataset.section);
+  if (btn.dataset.section === 'events' && session.role === 'VOLUNTEER') {
+    window.location.href = 'events.html';
+    return;
+  }
+  navigateTo(btn.dataset.section);
       // Close offcanvas on mobile after navigating (no-op on desktop)
       bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas'))?.hide();
     });
