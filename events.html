@@ -596,7 +596,7 @@
 
           <div class="d-flex align-items-center justify-content-between mt-auto">
             ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span></span>'}
-            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span>
+            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${upcoming ? `<button class="btn btn-sm btn-primary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" onclick="handleSignUp(this, '${escapeHtml(event.title)}')"><i class="bi bi-hand-thumbsup me-1"></i>I'm Interested</button>` : ''}
           </div>
         </article>`;
         }
@@ -649,6 +649,15 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
+            const session = await Auth.getSession();
+            if (!session) { window.location.replace('login.html'); return; }
+            
+            const signinBtn = document.getElementById('nav-signin-btn');
+            if (signinBtn && session) {
+                signinBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i>Back to Dashboard';
+                signinBtn.href = 'dashboard.html';
+            }
+            
             const grid = document.getElementById('eventsGrid');
             grid.innerHTML = renderSkeletons(6);
             await new Promise(r => setTimeout(r, 180));
@@ -678,6 +687,16 @@
 
             filterAndRender();
         });
+
+        function handleSignUp(btn, title) {
+          btn.disabled = true;
+          btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Signed Up!';
+          btn.classList.replace('btn-primary', 'btn-success');
+
+          const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
+          signups.push({ title, timestamp: new Date().toISOString() });
+          localStorage.setItem('kindredSignups', JSON.stringify(signups));
+        }
     </script>
 
 </body>

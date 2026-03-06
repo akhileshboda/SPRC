@@ -253,6 +253,7 @@ const Auth = (() => {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(USERS_KEY);
     localStorage.removeItem(PARTICIPANTS_KEY);
+    localStorage.removeItem(VOLUNTEER_PROFILES_KEY);
     localStorage.removeItem(EVENTS_KEY);
     if (reseed) initStores();
     return { success: true };
@@ -423,6 +424,44 @@ const Auth = (() => {
     return profile || null;
   }
 
+  async function getVolunteerProfiles() {
+    return getRawVolunteerProfiles()
+      .slice()
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .map((p) => {
+        const firstName = String(p.firstName || '').trim();
+        const lastName = String(p.lastName || '').trim();
+        const fullName = `${firstName} ${lastName}`.trim() || p.email;
+        const interests = Array.isArray(p.interests)
+          ? p.interests.map((item) => String(item).trim()).filter(Boolean)
+          : String(p.interests || '')
+              .split(',')
+              .map((item) => item.trim())
+              .filter(Boolean);
+        const updatedAt = Number(p.updatedAt) || 0;
+        const updatedAtLabel = p.updatedAtLabel || (updatedAt
+          ? new Date(updatedAt).toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          })
+          : 'N/A');
+        return {
+          firstName,
+          lastName,
+          fullName,
+          phone: String(p.phone || '').trim(),
+          email: String(p.email || '').trim().toLowerCase(),
+          interests,
+          availability: String(p.availability || '').trim(),
+          updatedAt,
+          updatedAtLabel
+        };
+      });
+  }
+
   async function saveVolunteerProfile(payload) {
     const profiles = getRawVolunteerProfiles();
     const email = String(payload.email || '').trim().toLowerCase();
@@ -460,6 +499,17 @@ const Auth = (() => {
     }
 
     localStorage.setItem(VOLUNTEER_PROFILES_KEY, JSON.stringify(profiles));
+    return { success: true };
+  }
+
+  async function removeVolunteerProfile(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const profiles = getRawVolunteerProfiles();
+    const filtered = profiles.filter((p) => String(p.email || '').trim().toLowerCase() !== normalizedEmail);
+    if (filtered.length === profiles.length) {
+      return { success: false, message: 'Volunteer profile not found.' };
+    }
+    localStorage.setItem(VOLUNTEER_PROFILES_KEY, JSON.stringify(filtered));
     return { success: true };
   }
 
@@ -585,7 +635,9 @@ const Auth = (() => {
     updateParticipant,
     removeParticipant,
     getVolunteerProfile,
+    getVolunteerProfiles,
     saveVolunteerProfile,
+    removeVolunteerProfile,
     getEvents,
     addEvent,
     updateEvent,
