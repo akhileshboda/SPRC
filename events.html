@@ -688,14 +688,19 @@
             filterAndRender();
         });
 
-        function handleSignUp(btn, title) {
-          btn.disabled = true;
-          btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Signed Up!';
-          btn.classList.replace('btn-primary', 'btn-success');
+        async function handleSignUp(btn, title) {
+            const session = await Auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Signed Up!';
+            btn.classList.replace('btn-primary', 'btn-success');
 
-          const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
-          signups.push({ title, timestamp: new Date().toISOString() });
-          localStorage.setItem('kindredSignups', JSON.stringify(signups));
+            const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
+            signups.push({ title, timestamp: new Date().toISOString() });
+            localStorage.setItem('kindredSignups', JSON.stringify(signups));
         }
     </script>
 
