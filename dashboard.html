@@ -88,6 +88,18 @@
           </div>
         </div>
 
+        <!-- VOLUNTEER: My Saved Events -->
+        <div id="panel-VOLUNTEER-saved" class="d-none">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white fw-semibold">
+              <i class="bi bi-bookmark-heart me-2"></i>My Saved Events
+            </div>
+            <div class="card-body" id="volunteerSavedEvents">
+              <p class="text-muted mb-0">You haven't saved any events yet. <a href="events.html">Browse events</a> and click "I'm Interested" to save them here.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- VOLUNTEER: Volunteer Portal card -->
         <div id="panel-VOLUNTEER" class="d-none">
           <div class="card shadow-sm">
@@ -735,8 +747,26 @@
       // ── Init Sidebar + Set Initial Section ──────────────────────────────
       initSidebar(session);
       navigateTo('dashboard');
-
+      if (session.role === 'VOLUNTEER') {
+        document.getElementById('panel-VOLUNTEER-saved')?.classList.remove('d-none');
+        loadSavedEvents();
+      }
     });
+    
+    function loadSavedEvents() {
+      const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
+      const container = document.getElementById('volunteerSavedEvents');
+      if (!container || signups.length === 0) return;
+      container.innerHTML = signups.map(s => `
+        <div class="d-flex align-items-center justify-content-between border-bottom py-2">
+          <div>
+            <i class="bi bi-calendar-check text-primary me-2"></i>
+            <strong>${s.title}</strong>
+          </div>
+          <small class="text-muted">${new Date(s.timestamp).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</small>
+        </div>`).join('');
+    }
+
   </script>
   <script src="js/admin.js"></script>
   <script src="js/volunteer.js"></script>
