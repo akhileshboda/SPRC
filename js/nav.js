@@ -14,7 +14,7 @@
     // ── Synchronous fetch of nav.html ─────────────────────────────────────────
     try {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', 'nav.html', false); // false = synchronous
+        xhr.open('GET', 'nav.html?v=2', false); // false = synchronous; v= busts the cache
         xhr.send(null);
         if (xhr.status === 200 || xhr.status === 0 /* local file */) {
             root.innerHTML = xhr.responseText;
@@ -49,6 +49,33 @@
             // column regardless of screen width (logo stays pinned left).
             const container = document.querySelector('#mainNav .container');
             if (container) container.classList.add('nav-login-container');
+        }
+
+        // ── Session-aware CTA: swap "Sign In" → "My Account" ─────────────────
+        if (typeof Auth !== 'undefined') {
+            Auth.getSession().then(function (session) {
+                const signinBtn  = document.getElementById('nav-signin-btn');
+                const accountBtn = document.getElementById('nav-account-btn');
+
+                // On the dashboard, the sidebar handles session UI — hide both nav buttons
+                if (filename === 'dashboard') {
+                    if (signinBtn)  signinBtn.style.display  = 'none';
+                    if (accountBtn) accountBtn.style.display = 'none';
+                    return;
+                }
+
+                if (!session || !accountBtn || !signinBtn) return;
+
+                // Show My Account, hide Sign In
+                signinBtn.style.display  = 'none';
+                accountBtn.style.display = '';
+
+                // Personalise the label with the user's first name if available
+                const firstName = (session.name || '').trim().split(' ')[0];
+                if (firstName) {
+                    accountBtn.innerHTML = `<i class="bi bi-person-circle me-1"></i>${firstName}'s Portal`;
+                }
+            });
         }
 
         // Scroll shadow
