@@ -78,6 +78,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile';
   }
 
+  function showJobsListView() {
+    document.getElementById('view-jobs-list').classList.remove('d-none');
+    document.getElementById('view-jobs-form').classList.add('d-none');
+  }
+
+  function showJobsFormView(isEditing = false) {
+    document.getElementById('view-jobs-list').classList.add('d-none');
+    document.getElementById('view-jobs-form').classList.remove('d-none');
+    document.getElementById('jobFormTitle').textContent =
+      isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity';
+  }
+
   // ── Render users table ────────────────────────────────────────────────────
 
   async function renderUsersTable() {
@@ -363,6 +375,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function renderJobsTable() {
+    const tbody = document.getElementById('jobsTableBody');
+    if (!tbody) return;
+
+    const jobs = await Auth.getJobs();
+    if (jobs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
+      return;
+    }
+
+    const JOB_TYPE_BADGE = {
+      'Full-time': 'bg-success',
+      'Part-time': 'bg-primary',
+      'Casual':    'bg-warning text-dark',
+      'Gig':       'bg-secondary'
+    };
+
+    tbody.innerHTML = jobs.map((job) => {
+      const typeBadge = job.jobType
+        ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>`
+        : '<span class="text-muted small">—</span>';
+      const salary = job.salary
+        ? `<span class="fw-semibold">${escapeHtml(job.salary)}</span>`
+        : '<span class="text-muted small">—</span>';
+      const location = job.location
+        ? escapeHtml(job.location)
+        : '<span class="text-muted small">—</span>';
+
+      return `
+        <tr>
+          <td class="ps-3">
+            <div class="fw-semibold text-dark">${escapeHtml(job.title)}</div>
+          </td>
+          <td>${escapeHtml(job.employer)}</td>
+          <td class="small">${location}</td>
+          <td>${typeBadge}</td>
+          <td class="small">${salary}</td>
+          <td class="small text-muted" style="max-width: 260px;">
+            <div class="event-accommodations">${escapeHtml(job.requirements)}</div>
+          </td>
+          <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
+          <td class="pe-3" style="width: 1%; white-space: nowrap;">
+            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">Edit</button>
+            <button class="btn btn-outline-danger btn-sm" data-job-id="${escapeHtml(job.id)}">Delete</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('button[data-job-edit-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await startJobEdit(btn.dataset.jobEditId);
+      });
+    });
+
+    tbody.querySelectorAll('button[data-job-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const result = await Auth.removeJob(btn.dataset.jobId);
+        if (result.success) {
+          if (editingJobId && editingJobId === btn.dataset.jobId) {
+            resetJobFormState();
+          }
+          showToast('Job opportunity removed.');
+          await renderJobsTable();
+        }
+      });
+    });
+  }
+
+
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
     return String(str)
@@ -448,6 +530,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   let editingParticipantId = null;
   let editingVolunteerEmail = null;
   let editingEventId = null;
+  let editingJobId = null;
+
+  const jobForm = document.getElementById('jobForm');
+  const jobError = document.getElementById('jobError');
+  const jobSubmitBtn = document.getElementById('jobSubmitBtn');
 
   function showToast(message) {
     if (!toastEl || !toastMsgEl) return;
@@ -582,6 +669,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (eventSubmitBtn) eventSubmitBtn.textContent = 'Publish Event';
   }
 
+  function resetJobFormState() {
+    if (!jobForm) return;
+    jobForm.reset();
+    jobForm.classList.remove('was-validated');
+    jobError.classList.add('d-none');
+    editingJobId = null;
+    if (jobSubmitBtn) jobSubmitBtn.textContent = 'Save Opportunity';
+  }
+
   async function startParticipantEdit(participantId) {
     const participants = await Auth.getParticipants();
     const participant = participants.find((p) => String(p.id) === String(participantId));
@@ -639,6 +735,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     eventForm.classList.remove('was-validated');
     if (eventSubmitBtn) eventSubmitBtn.textContent = 'Update Event';
     showEventsFormView(true);
+  }
+
+  async function startJobEdit(jobId) {
+    const jobs = await Auth.getJobs();
+    const job = jobs.find((item) => String(item.id) === String(jobId));
+    if (!job || !jobForm) return;
+
+    document.getElementById('jobTitle').value = job.title || '';
+    document.getElementById('jobEmployer').value = job.employer || '';
+    document.getElementById('jobLocation').value = job.location || '';
+    document.getElementById('jobType').value = job.jobType || '';
+    document.getElementById('jobSalary').value = job.salary || '';
+    document.getElementById('jobRequirements').value = job.requirements || '';
+
+    editingJobId = job.id;
+    jobError.classList.add('d-none');
+    jobForm.classList.remove('was-validated');
+    if (jobSubmitBtn) jobSubmitBtn.textContent = 'Update Opportunity';
+    showJobsFormView(true);
   }
 
   if (registerForm) {
@@ -827,6 +942,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (jobForm) {
+    jobForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const form = this;
+      form.classList.add('was-validated');
+      if (!form.checkValidity()) return;
+
+      const employer = document.getElementById('jobEmployer').value.trim();
+      const payload = {
+        title: document.getElementById('jobTitle').value,
+        employer,
+        location: document.getElementById('jobLocation').value,
+        jobType: document.getElementById('jobType').value,
+        salary: document.getElementById('jobSalary').value,
+        requirements: document.getElementById('jobRequirements').value
+      };
+
+      const result = editingJobId
+        ? await Auth.updateJob(editingJobId, payload)
+        : await Auth.addJob(payload);
+      const wasEditingJob = Boolean(editingJobId);
+
+      if (result.success) {
+        resetJobFormState();
+        showToast(
+          wasEditingJob
+            ? `Job opportunity for ${employer} updated successfully.`
+            : `Job opportunity for ${employer} successfully logged and visible to participants.`
+        );
+        await renderJobsTable();
+        showJobsListView();
+      } else {
+        jobError.textContent = result.message;
+        jobError.classList.remove('d-none');
+      }
+    });
+
+    jobForm.addEventListener('input', () => {
+      jobError.classList.add('d-none');
+    });
+  }
+
   setAdminVolunteerOtherInterestInputState();
 
   // ── Confirm button (user account creation modal) ──────────────────────────
@@ -904,6 +1062,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderParticipantsTable();
   await renderVolunteersTable();
   await renderEventsTable();
+  await renderJobsTable();
 
   // Wire "New" buttons to reset the form and show the form sub-view.
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
@@ -934,6 +1093,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToVolunteersBtn')?.addEventListener('click', () => {
     resetVolunteerFormState();
     showVolunteersListView();
+  });
+
+  document.getElementById('newJobBtn')?.addEventListener('click', () => {
+    resetJobFormState();
+    showJobsFormView(false);
+  });
+
+  document.getElementById('backToJobsBtn')?.addEventListener('click', () => {
+    resetJobFormState();
+    showJobsListView();
   });
 
   document.getElementById('newUserBtn')?.addEventListener('click', () => {

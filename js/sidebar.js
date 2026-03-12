@@ -3,11 +3,18 @@
    section switching, active states, and logout wiring. */
 
 const NAV_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',  roles: ['ADMIN', 'PARTICIPANT', 'VOLUNTEER'] },
-  { id: 'participants', label: 'Participants', icon: 'bi-people',       roles: ['ADMIN'] },
-  { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',        roles: ['ADMIN'] },
-  { id: 'events', label: 'Events', icon: 'bi-calendar-event', roles: ['ADMIN', 'VOLUNTEER'] },
-  { id: 'users',        label: 'Users',        icon: 'bi-person-badge', roles: ['ADMIN'] },
+  { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',    roles: ['ADMIN', 'PARTICIPANT', 'VOLUNTEER'] },
+  // ADMIN-only management sections
+  { id: 'participants', label: 'Participants', icon: 'bi-people',         roles: ['ADMIN'] },
+  { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',          roles: ['ADMIN'] },
+  { id: 'events',       label: 'Events',       icon: 'bi-calendar-event', roles: ['ADMIN'] },
+  { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
+  { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
+  // PARTICIPANT discovery sections
+  { id: 'p-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
+  { id: 'p-jobs',       label: 'Jobs',         icon: 'bi-briefcase',      roles: ['PARTICIPANT'] },
+  // VOLUNTEER sections
+  { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
 ];
 
 function _escHtml(str) {
@@ -35,18 +42,7 @@ function _buildSidebarHTML(session) {
 
   const displayName = _escHtml(session.name || session.email);
 
-  return `
-    <nav class="flex-grow-1 pt-2">${links}</nav>
-    <div class="sidebar-user-block">
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="user-name">${displayName}</span>
-        <span class="badge ${roleClass} ms-auto">${session.role}</span>
-      </div>
-      <div class="user-email mb-2">${_escHtml(session.email)}</div>
-      <button class="btn btn-outline-light btn-sm w-100 js-logout-btn" type="button">
-        <i class="bi bi-box-arrow-right me-1"></i>Logout
-      </button>
-    </div>`;
+  return `<nav class="flex-grow-1 py-2">${links}</nav>`;
 }
 
 function initSidebar(session) {
@@ -61,11 +57,7 @@ function initSidebar(session) {
   // Wire nav links (covers both desktop and offcanvas copies)
   document.querySelectorAll('.sidebar-nav-link').forEach(btn => {
     btn.addEventListener('click', () => {
-  if (btn.dataset.section === 'events' && session.role === 'VOLUNTEER') {
-    window.location.href = 'events.html';
-    return;
-  }
-  navigateTo(btn.dataset.section);
+      navigateTo(btn.dataset.section);
       // Close offcanvas on mobile after navigating (no-op on desktop)
       bootstrap.Offcanvas.getInstance(document.getElementById('sidebarOffcanvas'))?.hide();
     });

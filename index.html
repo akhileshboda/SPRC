@@ -722,11 +722,17 @@
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
-      // ── Session redirect ────────────────────────────────────────────────────
+      // ── Session-aware hero CTA ───────────────────────────────────────────────
       const session = await Auth.getSession();
       if (session) {
-        window.location.replace('dashboard.html');
-        return;
+        // Swap hero "Sign In" button to a personalized "My Account" button
+        const heroSignin = document.getElementById('hero-signin-btn');
+        if (heroSignin) {
+          const firstName = (session.name || '').trim().split(' ')[0];
+          heroSignin.href = 'dashboard.html';
+          heroSignin.innerHTML = `<i class="bi bi-person-circle"></i> ${firstName ? firstName + "'s Portal" : 'My Account'}`;
+          heroSignin.classList.replace('btn-ghost-k', 'btn-primary-k');
+        }
       }
 
       // Scroll shadow is handled by js/nav.js

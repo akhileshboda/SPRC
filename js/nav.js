@@ -14,7 +14,7 @@
     // ── Synchronous fetch of nav.html ─────────────────────────────────────────
     try {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', 'nav.html', false); // false = synchronous
+        xhr.open('GET', 'nav.html?v=2', false); // false = synchronous; v= busts the cache
         xhr.send(null);
         if (xhr.status === 200 || xhr.status === 0 /* local file */) {
             root.innerHTML = xhr.responseText;
@@ -45,10 +45,38 @@
             const signinBtn = document.getElementById('nav-signin-btn');
             if (signinBtn) signinBtn.style.display = 'none';
 
-            // Switch the container to a 3-col grid so links sit in the centre
-            // column regardless of screen width (logo stays pinned left).
-            const container = document.querySelector('#mainNav .container');
-            if (container) container.classList.add('nav-login-container');
+            const navLinks = document.querySelector('#mainNav .nav-links');
+            if (navLinks) navLinks.classList.add('nav-login-links-centered');
+        }
+
+        // ── Session-aware CTA: same user block on every page ─────────────────
+        if (typeof Auth !== 'undefined') {
+            Auth.getSession().then(function (session) {
+                const signinBtn  = document.getElementById('nav-signin-btn');
+                const accountBtn = document.getElementById('nav-account-btn');
+                const navRight   = document.getElementById('nav-auth-area');
+
+                if (!session) return; // unauthenticated — keep "Sign In" visible
+
+                if (signinBtn)  signinBtn.style.display  = 'none';
+                if (accountBtn) accountBtn.style.display = 'none';
+
+                if (!navRight) return;
+
+                const roleClass   = { ADMIN: 'badge-ADMIN', PARTICIPANT: 'badge-PARTICIPANT', VOLUNTEER: 'badge-VOLUNTEER' }[session.role] || 'bg-secondary';
+                const displayName = (session.name || session.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const nameEl      = filename === 'dashboard'
+                    ? `<span class="nav-user-name">${displayName}</span>`
+                    : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
+
+                navRight.innerHTML = `
+                    ${nameEl}
+                    <span class="badge ${roleClass}">${session.role}</span>
+                    <button class="btn-nav-logout js-logout-btn" type="button">
+                        <i class="bi bi-box-arrow-right me-1"></i>Logout
+                    </button>`;
+                navRight.querySelector('.js-logout-btn').addEventListener('click', function () { Auth.logout(); });
+            });
         }
 
         // Scroll shadow

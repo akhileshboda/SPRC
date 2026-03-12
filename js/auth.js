@@ -9,6 +9,7 @@ const Auth = (() => {
   const VOLUNTEER_PROFILES_KEY = 'kindred_volunteer_profiles';
   // Keep the historical storage key so previously saved admin records still load.
   const EVENTS_KEY = 'kindred_opportunities';
+  const JOBS_KEY = 'kindred_jobs';
 
   const SEED_EVENTS = [
     {
@@ -101,9 +102,9 @@ const Auth = (() => {
       dateAdded: 'Jan 1, 2025'
     },
     {
-      name: 'Volunteer Staff',
-      email: 'volunteer@kindred.org',
-      password: 'vol123',
+      name: 'Jane Wilde',
+      email: 'janew@kindred.org',
+      password: 'jane123',
       role: 'VOLUNTEER',
       dateAdded: 'Jan 1, 2025'
     }
@@ -146,6 +147,9 @@ const Auth = (() => {
     if (!rawEvents || !Array.isArray(parsedEvents) || parsedEvents.length === 0) {
       localStorage.setItem(EVENTS_KEY, JSON.stringify(SEED_EVENTS));
     }
+    if (!localStorage.getItem(JOBS_KEY)) {
+      localStorage.setItem(JOBS_KEY, JSON.stringify([]));
+    }
   }
 
   function getRawUsers() {
@@ -167,6 +171,14 @@ const Auth = (() => {
   function getRawEvents() {
     try {
       return JSON.parse(localStorage.getItem(EVENTS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getRawJobs() {
+    try {
+      return JSON.parse(localStorage.getItem(JOBS_KEY)) || [];
     } catch {
       return [];
     }
@@ -618,6 +630,90 @@ const Auth = (() => {
     return { success: true };
   }
 
+  // ── Job Opportunities ──────────────────────────────────────────────────────
+
+  function jobDuplicate(jobs, payload, skipId = null) {
+    const title = String(payload.title || '').trim().toLowerCase();
+    const employer = String(payload.employer || '').trim().toLowerCase();
+    return jobs.some((job) => {
+      if (skipId !== null && String(job.id) === String(skipId)) return false;
+      return String(job.title || '').trim().toLowerCase() === title
+        && String(job.employer || '').trim().toLowerCase() === employer;
+    });
+  }
+
+  async function getJobs() {
+    return getRawJobs()
+      .slice()
+      .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))
+      .map((job) => ({
+        id: job.id,
+        title: job.title,
+        employer: job.employer,
+        location: job.location,
+        jobType: job.jobType,
+        salary: job.salary,
+        requirements: job.requirements,
+        dateAdded: job.dateAdded
+      }));
+  }
+
+  async function addJob(payload) {
+    const jobs = getRawJobs();
+    if (jobDuplicate(jobs, payload)) {
+      return {
+        success: false,
+        message: 'A job opportunity with the same title and employer already exists.'
+      };
+    }
+    jobs.push({
+      id: `j_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      title: String(payload.title || '').trim(),
+      employer: String(payload.employer || '').trim(),
+      location: String(payload.location || '').trim(),
+      jobType: String(payload.jobType || '').trim(),
+      salary: String(payload.salary || '').trim(),
+      requirements: String(payload.requirements || '').trim(),
+      createdAtMs: Date.now(),
+      dateAdded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    });
+    localStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+    return { success: true };
+  }
+
+  async function updateJob(id, payload) {
+    const jobs = getRawJobs();
+    const idx = jobs.findIndex((job) => String(job.id) === String(id));
+    if (idx === -1) return { success: false, message: 'Job opportunity not found.' };
+    if (jobDuplicate(jobs, payload, id)) {
+      return {
+        success: false,
+        message: 'A job opportunity with the same title and employer already exists.'
+      };
+    }
+    jobs[idx] = {
+      ...jobs[idx],
+      title: String(payload.title || '').trim(),
+      employer: String(payload.employer || '').trim(),
+      location: String(payload.location || '').trim(),
+      jobType: String(payload.jobType || '').trim(),
+      salary: String(payload.salary || '').trim(),
+      requirements: String(payload.requirements || '').trim()
+    };
+    localStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
+    return { success: true };
+  }
+
+  async function removeJob(id) {
+    const jobs = getRawJobs();
+    const filtered = jobs.filter((job) => String(job.id) !== String(id));
+    if (filtered.length === jobs.length) {
+      return { success: false, message: 'Job opportunity not found.' };
+    }
+    localStorage.setItem(JOBS_KEY, JSON.stringify(filtered));
+    return { success: true };
+  }
+
   initStores();
 
   return {
@@ -641,6 +737,10 @@ const Auth = (() => {
     getEvents,
     addEvent,
     updateEvent,
-    removeEvent
+    removeEvent,
+    getJobs,
+    addJob,
+    updateJob,
+    removeJob
   };
 })();
