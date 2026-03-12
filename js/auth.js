@@ -102,9 +102,9 @@ const Auth = (() => {
       dateAdded: 'Jan 1, 2025'
     },
     {
-      name: 'Volunteer Staff',
-      email: 'volunteer@kindred.org',
-      password: 'vol123',
+      name: 'Jane Wilde',
+      email: 'janew@kindred.org',
+      password: 'jane123',
       role: 'VOLUNTEER',
       dateAdded: 'Jan 1, 2025'
     }

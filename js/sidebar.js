@@ -42,21 +42,7 @@ function _buildSidebarHTML(session) {
 
   const displayName = _escHtml(session.name || session.email);
 
-  return `
-    <nav class="flex-grow-1 py-2">${links}</nav>
-    <div class="sidebar-user-block">
-      <div class="d-flex align-items-center gap-2 mb-1">
-        <span class="user-name">${displayName}</span>
-        <span class="badge ${roleClass} ms-auto">${session.role}</span>
-      </div>
-      <div class="user-email mb-2">${_escHtml(session.email)}</div>
-      <button class="btn btn-sm w-100 js-logout-btn" type="button"
-              style="border:1.5px solid var(--k-border,#e2e6f3);color:var(--k-muted,#6b7280);border-radius:0.5rem;font-size:0.8rem;transition:background 0.15s,color 0.15s;"
-              onmouseenter="this.style.background='var(--k-indigo-lt)';this.style.color='var(--k-indigo)';"
-              onmouseleave="this.style.background='';this.style.color='var(--k-muted,#6b7280)';">
-        <i class="bi bi-box-arrow-right me-1"></i>Logout
-      </button>
-    </div>`;
+  return `<nav class="flex-grow-1 py-2">${links}</nav>`;
 }
 
 function initSidebar(session) {

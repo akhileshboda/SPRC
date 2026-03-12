@@ -1,20 +1,29 @@
-<nav id="mainNav" aria-label="Main navigation">
-    <div class="container d-flex align-items-center justify-content-between py-3">
+<nav id="mainNav" class="navbar navbar-expand-md py-0" aria-label="Main navigation">
+    <div class="container-fluid px-4 py-3">
 
         <a href="index.html" class="nav-logo" aria-label="Kindred home">Kindred<span>.</span></a>
 
-        <div class="nav-links d-flex align-items-center gap-1">
-            <a href="index.html" data-nav-page="index">Home</a>
-            <a href="events.html" data-nav-page="events">Events</a>
-        </div>
+        <button class="navbar-toggler ms-auto" type="button"
+                data-bs-toggle="collapse" data-bs-target="#navCollapse"
+                aria-controls="navCollapse" aria-expanded="false"
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-        <div class="d-flex align-items-center gap-2">
-            <a href="login.html" class="btn-nav-signin" id="nav-signin-btn">
-                <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
-            </a>
-            <a href="dashboard.html" class="btn-nav-account" id="nav-account-btn" style="display:none;">
-                <i class="bi bi-person-circle me-1"></i>My Account
-            </a>
+        <div class="collapse navbar-collapse" id="navCollapse">
+            <div class="nav-links d-flex align-items-center gap-1">
+                <a href="index.html" data-nav-page="index">Home</a>
+                <a href="events.html" data-nav-page="events">Events</a>
+            </div>
+
+            <div class="d-flex align-items-center gap-2" id="nav-auth-area">
+                <a href="login.html" class="btn-nav-signin" id="nav-signin-btn">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
+                </a>
+                <a href="dashboard.html" class="btn-nav-account" id="nav-account-btn" style="display:none;">
+                    <i class="bi bi-person-circle me-1"></i>My Account
+                </a>
+            </div>
         </div>
 
     </div>
