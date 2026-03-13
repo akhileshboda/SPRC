@@ -134,19 +134,18 @@
             <div id="p-dashboard-events"></div>
           </div>
 
-          <!-- Job Opportunities preview -->
+          <!-- Job Opportunities (public browse + saved interests) -->
           <div class="portal-section">
             <div class="d-flex align-items-center justify-content-between mb-3">
               <div>
                 <h5 class="portal-section-title mb-0"><i class="bi bi-briefcase me-2" style="color:#6f42c1"></i>Job Opportunities</h5>
-                <p class="text-muted small mb-0">Vocational opportunities curated for participants</p>
+                <p class="text-muted small mb-0">Browse all jobs on the public Jobs page and save interests while signed in.</p>
               </div>
-              <button class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;" type="button"
-                      class="btn-outline" onclick="navigateTo('p-jobs')">
-                View all <i class="bi bi-arrow-right ms-1"></i>
-              </button>
+              <a href="jobs.html" class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;">
+                Browse jobs <i class="bi bi-box-arrow-up-right ms-1"></i>
+              </a>
             </div>
-            <div id="p-dashboard-jobs"></div>
+            <div id="p-saved-jobs"></div>
           </div>
 
         </div>
@@ -292,17 +291,6 @@
           </div>
         </div>
         <div id="p-events-grid"></div>
-      </section>
-
-      <!-- ══ SECTION: Participant — Jobs Discovery ══ -->
-      <section id="section-p-jobs" class="content-section d-none">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <div>
-            <h5 class="portal-section-title mb-0" style="color:#6f42c1;"><i class="bi bi-briefcase me-2"></i>Job Opportunities</h5>
-            <p class="text-muted small mb-0">Vocational opportunities curated for participants</p>
-          </div>
-        </div>
-        <div id="p-jobs-grid"></div>
       </section>
 
       <!-- ══ SECTION: Volunteer — Events Discovery ══ -->
@@ -966,7 +954,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="js/auth.js?v=4"></script>
   <script src="js/sidebar.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {

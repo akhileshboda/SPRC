@@ -1,6 +1,6 @@
 /**
  * participant.js — Participant portal module
- * Renders event and job discovery cards for PARTICIPANT-role users.
+ * Renders participant dashboard content and saved job interests.
  * Depends on auth.js (Auth namespace). Only active when a PARTICIPANT session exists.
  */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -76,28 +76,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
-  // ── Job card builder ───────────────────────────────────────────────────────
-
-  function buildJobCard(job, compact = false) {
-    return `
-      <div class="col">
-        <div class="portal-card portal-card--job h-100">
-          <div class="portal-card-header d-flex align-items-start justify-content-between gap-2">
-            <div class="portal-card-title">${escHtml(job.title)}</div>
-            ${jobTypeBadge(job.jobType)}
-          </div>
-          <div class="portal-card-meta">
-            <span><i class="bi bi-building me-1"></i>${escHtml(job.employer)}</span>
-            ${job.location ? `<span><i class="bi bi-geo-alt me-1"></i>${escHtml(job.location)}</span>` : ''}
-            ${job.salary  ? `<span><i class="bi bi-currency-dollar me-1"></i>${escHtml(job.salary)}</span>` : ''}
-          </div>
-          ${!compact ? `<div class="portal-card-body">
-            <p class="portal-card-accommodations">${escHtml(job.requirements)}</p>
-          </div>` : ''}
-        </div>
-      </div>`;
-  }
-
   // ── Empty state helper ─────────────────────────────────────────────────────
 
   function emptyState(icon, message) {
@@ -110,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Render: Dashboard home (compact preview) ───────────────────────────────
 
   async function renderDashboardHome() {
-    const [events, jobs] = await Promise.all([Auth.getEvents(), Auth.getJobs()]);
+    const events = await Auth.getEvents();
 
     // ── Events preview ──
     const eventsPreviewEl = document.getElementById('p-dashboard-events');
@@ -127,15 +105,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         : emptyState('bi-calendar-x', 'No upcoming events right now. Check back soon!');
     }
 
-    // ── Jobs preview ──
-    const jobsPreviewEl = document.getElementById('p-dashboard-jobs');
-    if (jobsPreviewEl) {
-      const recent = jobs.slice(0, 3);
-      jobsPreviewEl.innerHTML = recent.length
-        ? `<div class="row row-cols-1 row-cols-md-3 g-3">
-            ${recent.map(j => buildJobCard(j, false)).join('')}
-           </div>`
-        : emptyState('bi-briefcase', 'No job opportunities posted yet. Check back soon!');
+    // ── Saved jobs preview ──
+    const savedJobsEl = document.getElementById('p-saved-jobs');
+    if (savedJobsEl) {
+      const jobs = await Auth.getJobs();
+      const interestedIds = new Set(await Auth.getInterestedJobIds(session.email));
+      const saved = jobs.filter((job) => interestedIds.has(String(job.id)));
+
+      savedJobsEl.innerHTML = saved.length
+        ? `<div class="list-group">
+            <div class="list-group-item bg-light d-flex justify-content-between align-items-center">
+              <strong>Saved jobs</strong>
+              <span class="badge text-bg-secondary">${saved.length}</span>
+            </div>
+            ${saved.map((job) => `
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="fw-semibold">${escHtml(job.title)}</div>
+                    <div class="small text-muted">${escHtml(job.employer)}${job.location ? ` · ${escHtml(job.location)}` : ''}</div>
+                  </div>
+                  <div class="text-end">
+                    <div>${jobTypeBadge(job.jobType)}</div>
+                    <button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
+                      <i class="bi bi-x-circle me-1"></i>Not interested
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>`
+        : `<div class="alert alert-light border text-muted mb-0">
+            You have not registered interest in any jobs yet. Visit <a href="jobs.html">Jobs</a> to browse and save opportunities.
+          </div>`;
+
+      savedJobsEl.querySelectorAll('.js-dashboard-remove-interest').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          const result = await Auth.toggleJobInterest(btn.dataset.jobId);
+          if (!result.success) {
+            alert(result.message || 'Could not update saved job.');
+            btn.disabled = false;
+            return;
+          }
+          await renderDashboardHome();
+        });
+      });
     }
   }
 
@@ -156,26 +171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>`;
   }
 
-  // ── Render: Full Jobs section ──────────────────────────────────────────────
-
-  async function renderParticipantJobs() {
-    const container = document.getElementById('p-jobs-grid');
-    if (!container) return;
-
-    const jobs = await Auth.getJobs();
-    if (!jobs.length) {
-      container.innerHTML = emptyState('bi-briefcase', 'No job opportunities have been posted yet. Check back soon!');
-      return;
-    }
-
-    container.innerHTML = `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-      ${jobs.map(j => buildJobCard(j, false)).join('')}
-    </div>`;
-  }
-
   // ── Init ───────────────────────────────────────────────────────────────────
 
   await renderDashboardHome();
   await renderParticipantEvents();
-  await renderParticipantJobs();
 });

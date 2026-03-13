@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobs & Opportunities — Kindred</title>
+  <meta name="description" content="Browse job opportunities. Sign in as a participant to register interest.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="nav-root"></div>
+
+  <header class="border-bottom bg-light">
+    <div class="container py-4">
+      <h1 class="h3 mb-1">Job Opportunities</h1>
+      <p class="text-muted mb-0">Browse opportunities publicly. Sign in as a participant to register interest.</p>
+    </div>
+  </header>
+
+  <main class="container py-4">
+    <section id="savedJobsPanel" class="mb-4 d-none">
+      <div class="card border-success-subtle">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h6 mb-0 text-success"><i class="bi bi-bookmark-check me-1"></i>My Saved Jobs</h2>
+            <small id="savedJobsCountText" class="text-muted"></small>
+          </div>
+          <div id="savedJobsList"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="row g-3 align-items-center mb-3">
+      <div class="col-md-6">
+        <input type="search" id="jobSearchInput" class="form-control" placeholder="Search title, employer, location...">
+      </div>
+      <div class="col-md-3">
+        <select id="jobTypeFilter" class="form-select">
+          <option value="All">All Types</option>
+          <option value="Full-time">Full-time</option>
+          <option value="Part-time">Part-time</option>
+          <option value="Casual">Casual</option>
+          <option value="Gig">Gig</option>
+        </select>
+      </div>
+      <div class="col-md-3 text-md-end">
+        <small id="jobsCountText" class="text-muted"></small>
+      </div>
+    </div>
+
+    <div id="jobsGrid" class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/auth.js?v=4"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const gridEl = document.getElementById('jobsGrid');
+      const countEl = document.getElementById('jobsCountText');
+      const searchEl = document.getElementById('jobSearchInput');
+      const typeEl = document.getElementById('jobTypeFilter');
+      const savedPanelEl = document.getElementById('savedJobsPanel');
+      const savedCountEl = document.getElementById('savedJobsCountText');
+      const savedListEl = document.getElementById('savedJobsList');
+
+      const session = await Auth.getSession();
+      const allJobs = await Auth.getJobs();
+      let interestedJobIds = session?.role === 'PARTICIPANT'
+        ? new Set(await Auth.getInterestedJobIds(session.email))
+        : new Set();
+
+      function esc(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      async function refreshInterestedIds() {
+        if (!session || session.role !== 'PARTICIPANT') {
+          interestedJobIds = new Set();
+          return;
+        }
+        interestedJobIds = new Set(await Auth.getInterestedJobIds(session.email));
+      }
+
+      function interestButton(job) {
+        if (!session) {
+          return `<a href="login.html" class="btn btn-outline-primary btn-sm">Login to register interest</a>`;
+        }
+        if (session.role !== 'PARTICIPANT') {
+          return `<button class="btn btn-outline-secondary btn-sm" disabled title="Only participants can register job interest">Participants only</button>`;
+        }
+        if (interestedJobIds.has(String(job.id))) {
+          return `<button class="btn btn-outline-danger btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+            <i class="bi bi-x-circle me-1"></i>Not interested
+          </button>`;
+        }
+        return `<button class="btn btn-primary btn-sm js-interest-btn" data-job-id="${esc(job.id)}">
+          <i class="bi bi-bookmark-heart me-1"></i>Register interest
+        </button>`;
+      }
+
+      function card(job) {
+        return `<div class="col">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                <h5 class="card-title mb-0">${esc(job.title)}</h5>
+                ${job.jobType ? `<span class="badge bg-secondary">${esc(job.jobType)}</span>` : ''}
+              </div>
+              <p class="mb-1 small text-muted"><i class="bi bi-building me-1"></i>${esc(job.employer)}</p>
+              ${job.location ? `<p class="mb-1 small text-muted"><i class="bi bi-geo-alt me-1"></i>${esc(job.location)}</p>` : ''}
+              ${job.salary ? `<p class="mb-2 small text-muted"><i class="bi bi-cash-coin me-1"></i>${esc(job.salary)}</p>` : ''}
+              <p class="small flex-grow-1">${esc(job.requirements || '')}</p>
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <small class="text-muted">${esc(job.dateAdded || '')}</small>
+                ${interestButton(job)}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function renderSavedJobs() {
+        if (!savedPanelEl || !savedListEl || !savedCountEl) return;
+        if (!session || session.role !== 'PARTICIPANT') {
+          savedPanelEl.classList.add('d-none');
+          return;
+        }
+
+        const saved = allJobs.filter((job) => interestedJobIds.has(String(job.id)));
+        savedPanelEl.classList.remove('d-none');
+        savedCountEl.textContent = `${saved.length} saved`;
+
+        if (!saved.length) {
+          savedListEl.innerHTML = '<div class="text-muted small">You have not saved any jobs yet. Click "Register interest" on a job below.</div>';
+          return;
+        }
+
+        savedListEl.innerHTML = `<div class="list-group">
+          ${saved.map((job) => `
+            <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="fw-semibold">${esc(job.title)}</div>
+                <div class="small text-muted">${esc(job.employer)}${job.location ? ` · ${esc(job.location)}` : ''}</div>
+              </div>
+              <button class="btn btn-outline-danger btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+                <i class="bi bi-x-circle me-1"></i>Not interested
+              </button>
+            </div>
+          `).join('')}
+        </div>`;
+      }
+
+      function wireInterestActions() {
+        document.querySelectorAll('.js-interest-btn').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try {
+              const result = await Auth.toggleJobInterest(btn.dataset.jobId);
+              if (!result.success) {
+                alert(result.message || 'Could not update saved job.');
+                return;
+              }
+              await refreshInterestedIds();
+              render();
+            } catch {
+              alert('Could not update saved job. Please refresh and try again.');
+            }
+          });
+        });
+
+        document.querySelectorAll('.js-remove-interest-btn').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try {
+              const result = await Auth.toggleJobInterest(btn.dataset.jobId);
+              if (!result.success) {
+                alert(result.message || 'Could not update saved job.');
+                return;
+              }
+              await refreshInterestedIds();
+              render();
+            } catch {
+              alert('Could not update saved job. Please refresh and try again.');
+            }
+          });
+        });
+      }
+
+      function render() {
+        const q = searchEl.value.trim().toLowerCase();
+        const type = typeEl.value;
+        const filtered = allJobs.filter((job) => {
+          const matchesType = type === 'All' || job.jobType === type;
+          if (!matchesType) return false;
+          if (!q) return true;
+          return [job.title, job.employer, job.location, job.requirements]
+            .filter(Boolean)
+            .some((field) => String(field).toLowerCase().includes(q));
+        });
+
+        countEl.textContent = filtered.length
+          ? `Showing ${filtered.length} opportunity${filtered.length === 1 ? '' : 'ies'}`
+          : 'No opportunities found';
+
+        if (!filtered.length) {
+          gridEl.innerHTML = '<div class="col"><div class="alert alert-light border text-muted mb-0">No job opportunities are available for this filter.</div></div>';
+        } else {
+          gridEl.innerHTML = filtered.map(card).join('');
+        }
+
+        renderSavedJobs();
+        wireInterestActions();
+      }
+
+      searchEl.addEventListener('input', render);
+      typeEl.addEventListener('change', render);
+      render();
+    });
+  </script>
+</body>
+</html>

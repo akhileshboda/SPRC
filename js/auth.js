@@ -10,6 +10,7 @@ const Auth = (() => {
   // Keep the historical storage key so previously saved admin records still load.
   const EVENTS_KEY = 'kindred_opportunities';
   const JOBS_KEY = 'kindred_jobs';
+  const JOB_INTERESTS_KEY = 'kindred_job_interests';
 
   const SEED_EVENTS = [
     {
@@ -110,6 +111,31 @@ const Auth = (() => {
     }
   ];
 
+  const SEED_JOBS = [
+    {
+      id: 'seed_j1',
+      title: 'Café Assistant',
+      employer: 'Harvest Café',
+      location: 'Downtown, 120 Main St',
+      jobType: 'Part-time',
+      salary: '$16/hr',
+      requirements: 'Friendly communication, ability to follow routines, and basic customer service support.',
+      createdAtMs: 1740000010000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j2',
+      title: 'Library Support Aide',
+      employer: 'Whispering Hills Public Library',
+      location: 'Main Branch',
+      jobType: 'Casual',
+      salary: '$14/hr',
+      requirements: 'Organizing materials, shelving support, and helping with simple front-desk tasks.',
+      createdAtMs: 1740000011000,
+      dateAdded: 'Mar 3, 2026'
+    }
+  ];
+
   function initStores() {
     const rawUsers = localStorage.getItem(USERS_KEY);
     if (!rawUsers) {
@@ -147,8 +173,13 @@ const Auth = (() => {
     if (!rawEvents || !Array.isArray(parsedEvents) || parsedEvents.length === 0) {
       localStorage.setItem(EVENTS_KEY, JSON.stringify(SEED_EVENTS));
     }
-    if (!localStorage.getItem(JOBS_KEY)) {
-      localStorage.setItem(JOBS_KEY, JSON.stringify([]));
+    const rawJobs = localStorage.getItem(JOBS_KEY);
+    const parsedJobs = rawJobs ? (() => { try { return JSON.parse(rawJobs); } catch { return []; } })() : null;
+    if (!rawJobs || !Array.isArray(parsedJobs) || parsedJobs.length === 0) {
+      localStorage.setItem(JOBS_KEY, JSON.stringify(SEED_JOBS));
+    }
+    if (!localStorage.getItem(JOB_INTERESTS_KEY)) {
+      localStorage.setItem(JOB_INTERESTS_KEY, JSON.stringify([]));
     }
   }
 
@@ -187,6 +218,14 @@ const Auth = (() => {
   function getRawVolunteerProfiles() {
     try {
       return JSON.parse(localStorage.getItem(VOLUNTEER_PROFILES_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getRawJobInterests() {
+    try {
+      return JSON.parse(localStorage.getItem(JOB_INTERESTS_KEY)) || [];
     } catch {
       return [];
     }
@@ -267,6 +306,8 @@ const Auth = (() => {
     localStorage.removeItem(PARTICIPANTS_KEY);
     localStorage.removeItem(VOLUNTEER_PROFILES_KEY);
     localStorage.removeItem(EVENTS_KEY);
+    localStorage.removeItem(JOBS_KEY);
+    localStorage.removeItem(JOB_INTERESTS_KEY);
     if (reseed) initStores();
     return { success: true };
   }
@@ -714,6 +755,91 @@ const Auth = (() => {
     return { success: true };
   }
 
+  // ── Participant Job Interest Tracking ─────────────────────────────────────
+
+  async function getInterestedJobIds(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) return [];
+    return getRawJobInterests()
+      .filter((entry) => String(entry.email || '').trim().toLowerCase() === normalizedEmail)
+      .map((entry) => String(entry.jobId));
+  }
+
+  async function saveJobInterest(jobId) {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to register interest.' };
+    }
+    if (session.role !== 'PARTICIPANT') {
+      return { success: false, message: 'Only participants can register job interest.' };
+    }
+
+    const normalizedEmail = String(session.email || '').trim().toLowerCase();
+    const normalizedJobId = String(jobId || '').trim();
+    if (!normalizedJobId) return { success: false, message: 'Invalid job id.' };
+
+    const jobs = getRawJobs();
+    const exists = jobs.some((job) => String(job.id) === normalizedJobId);
+    if (!exists) return { success: false, message: 'Job opportunity not found.' };
+
+    const interests = getRawJobInterests();
+    const duplicate = interests.some((entry) =>
+      String(entry.email || '').trim().toLowerCase() === normalizedEmail
+      && String(entry.jobId) === normalizedJobId
+    );
+    if (duplicate) return { success: true, alreadySaved: true };
+
+    interests.push({
+      email: normalizedEmail,
+      jobId: normalizedJobId,
+      createdAtMs: Date.now()
+    });
+    localStorage.setItem(JOB_INTERESTS_KEY, JSON.stringify(interests));
+    return { success: true };
+  }
+
+  async function removeJobInterest(jobId) {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to update job interests.' };
+    }
+    if (session.role !== 'PARTICIPANT') {
+      return { success: false, message: 'Only participants can update job interests.' };
+    }
+
+    const normalizedEmail = String(session.email || '').trim().toLowerCase();
+    const normalizedJobId = String(jobId || '').trim();
+    if (!normalizedJobId) return { success: false, message: 'Invalid job id.' };
+
+    const interests = getRawJobInterests();
+    const filtered = interests.filter((entry) => !(
+      String(entry.email || '').trim().toLowerCase() === normalizedEmail
+      && String(entry.jobId) === normalizedJobId
+    ));
+
+    if (filtered.length === interests.length) {
+      return { success: false, message: 'This job is not in your saved list.' };
+    }
+
+    localStorage.setItem(JOB_INTERESTS_KEY, JSON.stringify(filtered));
+    return { success: true };
+  }
+
+  async function toggleJobInterest(jobId) {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to update job interests.' };
+    }
+    if (session.role !== 'PARTICIPANT') {
+      return { success: false, message: 'Only participants can update job interests.' };
+    }
+    const interestedIds = await getInterestedJobIds(session.email);
+    if (interestedIds.includes(String(jobId))) {
+      return removeJobInterest(jobId);
+    }
+    return saveJobInterest(jobId);
+  }
+
   initStores();
 
   return {
@@ -741,6 +867,10 @@ const Auth = (() => {
     getJobs,
     addJob,
     updateJob,
-    removeJob
+    removeJob,
+    getInterestedJobIds,
+    saveJobInterest,
+    removeJobInterest,
+    toggleJobInterest
   };
 })();

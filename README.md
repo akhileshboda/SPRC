@@ -15,6 +15,7 @@ Kindred is a role-based web application designed to connect special-needs partic
 - **User Table** — live System Users table with role badges, edit (volunteer/participant), and delete actions
 - **Participant Records (Req 201)** — administrators can create, edit, and delete participant records with special-needs details
 - **Volunteer Self-Registration (Story 402)** — volunteers can register personal information, select interests from a dropdown multi-select checklist, and update availability so they can be matched and contacted for relevant opportunities
+- **Public Job Board + Participant Interest Saving** — anyone can browse `Jobs` from the top navigation, while signed-in participants can register interest in job opportunities
 - **Forgot Password** — simulated password reset flow on the login page
 
 ---
@@ -66,6 +67,7 @@ SPRC/
 ├── login.html        # Public entry point
 ├── dashboard.html    # Protected, role-aware dashboard
 ├── index.html        # Landing page
+├── jobs.html         # Public jobs board (participant interest actions require sign-in)
 ├── js/
 │   ├── auth.js       # Frontend auth/data module (localStorage)
 │   ├── admin.js      # Admin panel UI handlers (forms, table, edit/delete)
