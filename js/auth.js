@@ -844,8 +844,8 @@ const Auth = (() => {
       if (!sameEmail) return true;
 
       const sameId = normalizedEventId && String(entry.eventId || '').trim() === normalizedEventId;
-      const sameTitle = !normalizedEventId
-        && normalizedEventTitle
+      // Also clear legacy title-only records for the same event title.
+      const sameTitle = normalizedEventTitle
         && String(entry.title || '').trim().toLowerCase() === normalizedEventTitle;
       return !(sameId || sameTitle);
     });
@@ -864,7 +864,13 @@ const Auth = (() => {
       return { success: false, message: 'Please sign in to update event interests.' };
     }
     const interestedIds = await getInterestedEventIds(session.email);
-    if (interestedIds.includes(String(eventId))) {
+    const normalizedTitle = String(eventTitle || '').trim().toLowerCase();
+    const legacyTitleMatch = getRawEventSignups().some((entry) =>
+      String(entry.email || '').trim().toLowerCase() === String(session.email || '').trim().toLowerCase()
+      && normalizedTitle
+      && String(entry.title || '').trim().toLowerCase() === normalizedTitle
+    );
+    if (interestedIds.includes(String(eventId)) || legacyTitleMatch) {
       return removeEventInterest(eventId, eventTitle);
     }
     return saveEventInterest(eventId, eventTitle);
