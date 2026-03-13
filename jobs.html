@@ -207,7 +207,7 @@
         });
 
         countEl.textContent = filtered.length
-          ? `Showing ${filtered.length} opportunity${filtered.length === 1 ? '' : 'ies'}`
+          ? `Showing ${filtered.length} ${filtered.length === 1 ? 'opportunity' : 'opportunities'}`
           : 'No opportunities found';
 
         if (!filtered.length) {

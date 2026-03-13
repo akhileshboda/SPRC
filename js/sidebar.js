@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
   // PARTICIPANT discovery sections
-  { id: 'p-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
+  { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
 ];

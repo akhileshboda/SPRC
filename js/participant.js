@@ -161,13 +161,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!container) return;
 
     const events = await Auth.getEvents();
-    if (!events.length) {
-      container.innerHTML = emptyState('bi-calendar-x', 'No events have been published yet. Check back soon!');
+    const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
+    const normalizedEmail = String(session.email || '').trim().toLowerCase();
+    const subscribedEventIds = new Set(
+      signups
+        .filter((s) => String(s.email || '').trim().toLowerCase() === normalizedEmail && s.eventId)
+        .map((s) => String(s.eventId))
+    );
+
+    let subscribed = events.filter((event) => subscribedEventIds.has(String(event.id)));
+
+    // Backward compatibility for older signup records that only stored title.
+    if (!subscribed.length) {
+      const subscribedTitles = new Set(
+        signups
+          .filter((s) => String(s.email || '').trim().toLowerCase() === normalizedEmail && !s.eventId)
+          .map((s) => String(s.title || '').trim().toLowerCase())
+      );
+      subscribed = events.filter((event) => subscribedTitles.has(String(event.title || '').trim().toLowerCase()));
+    }
+
+    if (!subscribed.length) {
+      container.innerHTML = emptyState('bi-calendar2-check', 'No subscribed events yet. Browse Events and click "I\'m Interested" to add one.');
       return;
     }
 
     container.innerHTML = `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-      ${events.map(e => buildEventCard(e, false)).join('')}
+      ${subscribed.map(e => buildEventCard(e, false)).join('')}
     </div>`;
   }
 

@@ -596,7 +596,7 @@
 
           <div class="d-flex align-items-center justify-content-between mt-auto">
             ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span></span>'}
-            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${upcoming ? `<button class="btn btn-sm btn-primary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" onclick="handleSignUp(this, '${escapeHtml(event.title)}')"><i class="bi bi-hand-thumbsup me-1"></i>I'm Interested</button>` : ''}
+            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${upcoming ? `<button class="btn btn-sm btn-primary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" onclick="handleSignUp(this, '${escapeHtml(event.id)}', '${escapeHtml(event.title)}')"><i class="bi bi-hand-thumbsup me-1"></i>I'm Interested</button>` : ''}
           </div>
         </article>`;
         }
@@ -687,7 +687,7 @@
             filterAndRender();
         });
 
-        async function handleSignUp(btn, title) {
+        async function handleSignUp(btn, eventId, title) {
             const session = await Auth.getSession();
             if (!session) {
                 window.location.href = 'login.html';
@@ -698,8 +698,22 @@
             btn.classList.replace('btn-primary', 'btn-success');
 
             const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
-            signups.push({ title, timestamp: new Date().toISOString() });
-            localStorage.setItem('kindredSignups', JSON.stringify(signups));
+            const normalizedEmail = String(session.email || '').trim().toLowerCase();
+            const normalizedEventId = String(eventId || '').trim();
+            const duplicate = signups.some((s) =>
+                String(s.email || '').trim().toLowerCase() === normalizedEmail
+                && String(s.eventId || '').trim() === normalizedEventId
+            );
+            if (!duplicate) {
+                signups.push({
+                    email: normalizedEmail,
+                    role: session.role,
+                    eventId: normalizedEventId,
+                    title,
+                    timestamp: new Date().toISOString()
+                });
+                localStorage.setItem('kindredSignups', JSON.stringify(signups));
+            }
         }
     </script>
 
