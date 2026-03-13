@@ -231,6 +231,12 @@ const Auth = (() => {
     }
   }
 
+  function getUserNameByEmail(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const user = getRawUsers().find((u) => String(u.email || '').trim().toLowerCase() === normalizedEmail);
+    return user ? String(user.name || '').trim() : '';
+  }
+
   function splitName(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
@@ -840,6 +846,30 @@ const Auth = (() => {
     return saveJobInterest(jobId);
   }
 
+  async function getJobInterestSummary() {
+    const interests = getRawJobInterests();
+    const grouped = {};
+
+    interests.forEach((entry) => {
+      const email = String(entry.email || '').trim().toLowerCase();
+      const jobId = String(entry.jobId || '').trim();
+      if (!email || !jobId) return;
+
+      if (!grouped[jobId]) grouped[jobId] = [];
+
+      const alreadyAdded = grouped[jobId].some((item) => item.email === email);
+      if (alreadyAdded) return;
+
+      const displayName = getUserNameByEmail(email) || email;
+      grouped[jobId].push({
+        name: displayName,
+        email
+      });
+    });
+
+    return grouped;
+  }
+
   initStores();
 
   return {
@@ -871,6 +901,7 @@ const Auth = (() => {
     getInterestedJobIds,
     saveJobInterest,
     removeJobInterest,
-    toggleJobInterest
+    toggleJobInterest,
+    getJobInterestSummary
   };
 })();

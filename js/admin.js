@@ -379,9 +379,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tbody = document.getElementById('jobsTableBody');
     if (!tbody) return;
 
-    const jobs = await Auth.getJobs();
+    const [jobs, interestSummary] = await Promise.all([
+      Auth.getJobs(),
+      Auth.getJobInterestSummary()
+    ]);
     if (jobs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
       return;
     }
 
@@ -402,6 +405,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const location = job.location
         ? escapeHtml(job.location)
         : '<span class="text-muted small">—</span>';
+      const interestedParticipants = Array.isArray(interestSummary[job.id]) ? interestSummary[job.id] : [];
+      const interestedMarkup = interestedParticipants.length
+        ? `<div class="small">
+            <div class="fw-semibold text-success mb-1">${interestedParticipants.length} interested</div>
+            ${interestedParticipants
+              .map((participant) => `<div class="text-muted">${escapeHtml(participant.name)} <span class="text-secondary">(${escapeHtml(participant.email)})</span></div>`)
+              .join('')}
+          </div>`
+        : '<span class="text-muted small">No interest yet</span>';
 
       return `
         <tr>
@@ -415,6 +427,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="small text-muted" style="max-width: 260px;">
             <div class="event-accommodations">${escapeHtml(job.requirements)}</div>
           </td>
+          <td style="max-width: 300px;">${interestedMarkup}</td>
           <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
           <td class="pe-3" style="width: 1%; white-space: nowrap;">
             <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">Edit</button>
