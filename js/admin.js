@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Auth.getJobInterestSummary()
     ]);
     if (jobs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
       return;
     }
 
@@ -393,6 +393,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       'Part-time': 'bg-primary',
       'Casual':    'bg-warning text-dark',
       'Gig':       'bg-secondary'
+    };
+    const JOB_STATUS_BADGE = {
+      Open: 'bg-success',
+      Paused: 'bg-warning text-dark',
+      Filled: 'bg-secondary'
     };
 
     tbody.innerHTML = jobs.map((job) => {
@@ -405,6 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const location = job.location
         ? escapeHtml(job.location)
         : '<span class="text-muted small">—</span>';
+      const statusBadge = `<span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span>`;
       const interestedParticipants = Array.isArray(interestSummary[job.id]) ? interestSummary[job.id] : [];
       const interestedMarkup = interestedParticipants.length
         ? `<div class="small">
@@ -423,6 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td>${escapeHtml(job.employer)}</td>
           <td class="small">${location}</td>
           <td>${typeBadge}</td>
+          <td>${statusBadge}</td>
           <td class="small">${salary}</td>
           <td class="small text-muted" style="max-width: 260px;">
             <div class="event-accommodations">${escapeHtml(job.requirements)}</div>
@@ -456,85 +463,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
-
-  let selectedNewsletterId = null;
-
-  function renderNewsletterPreview(newsletter) {
-    const previewEl = document.getElementById('newsletterPreview');
-    const emptyEl = document.getElementById('newsletterPreviewEmpty');
-    const subjectEl = document.getElementById('newsletterSubject');
-    const audienceEl = document.getElementById('newsletterAudience');
-    const bodyEl = document.getElementById('newsletterBody');
-    const metaEl = document.getElementById('newsletterMeta');
-    const copyBtn = document.getElementById('copyNewsletterBtn');
-
-    if (!previewEl || !emptyEl || !subjectEl || !audienceEl || !bodyEl || !metaEl || !copyBtn) return;
-
-    if (!newsletter) {
-      previewEl.classList.add('d-none');
-      emptyEl.classList.remove('d-none');
-      copyBtn.classList.add('d-none');
-      metaEl.textContent = 'Generate a weekly newsletter to preview it here.';
-      return;
-    }
-
-    subjectEl.textContent = newsletter.subject;
-    audienceEl.textContent = newsletter.audience;
-    bodyEl.textContent = newsletter.body;
-    metaEl.textContent = `${newsletter.weekOf} • ${newsletter.generatedAtLabel} • ${newsletter.eventCount} events • ${newsletter.jobCount} jobs`;
-    previewEl.classList.remove('d-none');
-    emptyEl.classList.add('d-none');
-    copyBtn.classList.remove('d-none');
-    copyBtn.dataset.newsletterId = newsletter.id;
-  }
-
-  async function renderNewsletters() {
-    const archiveListEl = document.getElementById('newsletterArchiveList');
-    const archiveEmptyEl = document.getElementById('newsletterArchiveEmpty');
-    if (!archiveListEl || !archiveEmptyEl) return;
-
-    const newsletters = await Auth.getNewsletters();
-    if (newsletters.length === 0) {
-      archiveListEl.innerHTML = '';
-      archiveEmptyEl.classList.remove('d-none');
-      selectedNewsletterId = null;
-      renderNewsletterPreview(null);
-      return;
-    }
-
-    archiveEmptyEl.classList.add('d-none');
-    const effectiveSelectedId = newsletters.some((newsletter) => newsletter.id === selectedNewsletterId)
-      ? selectedNewsletterId
-      : newsletters[0].id;
-    selectedNewsletterId = effectiveSelectedId;
-
-    archiveListEl.innerHTML = newsletters.map((newsletter) => {
-      const activeClass = newsletter.id === effectiveSelectedId ? 'active' : '';
-      const metaClass = newsletter.id === effectiveSelectedId ? 'text-white-50' : 'text-muted';
-      return `
-        <button class="list-group-item list-group-item-action ${activeClass}" type="button" data-newsletter-id="${escapeHtml(newsletter.id)}">
-          <div class="d-flex w-100 justify-content-between align-items-start gap-3">
-            <div>
-              <div class="fw-semibold">${escapeHtml(newsletter.weekOf)}</div>
-              <div class="small ${metaClass}">${escapeHtml(newsletter.preview)}</div>
-            </div>
-            <span class="small ${metaClass} text-nowrap">${escapeHtml(newsletter.generatedAtLabel)}</span>
-          </div>
-        </button>
-      `;
-    }).join('');
-
-    archiveListEl.querySelectorAll('button[data-newsletter-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        selectedNewsletterId = btn.dataset.newsletterId;
-        await renderNewsletters();
-      });
-    });
-
-    const selectedNewsletter = newsletters.find((newsletter) => newsletter.id === effectiveSelectedId) || newsletters[0];
-    renderNewsletterPreview(selectedNewsletter);
-  }
-
 
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
@@ -617,9 +545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const eventSubmitBtn = document.getElementById('eventSubmitBtn');
-  const generateNewsletterBtn = document.getElementById('generateNewsletterBtn');
   const adminGenerateNewsletterQuickBtn = document.getElementById('adminGenerateNewsletterQuickBtn');
-  const copyNewsletterBtn = document.getElementById('copyNewsletterBtn');
   let editingUserEmail = null;
   let editingParticipantId = null;
   let editingVolunteerEmail = null;
@@ -629,6 +555,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const jobForm = document.getElementById('jobForm');
   const jobError = document.getElementById('jobError');
   const jobSubmitBtn = document.getElementById('jobSubmitBtn');
+  const newsletterForm = document.getElementById('newsletterForm');
+  const newsletterError = document.getElementById('newsletterError');
+  const newsletterSuccess = document.getElementById('newsletterSuccess');
+  const newsletterSubjectEl = document.getElementById('newsletterSubject');
+  const newsletterEventsEl = document.getElementById('newsletterEvents');
+  const newsletterUpdatesEl = document.getElementById('newsletterUpdates');
+  const newsletterRecipientsListEl = document.getElementById('newsletterRecipientsList');
+  const newsletterPreviewBtn = document.getElementById('newsletterPreviewBtn');
+  const newsletterSaveDraftBtn = document.getElementById('newsletterSaveDraftBtn');
+  const newsletterPreviewSubjectEl = document.getElementById('newsletterPreviewSubject');
+  const newsletterPreviewEventsEl = document.getElementById('newsletterPreviewEvents');
+  const newsletterPreviewUpdatesEl = document.getElementById('newsletterPreviewUpdates');
+  const newsletterHistoryListEl = document.getElementById('newsletterHistoryList');
 
   function showToast(message) {
     if (!toastEl || !toastMsgEl) return;
@@ -772,6 +711,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (jobSubmitBtn) jobSubmitBtn.textContent = 'Save Opportunity';
   }
 
+  function getSelectedNewsletterRecipients() {
+    return Array.from(document.querySelectorAll('input[name="newsletterRecipients"]:checked'))
+      .map((checkbox) => checkbox.value);
+  }
+
+  function getNewsletterPayload() {
+    return {
+      subject: newsletterSubjectEl?.value || '',
+      eventHighlights: newsletterEventsEl?.value || '',
+      updates: newsletterUpdatesEl?.value || '',
+      recipients: getSelectedNewsletterRecipients()
+    };
+  }
+
+  function showNewsletterError(message) {
+    if (!newsletterError) return;
+    newsletterError.textContent = message;
+    newsletterError.classList.remove('d-none');
+    newsletterSuccess?.classList.add('d-none');
+  }
+
+  function showNewsletterSuccess(message) {
+    if (!newsletterSuccess) return;
+    newsletterSuccess.textContent = message;
+    newsletterSuccess.classList.remove('d-none');
+    newsletterError?.classList.add('d-none');
+  }
+
+  function clearNewsletterMessages() {
+    newsletterError?.classList.add('d-none');
+    newsletterSuccess?.classList.add('d-none');
+  }
+
+  async function renderNewsletterRecipients() {
+    if (!newsletterRecipientsListEl) return;
+    const users = await Auth.getUsers();
+    const recipients = users.filter((user) => user.role !== 'ADMIN');
+    if (!recipients.length) {
+      newsletterRecipientsListEl.innerHTML = '<p class="text-muted small mb-0">No eligible recipients yet.</p>';
+      return;
+    }
+
+    newsletterRecipientsListEl.innerHTML = recipients.map((user) => `
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" value="${escapeHtml(user.email)}" id="newsletterRecipient_${escapeHtml(user.email)}" name="newsletterRecipients" checked>
+        <label class="form-check-label small" for="newsletterRecipient_${escapeHtml(user.email)}">
+          ${escapeHtml(user.name)} <span class="text-muted">(${escapeHtml(user.email)})</span>
+        </label>
+      </div>
+    `).join('');
+  }
+
+  async function hydrateNewsletterDraft() {
+    if (!newsletterForm) return;
+    const draft = await Auth.getNewsletterDraft();
+    if (!draft) return;
+
+    newsletterSubjectEl.value = draft.subject || '';
+    newsletterEventsEl.value = draft.eventHighlights || '';
+    newsletterUpdatesEl.value = draft.updates || '';
+    const recipients = Array.isArray(draft.recipients) ? new Set(draft.recipients.map((r) => String(r).toLowerCase())) : new Set();
+    document.querySelectorAll('input[name="newsletterRecipients"]').forEach((checkbox) => {
+      checkbox.checked = recipients.has(String(checkbox.value || '').toLowerCase());
+    });
+    showNewsletterSuccess(`Draft loaded (last updated ${draft.updatedAtLabel || 'recently'}).`);
+  }
+
+  function renderNewsletterPreview() {
+    if (!newsletterPreviewSubjectEl || !newsletterPreviewEventsEl || !newsletterPreviewUpdatesEl) return;
+    const payload = getNewsletterPayload();
+    newsletterPreviewSubjectEl.textContent = payload.subject.trim() || 'Untitled Newsletter';
+    newsletterPreviewEventsEl.textContent = payload.eventHighlights.trim() || 'No event highlights provided.';
+    newsletterPreviewUpdatesEl.textContent = payload.updates.trim() || 'No updates provided.';
+  }
+
+  async function renderNewsletterHistory() {
+    if (!newsletterHistoryListEl) return;
+    const history = await Auth.getNewsletterHistory();
+    if (!history.length) {
+      newsletterHistoryListEl.innerHTML = '<p class="text-muted small mb-0">No newsletters distributed yet.</p>';
+      return;
+    }
+    newsletterHistoryListEl.innerHTML = history.slice(0, 5).map((entry) => `
+      <div class="border-bottom pb-2 mb-2">
+        <div class="fw-semibold small">${escapeHtml(entry.subject || 'Untitled Newsletter')}</div>
+        <div class="text-muted small">${escapeHtml(entry.recipientCount || 0)} recipients • ${escapeHtml(entry.sentAtLabel || '')}</div>
+      </div>
+    `).join('');
+  }
+
   async function startParticipantEdit(participantId) {
     const participants = await Auth.getParticipants();
     const participant = participants.find((p) => String(p.id) === String(participantId));
@@ -840,6 +869,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('jobEmployer').value = job.employer || '';
     document.getElementById('jobLocation').value = job.location || '';
     document.getElementById('jobType').value = job.jobType || '';
+    document.getElementById('jobStatus').value = job.status || 'Open';
     document.getElementById('jobSalary').value = job.salary || '';
     document.getElementById('jobRequirements').value = job.requirements || '';
 
@@ -1050,6 +1080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         employer,
         location: document.getElementById('jobLocation').value,
         jobType: document.getElementById('jobType').value,
+        status: document.getElementById('jobStatus').value,
         salary: document.getElementById('jobSalary').value,
         requirements: document.getElementById('jobRequirements').value
       };
@@ -1079,44 +1110,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  async function handleNewsletterGeneration() {
-    const result = await Auth.generateWeeklyNewsletter();
-    if (!result.success) {
-      showToast('Unable to generate the weekly newsletter.');
-      return;
-    }
-
-    selectedNewsletterId = result.newsletter.id;
-    await renderNewsletters();
-    showToast(
-      result.updated
-        ? 'This week\'s newsletter was regenerated with the latest opportunities.'
-        : 'This week\'s newsletter draft is ready for participants and families.'
-    );
-  }
-
   setAdminVolunteerOtherInterestInputState();
 
-  generateNewsletterBtn?.addEventListener('click', handleNewsletterGeneration);
-
   adminGenerateNewsletterQuickBtn?.addEventListener('click', async () => {
-    await handleNewsletterGeneration();
-    navigateTo('newsletters');
-  });
-
-  copyNewsletterBtn?.addEventListener('click', async () => {
-    const newsletters = await Auth.getNewsletters();
-    const newsletter = newsletters.find((item) => item.id === copyNewsletterBtn.dataset.newsletterId);
-    if (!newsletter) return;
-
-    const text = `Subject: ${newsletter.subject}\nAudience: ${newsletter.audience}\n\n${newsletter.body}`;
-
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast('Newsletter copied to the clipboard.');
-    } catch {
-      showToast('Clipboard copy is unavailable in this browser.');
-    }
+    navigateTo('communications');
   });
 
   // ── Confirm button (user account creation modal) ──────────────────────────
@@ -1195,7 +1192,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderVolunteersTable();
   await renderEventsTable();
   await renderJobsTable();
-  await renderNewsletters();
+  await renderNewsletterRecipients();
+  await hydrateNewsletterDraft();
+  await renderNewsletterHistory();
+  renderNewsletterPreview();
 
   // Wire "New" buttons to reset the form and show the form sub-view.
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
@@ -1246,6 +1246,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToUsersBtn')?.addEventListener('click', () => {
     resetUserFormState();
     showUsersListView();
+  });
+
+  newsletterPreviewBtn?.addEventListener('click', () => {
+    clearNewsletterMessages();
+    renderNewsletterPreview();
+  });
+
+  newsletterSaveDraftBtn?.addEventListener('click', async () => {
+    if (!newsletterForm) return;
+    clearNewsletterMessages();
+    const payload = getNewsletterPayload();
+    const result = await Auth.saveNewsletterDraft(payload);
+    if (!result.success) {
+      showNewsletterError(result.message || 'Unable to save draft.');
+      return;
+    }
+    showNewsletterSuccess('Draft saved successfully.');
+    renderNewsletterPreview();
+  });
+
+  newsletterForm?.addEventListener('input', () => {
+    clearNewsletterMessages();
+  });
+
+  newsletterForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = newsletterForm;
+    form.classList.add('was-validated');
+    clearNewsletterMessages();
+    const payload = getNewsletterPayload();
+    if (!form.checkValidity()) {
+      showNewsletterError('Please complete required newsletter fields.');
+      return;
+    }
+    if (payload.recipients.length === 0) {
+      showNewsletterError('Select at least one recipient before distributing.');
+      return;
+    }
+
+    const result = await Auth.distributeNewsletter(payload);
+    if (!result.success) {
+      showNewsletterError(result.message || 'Distribution failed. Retry or save as draft.');
+      return;
+    }
+
+    showNewsletterSuccess(`Newsletter distributed successfully to ${result.recipientCount} recipient(s).`);
+    form.reset();
+    form.classList.remove('was-validated');
+    await renderNewsletterRecipients();
+    await renderNewsletterHistory();
+    renderNewsletterPreview();
   });
 
 });

@@ -12,6 +12,8 @@ const Auth = (() => {
   const JOBS_KEY = 'kindred_jobs';
   const JOB_INTERESTS_KEY = 'kindred_job_interests';
   const NEWSLETTERS_KEY = 'kindred_newsletters';
+  const NEWSLETTER_DRAFT_KEY = 'kindred_newsletter_draft';
+  const NEWSLETTER_LOG_KEY = 'kindred_newsletter_log';
 
   const SEED_EVENTS = [
     {
@@ -121,6 +123,7 @@ const Auth = (() => {
       jobType: 'Part-time',
       salary: '$16/hr',
       requirements: 'Friendly communication, ability to follow routines, and basic customer service support.',
+      status: 'Open',
       createdAtMs: 1740000010000,
       dateAdded: 'Mar 3, 2026'
     },
@@ -132,6 +135,7 @@ const Auth = (() => {
       jobType: 'Casual',
       salary: '$14/hr',
       requirements: 'Organizing materials, shelving support, and helping with simple front-desk tasks.',
+      status: 'Open',
       createdAtMs: 1740000011000,
       dateAdded: 'Mar 3, 2026'
     }
@@ -185,6 +189,9 @@ const Auth = (() => {
     if (!localStorage.getItem(NEWSLETTERS_KEY)) {
       localStorage.setItem(NEWSLETTERS_KEY, JSON.stringify([]));
     }
+    if (!localStorage.getItem(NEWSLETTER_LOG_KEY)) {
+      localStorage.setItem(NEWSLETTER_LOG_KEY, JSON.stringify([]));
+    }
   }
 
   function getRawUsers() {
@@ -230,6 +237,14 @@ const Auth = (() => {
   function getRawJobInterests() {
     try {
       return JSON.parse(localStorage.getItem(JOB_INTERESTS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getRawNewsletterLog() {
+    try {
+      return JSON.parse(localStorage.getItem(NEWSLETTER_LOG_KEY)) || [];
     } catch {
       return [];
     }
@@ -385,6 +400,8 @@ const Auth = (() => {
     localStorage.removeItem(JOBS_KEY);
     localStorage.removeItem(JOB_INTERESTS_KEY);
     localStorage.removeItem(NEWSLETTERS_KEY);
+    localStorage.removeItem(NEWSLETTER_DRAFT_KEY);
+    localStorage.removeItem(NEWSLETTER_LOG_KEY);
     if (reseed) initStores();
     return { success: true };
   }
@@ -772,6 +789,7 @@ const Auth = (() => {
         jobType: job.jobType,
         salary: job.salary,
         requirements: job.requirements,
+        status: job.status || 'Open',
         dateAdded: job.dateAdded
       }));
   }
@@ -792,6 +810,7 @@ const Auth = (() => {
       jobType: String(payload.jobType || '').trim(),
       salary: String(payload.salary || '').trim(),
       requirements: String(payload.requirements || '').trim(),
+      status: String(payload.status || 'Open').trim() || 'Open',
       createdAtMs: Date.now(),
       dateAdded: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     });
@@ -816,7 +835,8 @@ const Auth = (() => {
       location: String(payload.location || '').trim(),
       jobType: String(payload.jobType || '').trim(),
       salary: String(payload.salary || '').trim(),
-      requirements: String(payload.requirements || '').trim()
+      requirements: String(payload.requirements || '').trim(),
+      status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open'
     };
     localStorage.setItem(JOBS_KEY, JSON.stringify(jobs));
     return { success: true };
@@ -1019,6 +1039,99 @@ const Auth = (() => {
     return grouped;
   }
 
+  // ── Weekly Newsletter Tracking (Req 601 simulation) ───────────────────────
+
+  async function getNewsletterDraft() {
+    try {
+      return JSON.parse(localStorage.getItem(NEWSLETTER_DRAFT_KEY)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function saveNewsletterDraft(payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can save newsletter drafts.' };
+    }
+
+    const draft = {
+      subject: String(payload.subject || '').trim(),
+      eventHighlights: String(payload.eventHighlights || '').trim(),
+      updates: String(payload.updates || '').trim(),
+      recipients: Array.isArray(payload.recipients) ? payload.recipients : [],
+      updatedAtMs: Date.now(),
+      updatedAtLabel: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    };
+
+    localStorage.setItem(NEWSLETTER_DRAFT_KEY, JSON.stringify(draft));
+    return { success: true };
+  }
+
+  async function getNewsletterHistory() {
+    return getRawNewsletterLog()
+      .slice()
+      .sort((a, b) => (b.sentAtMs || 0) - (a.sentAtMs || 0));
+  }
+
+  async function distributeNewsletter(payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can distribute newsletters.' };
+    }
+
+    const subject = String(payload.subject || '').trim();
+    const eventHighlights = String(payload.eventHighlights || '').trim();
+    const updates = String(payload.updates || '').trim();
+    const recipients = Array.isArray(payload.recipients)
+      ? payload.recipients.map((r) => String(r || '').trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    if (!subject || (!eventHighlights && !updates)) {
+      return { success: false, message: 'Provide a subject and newsletter content before distributing.' };
+    }
+    if (recipients.length === 0) {
+      return { success: false, message: 'Select at least one recipient before distributing.' };
+    }
+
+    const users = getRawUsers();
+    const registeredRecipientCount = recipients.filter((email) =>
+      users.some((u) => String(u.email || '').trim().toLowerCase() === email)
+    ).length;
+
+    if (registeredRecipientCount === 0) {
+      return { success: false, message: 'No valid recipients selected. Please retry.' };
+    }
+
+    const log = getRawNewsletterLog();
+    const entry = {
+      id: `nl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      subject,
+      eventHighlights,
+      updates,
+      recipients,
+      recipientCount: registeredRecipientCount,
+      sentAtMs: Date.now(),
+      sentAtLabel: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    };
+    log.push(entry);
+    localStorage.setItem(NEWSLETTER_LOG_KEY, JSON.stringify(log));
+    localStorage.removeItem(NEWSLETTER_DRAFT_KEY);
+    return { success: true, recipientCount: registeredRecipientCount };
+  }
+
   initStores();
 
   return {
@@ -1053,6 +1166,10 @@ const Auth = (() => {
     saveJobInterest,
     removeJobInterest,
     toggleJobInterest,
-    getJobInterestSummary
+    getJobInterestSummary,
+    getNewsletterDraft,
+    saveNewsletterDraft,
+    getNewsletterHistory,
+    distributeNewsletter
   };
 })();

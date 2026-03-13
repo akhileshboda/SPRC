@@ -701,6 +701,7 @@
                     <th scope="col">Employer</th>
                     <th scope="col">Location</th>
                     <th scope="col">Job Type</th>
+                    <th scope="col">Status</th>
                     <th scope="col">Salary / Stipend</th>
                     <th scope="col">Capabilities &amp; Requirements</th>
                     <th scope="col">Interested Participants</th>
@@ -764,6 +765,15 @@
                   </div>
 
                   <div class="col-md-3">
+                    <label for="jobStatus" class="form-label">Status</label>
+                    <select class="form-select" id="jobStatus">
+                      <option value="Open">Open</option>
+                      <option value="Paused">Paused</option>
+                      <option value="Filled">Filled</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-3">
                     <label for="jobSalary" class="form-label">Salary / Stipend</label>
                     <input type="text" class="form-control" id="jobSalary"
                            placeholder="e.g. $18/hr or Unpaid">
@@ -798,62 +808,82 @@
 
       </section>
 
-      <!-- ══ SECTION: Newsletters (ADMIN only) ══ -->
-      <section id="section-newsletters" class="content-section d-none">
-        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+      <!-- ══ SECTION: Communications (ADMIN only) ══ -->
+      <section id="section-communications" class="content-section d-none">
+        <div class="d-flex align-items-center justify-content-between mb-3">
           <div>
-            <h5 class="fw-semibold mb-1" style="color:#4F62B0;">Weekly Newsletters</h5>
-            <p class="text-muted mb-0">
-              Generate a weekly summary so participants and families can review current events and job opportunities.
-            </p>
+            <h5 class="text-primary fw-semibold mb-1">Generate Weekly Newsletter</h5>
+            <p class="text-muted mb-0">Compile event highlights and updates, preview, then distribute to selected registered users.</p>
           </div>
-          <button id="generateNewsletterBtn" class="btn btn-primary text-nowrap align-self-start align-self-lg-center" type="button">
-            <i class="bi bi-stars me-1"></i>Generate Newsletter
-          </button>
         </div>
 
         <div class="row g-4">
-          <div class="col-lg-4">
-            <div class="card shadow-sm h-100">
-              <div class="card-header bg-light fw-semibold">Newsletter Archive</div>
-              <div class="card-body p-0">
-                <div id="newsletterArchiveEmpty" class="text-muted small p-4 d-none">
-                  No newsletters have been generated yet.
-                </div>
-                <div id="newsletterArchiveList" class="list-group list-group-flush"></div>
+          <div class="col-lg-7">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <div id="newsletterError" class="alert alert-danger d-none" role="alert"></div>
+                <div id="newsletterSuccess" class="alert alert-success d-none" role="alert"></div>
+
+                <form id="newsletterForm" novalidate>
+                  <div class="mb-3">
+                    <label for="newsletterSubject" class="form-label">Newsletter Subject</label>
+                    <input type="text" class="form-control" id="newsletterSubject" placeholder="e.g. Kindred Weekly Update" required>
+                    <div class="invalid-feedback">Subject is required.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="newsletterEvents" class="form-label">Event Highlights</label>
+                    <textarea class="form-control" id="newsletterEvents" rows="4" placeholder="Add key events and links for this week..." required></textarea>
+                    <div class="invalid-feedback">Add event highlights or updates.</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="newsletterUpdates" class="form-label">Updates / Resources</label>
+                    <textarea class="form-control" id="newsletterUpdates" rows="4" placeholder="Announcements, resources, reminders..."></textarea>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label d-block">Recipients</label>
+                    <div id="newsletterRecipientsList" class="border rounded p-3" style="max-height: 220px; overflow-y: auto;"></div>
+                    <div class="form-text">Select recipients before distribution.</div>
+                  </div>
+
+                  <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="newsletterPreviewBtn">
+                      <i class="bi bi-eye me-1"></i>Preview Newsletter
+                    </button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="newsletterSaveDraftBtn">
+                      <i class="bi bi-save me-1"></i>Save as Draft
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="newsletterDistributeBtn">
+                      <i class="bi bi-send me-1"></i>Distribute Newsletter
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>
 
-          <div class="col-lg-8">
-            <div class="card shadow-sm h-100">
-              <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                <div>
-                  <div class="fw-semibold">Newsletter Preview</div>
-                  <div id="newsletterMeta" class="text-muted small">Generate a weekly newsletter to preview it here.</div>
-                </div>
-                <button id="copyNewsletterBtn" class="btn btn-outline-primary btn-sm d-none" type="button">
-                  <i class="bi bi-clipboard me-1"></i>Copy Text
-                </button>
-              </div>
+          <div class="col-lg-5">
+            <div class="card shadow-sm mb-3" id="newsletterPreviewCard">
+              <div class="card-header bg-light fw-semibold">Newsletter Preview</div>
               <div class="card-body">
-                <div id="newsletterPreviewEmpty" class="text-muted">
-                  Weekly newsletters summarize current opportunities for families. Generate one to create a draft.
+                <h6 id="newsletterPreviewSubject" class="fw-bold mb-2">No preview yet</h6>
+                <div class="small mb-3">
+                  <div class="fw-semibold">Event Highlights</div>
+                  <div id="newsletterPreviewEvents" class="text-muted">Add content and click Preview Newsletter.</div>
                 </div>
-                <div id="newsletterPreview" class="d-none">
-                  <div class="mb-3">
-                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Subject</div>
-                    <div id="newsletterSubject" class="fw-semibold"></div>
-                  </div>
-                  <div class="mb-3">
-                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Audience</div>
-                    <div id="newsletterAudience"></div>
-                  </div>
-                  <div>
-                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Body</div>
-                    <pre id="newsletterBody" class="mb-0 p-3 rounded border bg-light" style="white-space: pre-wrap; font-family: 'Inter', system-ui, sans-serif;"></pre>
-                  </div>
+                <div class="small">
+                  <div class="fw-semibold">Updates / Resources</div>
+                  <div id="newsletterPreviewUpdates" class="text-muted">Add content and click Preview Newsletter.</div>
                 </div>
+              </div>
+            </div>
+
+            <div class="card shadow-sm">
+              <div class="card-header bg-light fw-semibold">Distribution History</div>
+              <div class="card-body" id="newsletterHistoryList">
+                <p class="text-muted small mb-0">No newsletters distributed yet.</p>
               </div>
             </div>
           </div>
@@ -1046,7 +1076,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=4"></script>
+  <script src="js/auth.js?v=5"></script>
   <script src="js/sidebar.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
