@@ -9,6 +9,7 @@ const Auth = (() => {
   const VOLUNTEER_PROFILES_KEY = 'kindred_volunteer_profiles';
   // Keep the historical storage key so previously saved admin records still load.
   const EVENTS_KEY = 'kindred_opportunities';
+  const EVENT_SIGNUPS_KEY = 'kindredSignups';
   const JOBS_KEY = 'kindred_jobs';
   const JOB_INTERESTS_KEY = 'kindred_job_interests';
   const NEWSLETTERS_KEY = 'kindred_newsletters';
@@ -173,6 +174,9 @@ const Auth = (() => {
     if (!localStorage.getItem(VOLUNTEER_PROFILES_KEY)) {
       localStorage.setItem(VOLUNTEER_PROFILES_KEY, JSON.stringify([]));
     }
+    if (!localStorage.getItem(EVENT_SIGNUPS_KEY)) {
+      localStorage.setItem(EVENT_SIGNUPS_KEY, JSON.stringify([]));
+    }
     const rawEvents = localStorage.getItem(EVENTS_KEY);
     const parsedEvents = rawEvents ? (() => { try { return JSON.parse(rawEvents); } catch { return []; } })() : null;
     if (!rawEvents || !Array.isArray(parsedEvents) || parsedEvents.length === 0) {
@@ -229,6 +233,14 @@ const Auth = (() => {
   function getRawVolunteerProfiles() {
     try {
       return JSON.parse(localStorage.getItem(VOLUNTEER_PROFILES_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
+  function getRawEventSignups() {
+    try {
+      return JSON.parse(localStorage.getItem(EVENT_SIGNUPS_KEY)) || [];
     } catch {
       return [];
     }
@@ -397,6 +409,7 @@ const Auth = (() => {
     localStorage.removeItem(PARTICIPANTS_KEY);
     localStorage.removeItem(VOLUNTEER_PROFILES_KEY);
     localStorage.removeItem(EVENTS_KEY);
+    localStorage.removeItem(EVENT_SIGNUPS_KEY);
     localStorage.removeItem(JOBS_KEY);
     localStorage.removeItem(JOB_INTERESTS_KEY);
     localStorage.removeItem(NEWSLETTERS_KEY);
@@ -762,7 +775,99 @@ const Auth = (() => {
     }
 
     localStorage.setItem(EVENTS_KEY, JSON.stringify(filtered));
+
+    // Keep event signup store consistent when an event is removed.
+    const signups = getRawEventSignups();
+    const cleanedSignups = signups.filter((entry) => String(entry.eventId || '') !== String(id));
+    if (cleanedSignups.length !== signups.length) {
+      localStorage.setItem(EVENT_SIGNUPS_KEY, JSON.stringify(cleanedSignups));
+    }
     return { success: true };
+  }
+
+  // ── Event Interest Tracking ────────────────────────────────────────────────
+
+  async function getInterestedEventIds(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!normalizedEmail) return [];
+    return getRawEventSignups()
+      .filter((entry) => String(entry.email || '').trim().toLowerCase() === normalizedEmail)
+      .map((entry) => String(entry.eventId || '').trim())
+      .filter(Boolean);
+  }
+
+  async function saveEventInterest(eventId, eventTitle = '') {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to register interest.' };
+    }
+
+    const normalizedEmail = String(session.email || '').trim().toLowerCase();
+    const normalizedEventId = String(eventId || '').trim();
+    if (!normalizedEventId) return { success: false, message: 'Invalid event id.' };
+
+    const events = getRawEvents();
+    const exists = events.some((event) => String(event.id) === normalizedEventId);
+    if (!exists) return { success: false, message: 'Event not found.' };
+
+    const signups = getRawEventSignups();
+    const duplicate = signups.some((entry) =>
+      String(entry.email || '').trim().toLowerCase() === normalizedEmail
+      && String(entry.eventId || '').trim() === normalizedEventId
+    );
+    if (duplicate) return { success: true, alreadySaved: true };
+
+    signups.push({
+      email: normalizedEmail,
+      role: String(session.role || '').trim(),
+      eventId: normalizedEventId,
+      title: String(eventTitle || '').trim(),
+      timestamp: new Date().toISOString()
+    });
+    localStorage.setItem(EVENT_SIGNUPS_KEY, JSON.stringify(signups));
+    return { success: true };
+  }
+
+  async function removeEventInterest(eventId, eventTitle = '') {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to update event interests.' };
+    }
+
+    const normalizedEmail = String(session.email || '').trim().toLowerCase();
+    const normalizedEventId = String(eventId || '').trim();
+    const normalizedEventTitle = String(eventTitle || '').trim().toLowerCase();
+
+    const signups = getRawEventSignups();
+    const filtered = signups.filter((entry) => {
+      const sameEmail = String(entry.email || '').trim().toLowerCase() === normalizedEmail;
+      if (!sameEmail) return true;
+
+      const sameId = normalizedEventId && String(entry.eventId || '').trim() === normalizedEventId;
+      const sameTitle = !normalizedEventId
+        && normalizedEventTitle
+        && String(entry.title || '').trim().toLowerCase() === normalizedEventTitle;
+      return !(sameId || sameTitle);
+    });
+
+    if (filtered.length === signups.length) {
+      return { success: false, message: 'This event is not in your saved list.' };
+    }
+
+    localStorage.setItem(EVENT_SIGNUPS_KEY, JSON.stringify(filtered));
+    return { success: true };
+  }
+
+  async function toggleEventInterest(eventId, eventTitle = '') {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, message: 'Please sign in to update event interests.' };
+    }
+    const interestedIds = await getInterestedEventIds(session.email);
+    if (interestedIds.includes(String(eventId))) {
+      return removeEventInterest(eventId, eventTitle);
+    }
+    return saveEventInterest(eventId, eventTitle);
   }
 
   // ── Job Opportunities ──────────────────────────────────────────────────────
@@ -1156,6 +1261,10 @@ const Auth = (() => {
     addEvent,
     updateEvent,
     removeEvent,
+    getInterestedEventIds,
+    saveEventInterest,
+    removeEventInterest,
+    toggleEventInterest,
     getJobs,
     addJob,
     updateJob,

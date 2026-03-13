@@ -549,6 +549,8 @@
         let allEvents = [];
         let activeFilter = 'All';
         let searchQuery = '';
+        let currentSession = null;
+        let interestedEventIds = new Set();
 
         function escapeHtml(str) {
             return String(str ?? '')
@@ -561,6 +563,28 @@
                 const ts = new Date(String(event.dateTime || '')).getTime();
                 return !isNaN(ts) && ts >= Date.now();
             } catch { return false; }
+        }
+
+        function actionButton(event, upcoming) {
+            if (!upcoming) return '';
+            if (!currentSession) {
+                return `<a class="btn btn-sm btn-primary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" href="login.html">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Login to save
+                </a>`;
+            }
+            if (currentSession.role !== 'PARTICIPANT') {
+                return `<button class="btn btn-sm btn-outline-secondary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" disabled title="Participants can save event interests">
+                    Participants only
+                </button>`;
+            }
+            if (interestedEventIds.has(String(event.id))) {
+                return `<button class="btn btn-sm btn-outline-danger js-event-toggle-btn" data-event-id="${escapeHtml(event.id)}" data-event-title="${escapeHtml(event.title)}" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;">
+                    <i class="bi bi-x-circle me-1"></i>Not interested
+                </button>`;
+            }
+            return `<button class="btn btn-sm btn-primary js-event-toggle-btn" data-event-id="${escapeHtml(event.id)}" data-event-title="${escapeHtml(event.title)}" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;">
+                <i class="bi bi-hand-thumbsup me-1"></i>I'm Interested
+            </button>`;
         }
 
         function renderEventCard(event) {
@@ -596,9 +620,33 @@
 
           <div class="d-flex align-items-center justify-content-between mt-auto">
             ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span></span>'}
-            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${upcoming ? `<button class="btn btn-sm btn-primary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" onclick="handleSignUp(this, '${escapeHtml(event.id)}', '${escapeHtml(event.title)}')"><i class="bi bi-hand-thumbsup me-1"></i>I'm Interested</button>` : ''}
+            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${actionButton(event, upcoming)}
           </div>
         </article>`;
+        }
+
+        async function refreshInterestedEventIds() {
+            if (!currentSession || currentSession.role !== 'PARTICIPANT') {
+                interestedEventIds = new Set();
+                return;
+            }
+            interestedEventIds = new Set(await Auth.getInterestedEventIds(currentSession.email));
+        }
+
+        function wireEventToggleButtons() {
+            document.querySelectorAll('.js-event-toggle-btn').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    btn.disabled = true;
+                    const result = await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
+                    if (!result.success) {
+                        alert(result.message || 'Could not update event interest.');
+                        btn.disabled = false;
+                        return;
+                    }
+                    await refreshInterestedEventIds();
+                    filterAndRender();
+                });
+            });
         }
 
         function renderSkeletons(n = 6) {
@@ -646,13 +694,14 @@
                 const label = activeFilter === 'All' ? 'event' : activeFilter.toLowerCase() + ' event';
                 countEl.textContent = `Showing ${filtered.length} ${label}${filtered.length !== 1 ? 's' : ''}${query ? ` for "${searchQuery}"` : ''}`;
             }
+            wireEventToggleButtons();
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const session = await Auth.getSession();
+            currentSession = await Auth.getSession();
             
             const signinBtn = document.getElementById('nav-signin-btn');
-            if (signinBtn && session) {
+            if (signinBtn && currentSession) {
                 signinBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i>Back to Dashboard';
                 signinBtn.href = 'dashboard.html';
             }
@@ -662,6 +711,7 @@
             await new Promise(r => setTimeout(r, 180));
 
             allEvents = await Auth.getEvents();
+            await refreshInterestedEventIds();
 
             // Wire search
             const searchInput = document.getElementById('searchBar');
@@ -686,35 +736,6 @@
 
             filterAndRender();
         });
-
-        async function handleSignUp(btn, eventId, title) {
-            const session = await Auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-                return;
-            }
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Signed Up!';
-            btn.classList.replace('btn-primary', 'btn-success');
-
-            const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
-            const normalizedEmail = String(session.email || '').trim().toLowerCase();
-            const normalizedEventId = String(eventId || '').trim();
-            const duplicate = signups.some((s) =>
-                String(s.email || '').trim().toLowerCase() === normalizedEmail
-                && String(s.eventId || '').trim() === normalizedEventId
-            );
-            if (!duplicate) {
-                signups.push({
-                    email: normalizedEmail,
-                    role: session.role,
-                    eventId: normalizedEventId,
-                    title,
-                    timestamp: new Date().toISOString()
-                });
-                localStorage.setItem('kindredSignups', JSON.stringify(signups));
-            }
-        }
     </script>
 
 </body>

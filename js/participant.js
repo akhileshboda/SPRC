@@ -47,10 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Event card builder ─────────────────────────────────────────────────────
 
-  function buildEventCard(event, compact = false) {
+  function buildEventCard(event, compact = false, options = {}) {
     const now = Date.now();
     const ts  = event.eventTimestamp ?? new Date(event.dateTime).getTime();
     const isPast = !isNaN(ts) && ts < now;
+    const allowUnsave = Boolean(options.allowUnsave);
 
     return `
       <div class="col">
@@ -70,7 +71,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="portal-cost-pill">
               <i class="bi bi-tag me-1"></i>${escHtml(event.cost)}
             </span>
-            ${isPast ? '<span class="portal-past-label">Past event</span>' : ''}
+            ${allowUnsave
+              ? `<button class="btn btn-outline-danger btn-sm js-participant-event-toggle" data-event-id="${escHtml(event.id)}" data-event-title="${escHtml(event.title)}">
+                  <i class="bi bi-x-circle me-1"></i>Not interested
+                </button>`
+              : (isPast ? '<span class="portal-past-label">Past event</span>' : '')
+            }
           </div>
         </div>
       </div>`;
@@ -187,8 +193,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     container.innerHTML = `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-      ${subscribed.map(e => buildEventCard(e, false)).join('')}
+      ${subscribed.map(e => buildEventCard(e, false, { allowUnsave: true })).join('')}
     </div>`;
+
+    container.querySelectorAll('.js-participant-event-toggle').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
+        if (!result.success) {
+          alert(result.message || 'Could not update event interest.');
+          btn.disabled = false;
+          return;
+        }
+        await renderParticipantEvents();
+      });
+    });
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────
