@@ -196,3 +196,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderDashboardHome();
   await renderParticipantEvents();
 });
+
+// ── Weekly Newsletter View ────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const session = await Auth.getSession();
+  if (!session || session.role !== 'PARTICIPANT') return;
+
+  async function renderParticipantNewsletter() {
+    const container = document.getElementById('p-newsletter-content');
+    if (!container) return;
+
+    const newsletters = await Auth.getNewsletters();
+
+    if (!newsletters || newsletters.length === 0) {
+      container.innerHTML = `<div class="portal-empty-state">
+        <i class="bi bi-envelope"></i>
+        <p>No newsletter has been sent yet. Check back soon!</p>
+      </div>`;
+      return;
+    }
+
+    const newsletter = newsletters[0];
+    container.innerHTML = `
+      <div class="card shadow-sm">
+        <div class="card-header text-white fw-semibold d-flex justify-content-between align-items-center"
+             style="background-color:#4F62B0;">
+          <span><i class="bi bi-envelope-paper me-2"></i>${escHtmlNl(newsletter.subject)}</span>
+          <small class="opacity-75">${escHtmlNl(newsletter.weekOf)}</small>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-4">
+            We are excited to let you know about upcoming events and opportunities.
+            Please contact us if you have any questions.
+          </p>
+          <pre style="white-space: pre-wrap; font-family: 'Inter', system-ui, sans-serif; font-size: 0.95rem; border: none; background: none; padding: 0; margin: 0;">${escHtmlNl(newsletter.body)}</pre>
+          <div class="mt-4 text-muted small border-top pt-3">
+            <i class="bi bi-clock me-1"></i>Sent ${escHtmlNl(newsletter.generatedAtLabel)}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function escHtmlNl(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  await renderParticipantNewsletter();
+});
