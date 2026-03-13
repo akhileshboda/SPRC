@@ -16,6 +16,7 @@ Kindred is a role-based web application designed to connect special-needs partic
 - **Participant Records (Req 201)** — administrators can create, edit, and delete participant records with special-needs details
 - **Volunteer Self-Registration (Story 402)** — volunteers can register personal information, select interests from a dropdown multi-select checklist, and update availability so they can be matched and contacted for relevant opportunities
 - **Public Job Board + Participant Interest Saving** — anyone can browse `Jobs` from the top navigation, while signed-in participants can register interest in job opportunities
+- **Weekly Newsletter Generation** — administrators can generate a weekly newsletter draft that summarizes current events and job opportunities for participants and families
 - **Forgot Password** — simulated password reset flow on the login page
 
 ---
@@ -57,6 +58,16 @@ login.html
 4. (Optional) Check **Other** and type a custom interest.
 5. Click **Save My Volunteer Profile**.
 6. Refresh and confirm the profile values are preloaded for editing.
+
+### Test: Weekly Newsletter Generation (Administrator Story)
+
+1. Sign in as admin:
+   - Email: `lisawilliams@kindred.org`
+   - Password: `lisa123`
+2. From the dashboard, click **Generate This Week's Newsletter** or open **Newsletters** from the sidebar.
+3. Click **Generate Newsletter**.
+4. Verify the archive shows a new entry for the current week and the preview includes a subject, audience, and body.
+5. Click **Copy Text** to copy the generated draft for email or messaging tools.
 
 ---
 

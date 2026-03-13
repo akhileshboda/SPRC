@@ -107,11 +107,27 @@
 
         <!-- ADMIN: welcome card directing to sidebar sections -->
         <div id="panel-ADMIN" class="d-none">
-          <div class="card shadow-sm">
+          <div class="card shadow-sm mb-4">
             <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
             <div class="card-body text-muted">
-              Select <strong>Participants</strong>, <strong>Volunteers</strong>, <strong>Events</strong>, <strong>Jobs</strong>, or <strong>Users</strong> from the
+              Select <strong>Participants</strong>, <strong>Volunteers</strong>, <strong>Events</strong>, <strong>Jobs</strong>, <strong>Newsletters</strong>, or <strong>Users</strong> from the
               sidebar to manage records.
+            </div>
+          </div>
+          <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(79,98,176,0.08), rgba(43,181,160,0.10));">
+            <div class="card-body p-4">
+              <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+                <div>
+                  <div class="text-uppercase fw-bold small mb-2" style="letter-spacing: 0.08em; color: #4F62B0;">Weekly Communication</div>
+                  <h5 class="mb-2">Generate weekly newsletters for participants and families</h5>
+                  <p class="text-muted mb-0">
+                    Kindred can compile current opportunities into a ready-to-send update for families each week.
+                  </p>
+                </div>
+                <button id="adminGenerateNewsletterQuickBtn" class="btn btn-primary align-self-start align-self-lg-center" type="button">
+                  <i class="bi bi-envelope-paper me-2"></i>Generate This Week's Newsletter
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -767,6 +783,68 @@
           </div>
         </div>
 
+      </section>
+
+      <!-- ══ SECTION: Newsletters (ADMIN only) ══ -->
+      <section id="section-newsletters" class="content-section d-none">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+          <div>
+            <h5 class="fw-semibold mb-1" style="color:#4F62B0;">Weekly Newsletters</h5>
+            <p class="text-muted mb-0">
+              Generate a weekly summary so participants and families can review current events and job opportunities.
+            </p>
+          </div>
+          <button id="generateNewsletterBtn" class="btn btn-primary text-nowrap align-self-start align-self-lg-center" type="button">
+            <i class="bi bi-stars me-1"></i>Generate Newsletter
+          </button>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+              <div class="card-header bg-light fw-semibold">Newsletter Archive</div>
+              <div class="card-body p-0">
+                <div id="newsletterArchiveEmpty" class="text-muted small p-4 d-none">
+                  No newsletters have been generated yet.
+                </div>
+                <div id="newsletterArchiveList" class="list-group list-group-flush"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-8">
+            <div class="card shadow-sm h-100">
+              <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                <div>
+                  <div class="fw-semibold">Newsletter Preview</div>
+                  <div id="newsletterMeta" class="text-muted small">Generate a weekly newsletter to preview it here.</div>
+                </div>
+                <button id="copyNewsletterBtn" class="btn btn-outline-primary btn-sm d-none" type="button">
+                  <i class="bi bi-clipboard me-1"></i>Copy Text
+                </button>
+              </div>
+              <div class="card-body">
+                <div id="newsletterPreviewEmpty" class="text-muted">
+                  Weekly newsletters summarize current opportunities for families. Generate one to create a draft.
+                </div>
+                <div id="newsletterPreview" class="d-none">
+                  <div class="mb-3">
+                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Subject</div>
+                    <div id="newsletterSubject" class="fw-semibold"></div>
+                  </div>
+                  <div class="mb-3">
+                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Audience</div>
+                    <div id="newsletterAudience"></div>
+                  </div>
+                  <div>
+                    <div class="text-muted small text-uppercase fw-bold mb-1" style="letter-spacing: 0.06em;">Body</div>
+                    <pre id="newsletterBody" class="mb-0 p-3 rounded border bg-light" style="white-space: pre-wrap; font-family: 'Inter', system-ui, sans-serif;"></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- ══ SECTION: Users (ADMIN only) ══ -->

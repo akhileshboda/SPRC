@@ -11,6 +11,7 @@ const Auth = (() => {
   const EVENTS_KEY = 'kindred_opportunities';
   const JOBS_KEY = 'kindred_jobs';
   const JOB_INTERESTS_KEY = 'kindred_job_interests';
+  const NEWSLETTERS_KEY = 'kindred_newsletters';
 
   const SEED_EVENTS = [
     {
@@ -181,6 +182,9 @@ const Auth = (() => {
     if (!localStorage.getItem(JOB_INTERESTS_KEY)) {
       localStorage.setItem(JOB_INTERESTS_KEY, JSON.stringify([]));
     }
+    if (!localStorage.getItem(NEWSLETTERS_KEY)) {
+      localStorage.setItem(NEWSLETTERS_KEY, JSON.stringify([]));
+    }
   }
 
   function getRawUsers() {
@@ -237,6 +241,14 @@ const Auth = (() => {
     return user ? String(user.name || '').trim() : '';
   }
 
+  function getRawNewsletters() {
+    try {
+      return JSON.parse(localStorage.getItem(NEWSLETTERS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  }
+
   function splitName(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
@@ -258,6 +270,64 @@ const Auth = (() => {
       hour: 'numeric',
       minute: '2-digit'
     }).format(new Date(timestamp));
+  }
+
+  function formatDateLabel(date) {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }).format(date);
+  }
+
+  function getWeekStartDate(date = new Date()) {
+    const normalized = new Date(date);
+    normalized.setHours(0, 0, 0, 0);
+    const day = normalized.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    normalized.setDate(normalized.getDate() + diffToMonday);
+    return normalized;
+  }
+
+  function buildNewsletterContent({ weekStart, participants, events, jobs }) {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekLabel = `Week of ${formatDateLabel(weekStart)}`;
+    const eventLines = events.length
+      ? events.map((event) => `- ${event.title} (${event.dateTimeLabel}) at ${event.location}. ${event.cost}.`).join('\n')
+      : '- No new community events are scheduled right now. Please check the dashboard for rolling updates.';
+    const jobLines = jobs.length
+      ? jobs.map((job) => `- ${job.title} at ${job.employer} in ${job.location || 'the local area'}${job.salary ? ` (${job.salary})` : ''}.`).join('\n')
+      : '- No new job opportunities were added this week.';
+
+    const participantCount = participants.length;
+    const subject = `Kindred Weekly Newsletter | ${weekLabel}`;
+    const preview = `${events.length} upcoming events and ${jobs.length} job opportunities for participants and families.`;
+    const body = [
+      `Hello Kindred participants and families,`,
+      '',
+      `Here is your weekly update for ${formatDateLabel(weekStart)} through ${formatDateLabel(weekEnd)}.`,
+      '',
+      `This week we are highlighting ${events.length} upcoming event${events.length === 1 ? '' : 's'} and ${jobs.length} employment opportunit${jobs.length === 1 ? 'y' : 'ies'} that may be a fit for our community.`,
+      participantCount
+        ? `Our current participant roster includes ${participantCount} registered participant${participantCount === 1 ? '' : 's'}, and this newsletter is intended to help each family quickly review the latest options.`
+        : 'Participant records can be added by administrators at any time so future newsletters stay aligned with family needs.',
+      '',
+      'Upcoming events',
+      eventLines,
+      '',
+      'Job opportunities',
+      jobLines,
+      '',
+      'Next steps for families',
+      '- Review the event accommodations and job requirements in the dashboard before registering interest.',
+      '- Reach out to your Kindred coordinator if you need accessibility support or help deciding which opportunity is the best fit.',
+      '',
+      'Thank you,',
+      'Kindred Administration'
+    ].join('\n');
+
+    return { weekLabel, subject, preview, body };
   }
 
   async function getSession() {
@@ -314,6 +384,7 @@ const Auth = (() => {
     localStorage.removeItem(EVENTS_KEY);
     localStorage.removeItem(JOBS_KEY);
     localStorage.removeItem(JOB_INTERESTS_KEY);
+    localStorage.removeItem(NEWSLETTERS_KEY);
     if (reseed) initStores();
     return { success: true };
   }
@@ -761,6 +832,84 @@ const Auth = (() => {
     return { success: true };
   }
 
+  // ── Weekly Newsletters ────────────────────────────────────────────────────
+
+  async function getNewsletters() {
+    return getRawNewsletters()
+      .slice()
+      .sort((a, b) => (b.generatedAtMs || 0) - (a.generatedAtMs || 0))
+      .map((newsletter) => ({
+        id: newsletter.id,
+        weekKey: newsletter.weekKey || newsletter.weekOf,
+        weekOf: newsletter.weekOf,
+        subject: newsletter.subject,
+        preview: newsletter.preview,
+        body: newsletter.body,
+        audience: newsletter.audience,
+        generatedAtLabel: newsletter.generatedAtLabel,
+        generatedAtMs: newsletter.generatedAtMs,
+        eventCount: newsletter.eventCount || 0,
+        jobCount: newsletter.jobCount || 0
+      }));
+  }
+
+  async function generateWeeklyNewsletter() {
+    const newsletters = getRawNewsletters();
+    const participants = await getParticipants();
+    const allEvents = await getEvents();
+    const allJobs = await getJobs();
+    const now = Date.now();
+    const upcomingEvents = allEvents
+      .filter((event) => {
+        const timestamp = getEventTimestamp(event.dateTime);
+        return timestamp !== null && timestamp >= now;
+      })
+      .slice(0, 3);
+    const highlightedJobs = allJobs.slice(0, 3);
+    const weekStart = getWeekStartDate(new Date());
+    const weekKey = `week_${weekStart.toISOString().slice(0, 10)}`;
+    const content = buildNewsletterContent({
+      weekStart,
+      participants,
+      events: upcomingEvents,
+      jobs: highlightedJobs
+    });
+
+    const record = {
+      id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      weekKey,
+      weekOf: content.weekLabel,
+      subject: content.subject,
+      preview: content.preview,
+      body: content.body,
+      audience: 'Participants and families',
+      eventCount: upcomingEvents.length,
+      jobCount: highlightedJobs.length,
+      generatedAtMs: Date.now(),
+      generatedAtLabel: new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      })
+    };
+
+    const existingIdx = newsletters.findIndex((newsletter) => (newsletter.weekKey || newsletter.weekOf) === weekKey);
+    if (existingIdx >= 0) {
+      newsletters[existingIdx] = {
+        ...newsletters[existingIdx],
+        ...record,
+        id: newsletters[existingIdx].id
+      };
+    } else {
+      newsletters.push(record);
+    }
+
+    localStorage.setItem(NEWSLETTERS_KEY, JSON.stringify(newsletters));
+    return { success: true, newsletter: existingIdx >= 0 ? newsletters[existingIdx] : record, updated: existingIdx >= 0 };
+  }
+
   // ── Participant Job Interest Tracking ─────────────────────────────────────
 
   async function getInterestedJobIds(email) {
@@ -898,6 +1047,8 @@ const Auth = (() => {
     addJob,
     updateJob,
     removeJob,
+    getNewsletters,
+    generateWeeklyNewsletter,
     getInterestedJobIds,
     saveJobInterest,
     removeJobInterest,

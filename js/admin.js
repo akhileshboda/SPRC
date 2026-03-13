@@ -457,6 +457,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  let selectedNewsletterId = null;
+
+  function renderNewsletterPreview(newsletter) {
+    const previewEl = document.getElementById('newsletterPreview');
+    const emptyEl = document.getElementById('newsletterPreviewEmpty');
+    const subjectEl = document.getElementById('newsletterSubject');
+    const audienceEl = document.getElementById('newsletterAudience');
+    const bodyEl = document.getElementById('newsletterBody');
+    const metaEl = document.getElementById('newsletterMeta');
+    const copyBtn = document.getElementById('copyNewsletterBtn');
+
+    if (!previewEl || !emptyEl || !subjectEl || !audienceEl || !bodyEl || !metaEl || !copyBtn) return;
+
+    if (!newsletter) {
+      previewEl.classList.add('d-none');
+      emptyEl.classList.remove('d-none');
+      copyBtn.classList.add('d-none');
+      metaEl.textContent = 'Generate a weekly newsletter to preview it here.';
+      return;
+    }
+
+    subjectEl.textContent = newsletter.subject;
+    audienceEl.textContent = newsletter.audience;
+    bodyEl.textContent = newsletter.body;
+    metaEl.textContent = `${newsletter.weekOf} • ${newsletter.generatedAtLabel} • ${newsletter.eventCount} events • ${newsletter.jobCount} jobs`;
+    previewEl.classList.remove('d-none');
+    emptyEl.classList.add('d-none');
+    copyBtn.classList.remove('d-none');
+    copyBtn.dataset.newsletterId = newsletter.id;
+  }
+
+  async function renderNewsletters() {
+    const archiveListEl = document.getElementById('newsletterArchiveList');
+    const archiveEmptyEl = document.getElementById('newsletterArchiveEmpty');
+    if (!archiveListEl || !archiveEmptyEl) return;
+
+    const newsletters = await Auth.getNewsletters();
+    if (newsletters.length === 0) {
+      archiveListEl.innerHTML = '';
+      archiveEmptyEl.classList.remove('d-none');
+      selectedNewsletterId = null;
+      renderNewsletterPreview(null);
+      return;
+    }
+
+    archiveEmptyEl.classList.add('d-none');
+    const effectiveSelectedId = newsletters.some((newsletter) => newsletter.id === selectedNewsletterId)
+      ? selectedNewsletterId
+      : newsletters[0].id;
+    selectedNewsletterId = effectiveSelectedId;
+
+    archiveListEl.innerHTML = newsletters.map((newsletter) => {
+      const activeClass = newsletter.id === effectiveSelectedId ? 'active' : '';
+      const metaClass = newsletter.id === effectiveSelectedId ? 'text-white-50' : 'text-muted';
+      return `
+        <button class="list-group-item list-group-item-action ${activeClass}" type="button" data-newsletter-id="${escapeHtml(newsletter.id)}">
+          <div class="d-flex w-100 justify-content-between align-items-start gap-3">
+            <div>
+              <div class="fw-semibold">${escapeHtml(newsletter.weekOf)}</div>
+              <div class="small ${metaClass}">${escapeHtml(newsletter.preview)}</div>
+            </div>
+            <span class="small ${metaClass} text-nowrap">${escapeHtml(newsletter.generatedAtLabel)}</span>
+          </div>
+        </button>
+      `;
+    }).join('');
+
+    archiveListEl.querySelectorAll('button[data-newsletter-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        selectedNewsletterId = btn.dataset.newsletterId;
+        await renderNewsletters();
+      });
+    });
+
+    const selectedNewsletter = newsletters.find((newsletter) => newsletter.id === effectiveSelectedId) || newsletters[0];
+    renderNewsletterPreview(selectedNewsletter);
+  }
+
 
   // Prevent XSS when injecting user-supplied strings into innerHTML.
   function escapeHtml(str) {
@@ -539,6 +617,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const eventSubmitBtn = document.getElementById('eventSubmitBtn');
+  const generateNewsletterBtn = document.getElementById('generateNewsletterBtn');
+  const adminGenerateNewsletterQuickBtn = document.getElementById('adminGenerateNewsletterQuickBtn');
+  const copyNewsletterBtn = document.getElementById('copyNewsletterBtn');
   let editingUserEmail = null;
   let editingParticipantId = null;
   let editingVolunteerEmail = null;
@@ -998,7 +1079,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  async function handleNewsletterGeneration() {
+    const result = await Auth.generateWeeklyNewsletter();
+    if (!result.success) {
+      showToast('Unable to generate the weekly newsletter.');
+      return;
+    }
+
+    selectedNewsletterId = result.newsletter.id;
+    await renderNewsletters();
+    showToast(
+      result.updated
+        ? 'This week\'s newsletter was regenerated with the latest opportunities.'
+        : 'This week\'s newsletter draft is ready for participants and families.'
+    );
+  }
+
   setAdminVolunteerOtherInterestInputState();
+
+  generateNewsletterBtn?.addEventListener('click', handleNewsletterGeneration);
+
+  adminGenerateNewsletterQuickBtn?.addEventListener('click', async () => {
+    await handleNewsletterGeneration();
+    navigateTo('newsletters');
+  });
+
+  copyNewsletterBtn?.addEventListener('click', async () => {
+    const newsletters = await Auth.getNewsletters();
+    const newsletter = newsletters.find((item) => item.id === copyNewsletterBtn.dataset.newsletterId);
+    if (!newsletter) return;
+
+    const text = `Subject: ${newsletter.subject}\nAudience: ${newsletter.audience}\n\n${newsletter.body}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Newsletter copied to the clipboard.');
+    } catch {
+      showToast('Clipboard copy is unavailable in this browser.');
+    }
+  });
 
   // ── Confirm button (user account creation modal) ──────────────────────────
 
@@ -1076,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderVolunteersTable();
   await renderEventsTable();
   await renderJobsTable();
+  await renderNewsletters();
 
   // Wire "New" buttons to reset the form and show the form sub-view.
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {

@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',          roles: ['ADMIN'] },
   { id: 'events',       label: 'Events',       icon: 'bi-calendar-event', roles: ['ADMIN'] },
   { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
+  { id: 'newsletters',  label: 'Newsletters',  icon: 'bi-envelope-paper', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
   // PARTICIPANT discovery sections
   { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
