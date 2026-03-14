@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
   // PARTICIPANT discovery sections
   { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
+  { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
 ];
