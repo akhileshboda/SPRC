@@ -276,6 +276,35 @@ const Auth = (() => {
     }
   }
 
+  function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function buildDistributedNewsletterBody(entry) {
+    const eventHighlights = String(entry.eventHighlights || '').trim();
+    const updates = String(entry.updates || '').trim();
+    const lines = [
+      'Hello Kindred participants and families,',
+      ''
+    ];
+
+    if (eventHighlights) {
+      lines.push('Event highlights');
+      lines.push(eventHighlights);
+      lines.push('');
+    }
+
+    if (updates) {
+      lines.push('Updates');
+      lines.push(updates);
+      lines.push('');
+    }
+
+    lines.push('Thank you,');
+    lines.push('Kindred Administration');
+    return lines.join('\n');
+  }
+
   function splitName(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
@@ -966,10 +995,10 @@ const Auth = (() => {
   // ── Weekly Newsletters ────────────────────────────────────────────────────
 
   async function getNewsletters() {
-    return getRawNewsletters()
-      .slice()
-      .sort((a, b) => (b.generatedAtMs || 0) - (a.generatedAtMs || 0))
-      .map((newsletter) => ({
+    const session = await getSession();
+    const sessionEmail = normalizeEmail(session?.email);
+
+    const generatedNewsletters = getRawNewsletters().map((newsletter) => ({
         id: newsletter.id,
         weekKey: newsletter.weekKey || newsletter.weekOf,
         weekOf: newsletter.weekOf,
@@ -982,6 +1011,46 @@ const Auth = (() => {
         eventCount: newsletter.eventCount || 0,
         jobCount: newsletter.jobCount || 0
       }));
+
+    const distributedNewsletters = getRawNewsletterLog()
+      .filter((entry) => {
+        if (!sessionEmail) return true;
+        if (session?.role === 'ADMIN') return true;
+        const recipients = Array.isArray(entry.recipients) ? entry.recipients.map(normalizeEmail) : [];
+        return recipients.includes(sessionEmail);
+      })
+      .map((entry) => {
+        const eventHighlights = String(entry.eventHighlights || '').trim();
+        const updates = String(entry.updates || '').trim();
+        const preview = eventHighlights || updates || 'No additional details provided.';
+        return {
+          id: entry.id || `distributed_${entry.sentAtMs || Date.now()}`,
+          weekKey: entry.id || `distributed_${entry.sentAtMs || Date.now()}`,
+          weekOf: entry.sentAtLabel ? `Sent ${entry.sentAtLabel}` : 'Recently sent',
+          subject: entry.subject || 'Kindred Weekly Newsletter',
+          preview,
+          body: buildDistributedNewsletterBody(entry),
+          audience: 'Selected recipients',
+          generatedAtLabel: entry.sentAtLabel || '',
+          generatedAtMs: entry.sentAtMs || 0,
+          eventCount: 0,
+          jobCount: 0
+        };
+      });
+
+    const merged = [...distributedNewsletters, ...generatedNewsletters]
+      .sort((a, b) => (b.generatedAtMs || 0) - (a.generatedAtMs || 0));
+
+    const deduped = [];
+    const seen = new Set();
+    merged.forEach((item) => {
+      const key = String(item.id || `${item.subject}_${item.generatedAtMs || 0}`);
+      if (seen.has(key)) return;
+      seen.add(key);
+      deduped.push(item);
+    });
+
+    return deduped;
   }
 
   async function generateWeeklyNewsletter() {
