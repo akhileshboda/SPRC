@@ -132,8 +132,58 @@
           </div>
         </div>
 
+        <!-- GUARDIAN: dashboard -->
+        <div id="panel-GUARDIAN" class="d-none">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header text-white fw-semibold" style="background-color:#4F62B0;">Guardian Dashboard</div>
+            <div class="card-body">
+              <p class="text-muted mb-3">
+                Review your linked participants, manage profile details, and approve vocational interest requests.
+              </p>
+              <div id="guardianDashboardSummary"></div>
+            </div>
+          </div>
+        </div>
+
         <!-- PARTICIPANT: Portal home —— upcoming events + job opportunities preview -->
         <div id="panel-PARTICIPANT" class="d-none">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white fw-semibold">
+              <i class="bi bi-person-vcard me-2"></i>My Profile
+            </div>
+            <div class="card-body">
+              <p class="text-muted mb-3">Update your interests and job goals. Guardian-managed support notes stay visible as read-only context.</p>
+              <div id="participantProfileStatus" class="alert alert-success d-none" role="alert"></div>
+              <div id="participantProfileError" class="alert alert-danger d-none" role="alert"></div>
+              <form id="participantSelfProfileForm" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="participantInterestsInput" class="form-label">Personal Interests</label>
+                    <textarea class="form-control" id="participantInterestsInput" rows="3" placeholder="Art, sports, cooking, technology"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="participantJobGoalsInput" class="form-label">Job Goals</label>
+                    <textarea class="form-control" id="participantJobGoalsInput" rows="3" placeholder="What kind of work environment or goals matter to you?"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantSpecialNeedsReadonly" class="form-label">Support Needs</label>
+                    <textarea class="form-control" id="participantSpecialNeedsReadonly" rows="4" readonly></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantMedicalReadonly" class="form-label">Medical Notes</label>
+                    <textarea class="form-control" id="participantMedicalReadonly" rows="4" readonly></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantSensoryReadonly" class="form-label">Sensory Notes</label>
+                    <textarea class="form-control" id="participantSensoryReadonly" rows="4" readonly></textarea>
+                  </div>
+                  <div class="col-12">
+                    <button type="submit" class="btn btn-success" id="participantSelfProfileSubmitBtn">Save My Updates</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
 
           <!-- Upcoming Events preview -->
           <div class="portal-section mb-5">
@@ -298,6 +348,46 @@
 
       </section>
 
+      <!-- ══ SECTION: Guardian — Participants ══ -->
+      <section id="section-g-participants" class="content-section d-none">
+        <div class="mb-3">
+          <h5 class="portal-section-title mb-0"><i class="bi bi-people-fill me-2" style="color:#4F62B0;"></i>My Participants</h5>
+          <p class="text-muted small mb-0">Profiles you are authorized to manage.</p>
+        </div>
+        <div id="guardianParticipantsList"></div>
+      </section>
+
+      <!-- ══ SECTION: Guardian — Approvals ══ -->
+      <section id="section-g-approvals" class="content-section d-none">
+        <div class="mb-3">
+          <h5 class="portal-section-title mb-0"><i class="bi bi-shield-check me-2" style="color:#4F62B0;"></i>Pending Approvals</h5>
+          <p class="text-muted small mb-0">Review participant job interests that require guardian confirmation.</p>
+        </div>
+        <div id="guardianApprovalsList"></div>
+      </section>
+
+      <!-- ══ SECTION: Guardian — Newsletter ══ -->
+      <section id="section-g-newsletter" class="content-section d-none">
+        <div class="mb-3">
+          <h5 class="portal-section-title mb-0">
+            <i class="bi bi-envelope-open-text me-2" style="color:#4F62B0;"></i>Family Newsletter
+          </h5>
+          <p class="text-muted small mb-0">Your latest Kindred update for linked participants and families.</p>
+        </div>
+        <div id="g-newsletter-content">
+          <div class="text-muted small">Loading...</div>
+        </div>
+      </section>
+
+      <!-- ══ SECTION: Participant — Profile ══ -->
+      <section id="section-p-profile" class="content-section d-none">
+        <div class="mb-3">
+          <h5 class="portal-section-title mb-0"><i class="bi bi-person-vcard me-2 text-success"></i>My Profile</h5>
+          <p class="text-muted small mb-0">Review your linked profile and update self-service details.</p>
+        </div>
+        <div id="participantProfileSection"></div>
+      </section>
+
       <!-- ══ SECTION: Participant — Events Discovery ══ -->
       <section id="section-p-events" class="content-section d-none">
         <div class="d-flex align-items-center justify-content-between mb-3">
@@ -350,9 +440,9 @@
                 <thead class="table-light">
                   <tr>
                     <th scope="col" class="ps-3">Participant</th>
-                    <th scope="col">Guardian</th>
-                    <th scope="col">Contact</th>
-                    <th scope="col">Special Needs</th>
+                    <th scope="col">Participant Login</th>
+                    <th scope="col">Guardian Logins</th>
+                    <th scope="col">Profile Summary</th>
                     <th scope="col">Date Added</th>
                     <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
                   </tr>
@@ -392,30 +482,72 @@
                     <div class="invalid-feedback">Please provide a valid age.</div>
                   </div>
                   <div class="col-md-3">
-                    <label for="participantGuardian" class="form-label">Parent / Guardian</label>
-                    <input type="text" class="form-control" id="participantGuardian" placeholder="e.g. April Lee" required>
-                    <div class="invalid-feedback">Parent/guardian name is required.</div>
+                    <label for="participantUserId" class="form-label">Participant Login</label>
+                    <select class="form-select" id="participantUserId" required></select>
+                    <div class="invalid-feedback">Choose a participant login.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="form-check mt-4 pt-2">
+                      <input class="form-check-input" type="checkbox" id="participantCreateUserToggle">
+                      <label class="form-check-label" for="participantCreateUserToggle">
+                        Create new participant login
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-md-3 d-none" id="participantNewUserEmailWrap">
+                    <label for="participantNewUserEmail" class="form-label">New Login Email</label>
+                    <input type="email" class="form-control" id="participantNewUserEmail" placeholder="participant@email.com">
+                  </div>
+                  <div class="col-md-3 d-none" id="participantNewUserPasswordWrap">
+                    <label for="participantNewUserPassword" class="form-label">Temporary Password</label>
+                    <input type="password" class="form-control" id="participantNewUserPassword" placeholder="Temporary password">
                   </div>
                   <div class="col-md-6">
-                    <label for="participantEmail" class="form-label">Contact Email</label>
+                    <label for="participantGuardianIds" class="form-label">Linked Guardians</label>
+                    <select class="form-select" id="participantGuardianIds" multiple size="4" required></select>
+                    <div class="form-text">Hold Command on Mac to select multiple guardians.</div>
+                    <div class="invalid-feedback">Choose at least one guardian login.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="participantEmail" class="form-label">Primary Contact Email</label>
                     <input type="email" class="form-control" id="participantEmail" placeholder="guardian@email.com" required>
                     <div class="invalid-feedback">A valid contact email is required.</div>
                   </div>
-                  <div class="col-md-6">
+                  <div class="col-md-4">
                     <label for="participantPhone" class="form-label">Contact Phone</label>
                     <input type="tel" class="form-control" id="participantPhone" placeholder="e.g. (555) 555-0101" required>
                     <div class="invalid-feedback">Contact phone is required.</div>
                   </div>
-                  <div class="col-12">
-                    <label for="participantSpecialNeeds" class="form-label">Special Needs</label>
+                  <div class="col-md-4">
+                    <label for="participantInterests" class="form-label">Participant Interests</label>
+                    <textarea class="form-control" id="participantInterests" rows="3"
+                      placeholder="Art, community events, cooking, technology"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantJobGoals" class="form-label">Job Goals</label>
+                    <textarea class="form-control" id="participantJobGoals" rows="3"
+                      placeholder="Structured tasks, customer support, library work"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantSpecialNeeds" class="form-label">Support Needs</label>
                     <textarea class="form-control" id="participantSpecialNeeds" rows="3"
                       placeholder="Describe accommodations, support requirements, and needs..." required></textarea>
                     <div class="invalid-feedback">Special needs details are required.</div>
                   </div>
-                  <div class="col-12">
-                    <label for="participantNotes" class="form-label">Additional Notes (optional)</label>
-                    <textarea class="form-control" id="participantNotes" rows="2"
-                      placeholder="Interests, capabilities, health concerns, or other notes"></textarea>
+                  <div class="col-md-4">
+                    <label for="participantMedicalNotes" class="form-label">Medical Notes</label>
+                    <textarea class="form-control" id="participantMedicalNotes" rows="3"
+                      placeholder="Medication, allergies, health considerations"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantSensoryNotes" class="form-label">Sensory Notes</label>
+                    <textarea class="form-control" id="participantSensoryNotes" rows="3"
+                      placeholder="Noise sensitivity, lighting preferences, transition needs"></textarea>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="participantGuardianNotes" class="form-label">Guardian / Admin Notes</label>
+                    <textarea class="form-control" id="participantGuardianNotes" rows="3"
+                      placeholder="Safety notes, communication preferences, scheduling details"></textarea>
                   </div>
                   <div class="col-12">
                     <button type="submit" class="btn btn-success" id="participantSubmitBtn">Save Participant Record</button>
@@ -494,9 +626,25 @@
                     <div class="invalid-feedback">Phone number is required.</div>
                   </div>
                   <div class="col-md-3">
-                    <label for="adminVolEmail" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="adminVolEmail" placeholder="volunteer@email.com" required>
-                    <div class="invalid-feedback">A valid email is required.</div>
+                    <label for="adminVolUserId" class="form-label">Volunteer Login</label>
+                    <select class="form-select" id="adminVolUserId" required></select>
+                    <div class="invalid-feedback">Choose a volunteer account.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <div class="form-check mt-4 pt-2">
+                      <input class="form-check-input" type="checkbox" id="adminVolCreateUserToggle">
+                      <label class="form-check-label" for="adminVolCreateUserToggle">
+                        Create new volunteer login
+                      </label>
+                    </div>
+                  </div>
+                  <div class="col-md-3 d-none" id="adminVolNewUserEmailWrap">
+                    <label for="adminVolNewUserEmail" class="form-label">New Login Email</label>
+                    <input type="email" class="form-control" id="adminVolNewUserEmail" placeholder="volunteer@email.com">
+                  </div>
+                  <div class="col-md-3 d-none" id="adminVolNewUserPasswordWrap">
+                    <label for="adminVolNewUserPassword" class="form-label">Temporary Password</label>
+                    <input type="password" class="form-control" id="adminVolNewUserPassword" placeholder="Temporary password">
                   </div>
 
                   <div class="col-md-6">
@@ -965,10 +1113,25 @@
                     <select class="form-select" id="regRole" required>
                       <option value="" disabled selected>Select a role&hellip;</option>
                       <option value="ADMIN">Administrator &ndash; Full system access</option>
+                      <option value="GUARDIAN">Guardian &ndash; Linked participant management and approvals</option>
+                      <option value="PARTICIPANT">Participant &ndash; Personal profile and curated opportunities</option>
                       <option value="VOLUNTEER">Volunteer &ndash; Events and task updates</option>
-                      <option value="PARTICIPANT">Participant / Guardian &ndash; Personal profile and events</option>
                     </select>
                     <div class="invalid-feedback">Please select a role.</div>
+                  </div>
+
+                  <div class="col-md-6 d-none" id="userParticipantLinkWrap">
+                    <label for="userParticipantLinkId" class="form-label">Link To Existing Participant Record</label>
+                    <select class="form-select" id="userParticipantLinkId">
+                      <option value="" selected>No participant record link</option>
+                    </select>
+                  </div>
+
+                  <div class="col-md-6 d-none" id="userVolunteerLinkWrap">
+                    <label for="userVolunteerLinkId" class="form-label">Link To Existing Volunteer Profile</label>
+                    <select class="form-select" id="userVolunteerLinkId">
+                      <option value="" selected>No volunteer profile link</option>
+                    </select>
                   </div>
 
                   <div class="col-12">
@@ -1005,7 +1168,7 @@
               <div class="col-8" id="pModalName"></div>
               <div class="col-4 text-muted fw-semibold">Age</div>
               <div class="col-8" id="pModalAge"></div>
-              <div class="col-4 text-muted fw-semibold">Guardian</div>
+              <div class="col-4 text-muted fw-semibold">Guardians</div>
               <div class="col-8" id="pModalGuardian"></div>
               <div class="col-4 text-muted fw-semibold">Contact</div>
               <div class="col-8" id="pModalContact"></div>
@@ -1076,8 +1239,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=7"></script>
-  <script src="js/sidebar.js?v=2"></script>
+  <script src="js/auth.js?v=8"></script>
+  <script src="js/sidebar.js?v=3"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
@@ -1102,17 +1265,12 @@
     });
     
     function loadSavedEvents() {
-      const signups = JSON.parse(localStorage.getItem('kindredSignups') || '[]');
       const container = document.getElementById('volunteerSavedEvents');
-      if (!container || signups.length === 0) return;
-      container.innerHTML = signups.map(s => `
-        <div class="d-flex align-items-center justify-content-between border-bottom py-2">
-          <div>
-            <i class="bi bi-calendar-check text-primary me-2"></i>
-            <strong>${s.title}</strong>
-          </div>
-          <small class="text-muted">${new Date(s.timestamp).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})}</small>
-        </div>`).join('');
+      if (!container) return;
+      container.innerHTML = `
+        <p class="text-muted mb-0">
+          Volunteer saved events are not part of this linked-identity flow. Browse <a href="events.html">events</a> to review current opportunities.
+        </p>`;
     }
 
   </script>

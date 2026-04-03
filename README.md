@@ -2,7 +2,7 @@
 
 > CNIT 280 Term Project · Purdue University
 
-Kindred is a role-based web application designed to connect special-needs participants with volunteer opportunities and administrative oversight. It provides a secure, session-managed interface where administrators can manage staff accounts, volunteers can access their portal, and participants can view matched opportunities.
+Kindred is a role-based web application designed to connect special-needs participants, their guardians, volunteers, and administrators through a linked-identity support model. It provides a secure, session-managed interface where administrators manage records and links, guardians oversee linked participants, volunteers access their portal, and participants use self-service features.
 
 ---
 
@@ -10,12 +10,14 @@ Kindred is a role-based web application designed to connect special-needs partic
 
 - **Secure Login (Frontend Prototype)** — credential validation against localStorage data
 - **Session Management** — browser session state via localStorage with protected route checks
-- **Role-Based Access Control (RBAC)** — dynamic dashboard content based on user role (`ADMIN`, `VOLUNTEER`, `PARTICIPANT`)
-- **Account Management** — administrators can register staff/volunteers with first and last name fields, plus confirmation modal
-- **User Table** — live System Users table with role badges, edit (volunteer/participant), and delete actions
-- **Participant Records (Req 201)** — administrators can create, edit, and delete participant records with special-needs details
+- **Role-Based Access Control (RBAC)** — dynamic dashboard content based on user role (`ADMIN`, `GUARDIAN`, `PARTICIPANT`, `VOLUNTEER`)
+- **Linked Identity Model** — participant records link directly to participant logins and one or more guardian logins
+- **Account Management** — administrators can register guardians, participants, and volunteers with first and last name fields, plus confirmation modal
+- **User Table** — live System Users table with role badges, edit actions, and guarded delete rules for linked accounts
+- **Participant Records** — administrators can create, edit, and delete participant records with support notes, participant interests, and explicit guardian links
 - **Volunteer Self-Registration (Story 402)** — volunteers can register personal information, select interests from a dropdown multi-select checklist, and update availability so they can be matched and contacted for relevant opportunities
-- **Public Job Board + Participant Interest Saving** — anyone can browse `Jobs` from the top navigation, while signed-in participants can register interest in job opportunities
+- **Guardian Approval Workflow** — participant-submitted job interests create pending approvals that guardians can approve or reject
+- **Public Job Board + Participant Interest Saving** — anyone can browse `Jobs` from the top navigation, participants can submit interest, and guardians can register on behalf of linked participants
 - **Weekly Newsletter Generation** — administrators can generate a weekly newsletter draft that summarizes current events and job opportunities for participants and families
 - **Forgot Password** — simulated password reset flow on the login page
 
@@ -37,27 +39,40 @@ Open directly in your browser:
 login.html
 ```
 
-### Test: Participant Records (Administrator Story 201)
+### Test Accounts
 
-1. Sign in as admin:
-   - Email: `lisawilliams@kindred.org`
-   - Password: `lisa123`
+- Admin: `lisawilliams@kindred.org` / `lisa123`
+- Guardian: `grace.guardian@kindred.org` / `grace123`
+- Participant: `april@email.com` / `april123`
+- Volunteer: `janew@kindred.org` / `jane123`
+
+### Test: Linked Participant Records
+
+1. Sign in as admin.
 2. In the **Management Console**, fill out **Create Participant Record**.
-3. Click **Save Participant Record**.
-4. Verify the new entry appears in the **Participant Records** table.
-5. Click **Edit** to modify the record and save updates.
-6. Refresh the page; verify the record is still present (localStorage persistence).
+3. Choose a participant login and one or more guardian logins.
+4. Click **Save Participant Record**.
+5. Verify the new entry appears in the **Participant Records** table with linked login details.
+6. Click **Edit** to modify the record and save updates.
+7. Refresh the page; verify the record is still present (localStorage persistence).
 
 ### Test: Volunteer Self-Registration (Volunteer Story 402)
 
-1. Sign in as volunteer:
-   - Email: `volunteer@kindred.org`
-   - Password: `vol123`
+1. Sign in as volunteer.
 2. In the **Volunteer Registration** card on the dashboard, fill in personal information.
 3. Open the **Interests** dropdown and check one or more interests.
 4. (Optional) Check **Other** and type a custom interest.
 5. Click **Save My Volunteer Profile**.
 6. Refresh and confirm the profile values are preloaded for editing.
+
+### Test: Guardian Approval Flow
+
+1. Sign in as participant and open `jobs.html`.
+2. Register interest in a job opportunity.
+3. Verify the participant dashboard shows the job as `PENDING`.
+4. Sign in as the linked guardian and open the dashboard.
+5. Open **Approvals** and approve or reject the pending request.
+6. Verify the participant dashboard and admin job summary reflect the updated status.
 
 ### Test: Weekly Newsletter Generation (Administrator Story)
 

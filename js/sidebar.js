@@ -3,7 +3,7 @@
    section switching, active states, and logout wiring. */
 
 const NAV_ITEMS = [
-  { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',    roles: ['ADMIN', 'PARTICIPANT', 'VOLUNTEER'] },
+  { id: 'dashboard',    label: 'Dashboard',    icon: 'bi-house-door',    roles: ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'] },
   // ADMIN-only management sections
   { id: 'participants', label: 'Participants', icon: 'bi-people',         roles: ['ADMIN'] },
   { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',          roles: ['ADMIN'] },
@@ -11,7 +11,12 @@ const NAV_ITEMS = [
   { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
+  // GUARDIAN sections
+  { id: 'g-participants', label: 'My Participants', icon: 'bi-people-fill', roles: ['GUARDIAN'] },
+  { id: 'g-approvals',  label: 'Approvals', icon: 'bi-shield-check', roles: ['GUARDIAN'] },
+  { id: 'g-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['GUARDIAN'] },
   // PARTICIPANT discovery sections
+  { id: 'p-profile',    label: 'My Profile', icon: 'bi-person-vcard', roles: ['PARTICIPANT'] },
   { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
@@ -37,11 +42,10 @@ function _buildSidebarHTML(session) {
 
   const roleClass = {
     ADMIN: 'badge-ADMIN',
+    GUARDIAN: 'badge-GUARDIAN',
     PARTICIPANT: 'badge-PARTICIPANT',
     VOLUNTEER: 'badge-VOLUNTEER'
   }[session.role] || 'bg-secondary';
-
-  const displayName = _escHtml(session.name || session.email);
 
   return `<nav class="flex-grow-1 py-2">${links}</nav>`;
 }

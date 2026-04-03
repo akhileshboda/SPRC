@@ -1,26 +1,31 @@
 /**
  * admin.js — Kindred SPRC Admin Panel Module
- * Handles administrator workflows for users, participants, and events.
- * Depends on auth.js being loaded first (uses the global Auth namespace).
- * Only meaningful when an ADMIN session is active.
+ * Handles administrator workflows for users, participants, volunteers,
+ * events, jobs, and communications.
  */
 document.addEventListener('DOMContentLoaded', async () => {
   const session = await Auth.getSession();
   if (!session || session.role !== 'ADMIN') return;
 
-  // ── Role badge helper ─────────────────────────────────────────────────────
-
   const ROLE_BADGE = {
-    ADMIN:       'bg-danger',
-    VOLUNTEER:   'bg-info text-dark',
-    PARTICIPANT: 'bg-success'
+    ADMIN: 'bg-danger',
+    GUARDIAN: 'bg-primary',
+    PARTICIPANT: 'bg-success',
+    VOLUNTEER: 'bg-info text-dark'
   };
 
   const ROLE_LABEL = {
-    ADMIN:       'Administrator',
-    VOLUNTEER:   'Volunteer',
-    PARTICIPANT: 'Participant / Guardian'
+    ADMIN: 'Administrator',
+    GUARDIAN: 'Guardian',
+    PARTICIPANT: 'Participant',
+    VOLUNTEER: 'Volunteer'
   };
+
+  function canonicalRole(role) {
+    const normalized = String(role || '').trim().toUpperCase();
+    if (normalized === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
+    return ROLE_LABEL[normalized] ? normalized : normalized;
+  }
 
   const EVENT_CATEGORY_BADGE = {
     Social: 'badge-event-social',
@@ -28,546 +33,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     Vocational: 'badge-event-vocational'
   };
 
-  // ── Sub-view helpers ──────────────────────────────────────────────────────
+  const registerForm = document.getElementById('registerForm');
+  const registerError = document.getElementById('registerError');
+  const participantForm = document.getElementById('participantForm');
+  const participantError = document.getElementById('participantError');
+  const volunteerAdminForm = document.getElementById('volunteerAdminForm');
+  const volunteerAdminError = document.getElementById('volunteerAdminError');
+  const eventForm = document.getElementById('eventForm');
+  const eventError = document.getElementById('eventError');
+  const jobForm = document.getElementById('jobForm');
+  const jobError = document.getElementById('jobError');
+  const newsletterForm = document.getElementById('newsletterForm');
+  const newsletterError = document.getElementById('newsletterError');
+  const newsletterSuccess = document.getElementById('newsletterSuccess');
+  const toastEl = document.getElementById('adminToast');
+  const toastMsgEl = document.getElementById('adminToastMsg');
+  const confirmModalEl = document.getElementById('confirmCreateModal');
+  const confirmModal = confirmModalEl ? bootstrap.Modal.getOrCreateInstance(confirmModalEl) : null;
+  const confirmBtn = document.getElementById('confirmCreateBtn');
+  const confirmParticipantModalEl = document.getElementById('confirmSaveParticipantModal');
+  const confirmParticipantModal = confirmParticipantModalEl ? bootstrap.Modal.getOrCreateInstance(confirmParticipantModalEl) : null;
+  const confirmParticipantBtn = document.getElementById('confirmSaveParticipantBtn');
 
-  function showParticipantsListView() {
-    document.getElementById('view-participants-list').classList.remove('d-none');
-    document.getElementById('view-participants-form').classList.add('d-none');
-  }
+  let editingUserEmail = null;
+  let editingParticipantId = null;
+  let editingVolunteerUserId = null;
+  let editingEventId = null;
+  let editingJobId = null;
+  let pendingUser = null;
+  let pendingParticipant = null;
 
-  function showParticipantsFormView(isEditing = false) {
-    document.getElementById('view-participants-list').classList.add('d-none');
-    document.getElementById('view-participants-form').classList.remove('d-none');
-    document.getElementById('participantFormTitle').textContent =
-      isEditing ? 'Edit Participant' : 'New Participant';
-  }
-
-  function showUsersListView() {
-    document.getElementById('view-users-list').classList.remove('d-none');
-    document.getElementById('view-users-form').classList.add('d-none');
-  }
-
-  function showUsersFormView(isEditing = false) {
-    document.getElementById('view-users-list').classList.add('d-none');
-    document.getElementById('view-users-form').classList.remove('d-none');
-    document.getElementById('userFormTitle').textContent =
-      isEditing ? 'Edit User' : 'New User';
-  }
-
-  function showEventsListView() {
-    document.getElementById('view-events-list').classList.remove('d-none');
-    document.getElementById('view-events-form').classList.add('d-none');
-  }
-
-  function showEventsFormView(isEditing = false) {
-    document.getElementById('view-events-list').classList.add('d-none');
-    document.getElementById('view-events-form').classList.remove('d-none');
-    document.getElementById('eventFormTitle').textContent =
-      isEditing ? 'Edit Event' : 'New Event';
-  }
-
-  function showVolunteersListView() {
-    document.getElementById('view-volunteers-list').classList.remove('d-none');
-    document.getElementById('view-volunteers-form').classList.add('d-none');
-  }
-
-  function showVolunteersFormView(isEditing = false) {
-    document.getElementById('view-volunteers-list').classList.add('d-none');
-    document.getElementById('view-volunteers-form').classList.remove('d-none');
-    document.getElementById('volunteerFormTitle').textContent =
-      isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile';
-  }
-
-  function showJobsListView() {
-    document.getElementById('view-jobs-list').classList.remove('d-none');
-    document.getElementById('view-jobs-form').classList.add('d-none');
-  }
-
-  function showJobsFormView(isEditing = false) {
-    document.getElementById('view-jobs-list').classList.add('d-none');
-    document.getElementById('view-jobs-form').classList.remove('d-none');
-    document.getElementById('jobFormTitle').textContent =
-      isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity';
-  }
-
-  // ── Render users table ────────────────────────────────────────────────────
-
-  async function renderUsersTable() {
-    const tbody = document.getElementById('usersTableBody');
-    if (!tbody) return;
-
-    const users = await Auth.getUsers();
-    const session = await Auth.getSession();
-
-    if (users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted px-3">No users found.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = users.map(u => {
-      const isSelf = session && session.email.toLowerCase() === u.email.toLowerCase();
-      const canEdit = u.role === 'VOLUNTEER' || u.role === 'PARTICIPANT';
-      const editBtn = canEdit
-        ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(u.email)}">Edit</button>`
-        : '';
-      const deleteBtn = isSelf
-        ? `<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>`
-        : `<button class="btn btn-outline-danger btn-sm" data-email="${escapeHtml(u.email)}">Delete</button>`;
-
-      return `
-        <tr>
-          <td class="ps-3">${escapeHtml(u.name)}</td>
-          <td class="text-muted small">${escapeHtml(u.email)}</td>
-          <td>
-            <span class="badge ${ROLE_BADGE[u.role] || 'bg-secondary'}">
-              ${ROLE_LABEL[u.role] || escapeHtml(u.role)}
-            </span>
-          </td>
-          <td class="text-muted small">${escapeHtml(u.dateAdded)}</td>
-          <td class="pe-3" style="width: 1%; white-space: nowrap;">${editBtn}${deleteBtn}</td>
-        </tr>
-      `;
-    }).join('');
-
-    tbody.querySelectorAll('button[data-user-edit-email]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await startUserEdit(btn.dataset.userEditEmail);
-      });
-    });
-
-    // Wire delete buttons via event delegation on the tbody.
-    tbody.querySelectorAll('button[data-email]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const result = await Auth.removeUser(btn.dataset.email);
-        if (result.success) {
-          if (editingUserEmail && editingUserEmail.toLowerCase() === btn.dataset.email.toLowerCase()) {
-            resetUserFormState();
-          }
-          await renderUsersTable();
-        }
-      });
-    });
-  }
-
-  async function renderParticipantsTable() {
-    const tbody = document.getElementById('participantsTableBody');
-    if (!tbody) return;
-
-    const participants = await Auth.getParticipants();
-    if (participants.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = participants.map(p => `
-      <tr>
-        <td class="ps-3">
-          <div class="fw-semibold">${escapeHtml(p.fullName)}</div>
-          <div class="text-muted small">Age ${escapeHtml(p.age)}</div>
-        </td>
-        <td>${escapeHtml(p.guardian)}</td>
-        <td class="small text-muted">
-          <div>${escapeHtml(p.contactEmail)}</div>
-          <div>${escapeHtml(p.contactPhone)}</div>
-        </td>
-        <td class="small">
-          <div class="fw-semibold">Needs</div>
-          <div class="text-muted">${escapeHtml(p.specialNeeds)}</div>
-          ${p.notes ? `<div class="mt-1"><span class="fw-semibold">Notes:</span> ${escapeHtml(p.notes)}</div>` : ''}
-        </td>
-        <td class="text-muted small">${escapeHtml(p.dateAdded)}</td>
-        <td class="pe-3" style="width: 1%; white-space: nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(p.id)}">Edit</button>
-          <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(p.id)}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    tbody.querySelectorAll('button[data-participant-edit-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        await startParticipantEdit(btn.dataset.participantEditId);
-      });
-    });
-
-    tbody.querySelectorAll('button[data-participant-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const result = await Auth.removeParticipant(btn.dataset.participantId);
-        if (result.success) {
-          if (editingParticipantId && editingParticipantId === btn.dataset.participantId) {
-            resetParticipantFormState();
-          }
-          await renderParticipantsTable();
-        }
-      });
-    });
-  }
-
-  async function renderEventsTable() {
-    const tbody = document.getElementById('eventsTableBody');
-    if (!tbody) return;
-
-    const events = await Auth.getEvents();
-    if (events.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No live events yet.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = events.map((event) => `
-      <tr>
-        <td class="ps-3">
-          <div class="fw-semibold text-dark">${escapeHtml(event.title)}</div>
-        </td>
-        <td>
-          <span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">
-            ${escapeHtml(event.category)}
-          </span>
-        </td>
-        <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
-        <td class="small">${escapeHtml(event.location)}</td>
-        <td class="small fw-semibold">${escapeHtml(event.cost)}</td>
-        <td class="small text-muted">
-          <div class="event-accommodations">${escapeHtml(event.accommodations)}</div>
-        </td>
-        <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
-        <td class="pe-3" style="width: 1%; white-space: nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">Edit</button>
-          <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
-        </td>
-      </tr>
-    `).join('');
-
-    tbody.querySelectorAll('button[data-event-edit-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        await startEventEdit(btn.dataset.eventEditId);
-      });
-    });
-
-    tbody.querySelectorAll('button[data-event-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const result = await Auth.removeEvent(btn.dataset.eventId);
-        if (result.success) {
-          if (editingEventId && editingEventId === btn.dataset.eventId) {
-            resetEventFormState();
-          }
-          showToast('Event removed from the live log.');
-          await renderEventsTable();
-        }
-      });
-    });
-  }
-
-  function tokenize(value) {
-    return String(value || '')
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
-      .split(/\s+/)
-      .filter((part) => part.length > 2);
-  }
-
-  const INTEREST_CATEGORY_MAP = {
-    Mentoring: ['Educational', 'Vocational'],
-    'Educational Programs': ['Educational'],
-    'Community Events': ['Social'],
-    'Sports & Recreation': ['Social'],
-    'Administrative Support': ['Vocational'],
-    'Job Coaching': ['Vocational']
-  };
-
-  function computeVolunteerMatches(profile, events) {
-    const rawInterests = Array.isArray(profile.interests) ? profile.interests : [];
-    const normalizedInterests = rawInterests.map((interest) => String(interest).trim()).filter(Boolean);
-    const interestTokens = normalizedInterests.flatMap((interest) => {
-      const customInterest = interest.startsWith('Other:')
-        ? interest.replace(/^Other:\s*/i, '')
-        : interest;
-      return tokenize(customInterest);
-    });
-    const categoryHints = normalizedInterests.flatMap((interest) => {
-      if (interest.startsWith('Other:')) return [];
-      return INTEREST_CATEGORY_MAP[interest] || [];
-    });
-
-    const scored = events
-      .map((event) => {
-        let score = 0;
-        if (categoryHints.includes(event.category)) score += 3;
-
-        const eventTokens = new Set(tokenize(`${event.title} ${event.location} ${event.accommodations}`));
-        interestTokens.forEach((token) => {
-          if (eventTokens.has(token)) score += 1;
-        });
-
-        return { event, score };
-      })
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score);
-
-    return scored.slice(0, 3).map((entry) => entry.event);
-  }
-
-  async function renderVolunteersTable() {
-    const tbody = document.getElementById('volunteerProfilesTableBody');
-    if (!tbody) return;
-
-    const [profiles, events] = await Promise.all([
-      Auth.getVolunteerProfiles(),
-      Auth.getEvents()
-    ]);
-
-    if (profiles.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = profiles.map((profile) => {
-      const interestsMarkup = profile.interests.length
-        ? escapeHtml(profile.interests.join(', '))
-        : '<span class="text-muted">Not provided</span>';
-      const availabilityMarkup = profile.availability
-        ? escapeHtml(profile.availability)
-        : '<span class="text-muted">Not provided</span>';
-
-      const matchedEvents = computeVolunteerMatches(profile, events);
-      const matchMarkup = matchedEvents.length
-        ? `<div class="volunteer-match-list">${matchedEvents
-            .map((event) => `<span class="volunteer-match-chip">${escapeHtml(event.title)}</span>`)
-            .join('')}</div>`
-        : '<span class="text-muted">No direct match yet</span>';
-
-      return `
-        <tr>
-          <td class="ps-3">
-            <div class="fw-semibold">${escapeHtml(profile.fullName)}</div>
-          </td>
-          <td class="small text-muted">
-            <div>${escapeHtml(profile.email)}</div>
-            <div>${escapeHtml(profile.phone)}</div>
-          </td>
-          <td class="small volunteer-list-text">${interestsMarkup}</td>
-          <td class="small text-muted volunteer-list-text">${availabilityMarkup}</td>
-          <td class="small">${matchMarkup}</td>
-          <td class="small text-muted">${escapeHtml(profile.updatedAtLabel)}</td>
-          <td class="pe-3" style="width: 1%; white-space: nowrap;">
-            <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-email="${escapeHtml(profile.email)}">Edit</button>
-            <button class="btn btn-outline-danger btn-sm" data-volunteer-email="${escapeHtml(profile.email)}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    tbody.querySelectorAll('button[data-volunteer-edit-email]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        await startVolunteerEdit(btn.dataset.volunteerEditEmail);
-      });
-    });
-
-    tbody.querySelectorAll('button[data-volunteer-email]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const result = await Auth.removeVolunteerProfile(btn.dataset.volunteerEmail);
-        if (result.success) {
-          if (editingVolunteerEmail && editingVolunteerEmail.toLowerCase() === btn.dataset.volunteerEmail.toLowerCase()) {
-            resetVolunteerFormState();
-          }
-          showToast('Volunteer profile removed.');
-          await renderVolunteersTable();
-        }
-      });
-    });
-  }
-
-  async function renderJobsTable() {
-    const tbody = document.getElementById('jobsTableBody');
-    if (!tbody) return;
-
-    const [jobs, interestSummary] = await Promise.all([
-      Auth.getJobs(),
-      Auth.getJobInterestSummary()
-    ]);
-    if (jobs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
-      return;
-    }
-
-    const JOB_TYPE_BADGE = {
-      'Full-time': 'bg-success',
-      'Part-time': 'bg-primary',
-      'Casual':    'bg-warning text-dark',
-      'Gig':       'bg-secondary'
-    };
-    const JOB_STATUS_BADGE = {
-      Open: 'bg-success',
-      Paused: 'bg-warning text-dark',
-      Filled: 'bg-secondary'
-    };
-
-    tbody.innerHTML = jobs.map((job) => {
-      const typeBadge = job.jobType
-        ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>`
-        : '<span class="text-muted small">—</span>';
-      const salary = job.salary
-        ? `<span class="fw-semibold">${escapeHtml(job.salary)}</span>`
-        : '<span class="text-muted small">—</span>';
-      const location = job.location
-        ? escapeHtml(job.location)
-        : '<span class="text-muted small">—</span>';
-      const statusBadge = `<span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span>`;
-      const interestedParticipants = Array.isArray(interestSummary[job.id]) ? interestSummary[job.id] : [];
-      const interestedMarkup = interestedParticipants.length
-        ? `<div class="small">
-            <div class="fw-semibold text-success mb-1">${interestedParticipants.length} interested</div>
-            ${interestedParticipants
-              .map((participant) => `<div class="text-muted">${escapeHtml(participant.name)} <span class="text-secondary">(${escapeHtml(participant.email)})</span></div>`)
-              .join('')}
-          </div>`
-        : '<span class="text-muted small">No interest yet</span>';
-
-      return `
-        <tr>
-          <td class="ps-3">
-            <div class="fw-semibold text-dark">${escapeHtml(job.title)}</div>
-          </td>
-          <td>${escapeHtml(job.employer)}</td>
-          <td class="small">${location}</td>
-          <td>${typeBadge}</td>
-          <td>${statusBadge}</td>
-          <td class="small">${salary}</td>
-          <td class="small text-muted" style="max-width: 260px;">
-            <div class="event-accommodations">${escapeHtml(job.requirements)}</div>
-          </td>
-          <td style="max-width: 300px;">${interestedMarkup}</td>
-          <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
-          <td class="pe-3" style="width: 1%; white-space: nowrap;">
-            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">Edit</button>
-            <button class="btn btn-outline-danger btn-sm" data-job-id="${escapeHtml(job.id)}">Delete</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-
-    tbody.querySelectorAll('button[data-job-edit-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        await startJobEdit(btn.dataset.jobEditId);
-      });
-    });
-
-    tbody.querySelectorAll('button[data-job-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const result = await Auth.removeJob(btn.dataset.jobId);
-        if (result.success) {
-          if (editingJobId && editingJobId === btn.dataset.jobId) {
-            resetJobFormState();
-          }
-          showToast('Job opportunity removed.');
-          await renderJobsTable();
-        }
-      });
-    });
-  }
-
-  // Prevent XSS when injecting user-supplied strings into innerHTML.
-  function escapeHtml(str) {
-    return String(str)
+  function escapeHtml(value) {
+    return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-
-  // ── Confirmation modals ───────────────────────────────────────────────────
-
-  // User account creation modal (existing)
-  const confirmModalEl = document.getElementById('confirmCreateModal');
-  const confirmModal   = confirmModalEl ? bootstrap.Modal.getOrCreateInstance(confirmModalEl) : null;
-  const confirmBtn     = document.getElementById('confirmCreateBtn');
-
-  // Holds validated form data while the modal is open.
-  let pendingUser = null;
-
-  // Participant record confirmation modal (new)
-  const confirmParticipantModalEl = document.getElementById('confirmSaveParticipantModal');
-  const confirmParticipantModal   = confirmParticipantModalEl
-    ? bootstrap.Modal.getOrCreateInstance(confirmParticipantModalEl) : null;
-  const confirmParticipantBtn = document.getElementById('confirmSaveParticipantBtn');
-
-  let pendingParticipant = null;
-
-  // Populate the user modal summary panel.
-  function populateModalSummary({ name, email, role }) {
-    document.getElementById('modalSummaryName').textContent  = name.trim();
-    document.getElementById('modalSummaryEmail').textContent = email.trim().toLowerCase();
-
-    const roleName   = ROLE_LABEL[role] || role;
-    const badgeCls   = ROLE_BADGE[role] || 'bg-secondary';
-    const badgeEl    = document.getElementById('modalSummaryRole');
-    badgeEl.textContent = roleName;
-    badgeEl.className   = `badge ${badgeCls}`;
-
-    document.getElementById('modalSummaryEmailTarget').textContent = email.trim().toLowerCase();
-  }
-
-  // Populate the participant modal summary panel.
-  function populateParticipantModalSummary({ firstName, lastName, age, guardian, contactEmail, contactPhone }) {
-    document.getElementById('pModalName').textContent    = `${firstName} ${lastName}`.trim();
-    document.getElementById('pModalAge').textContent     = age;
-    document.getElementById('pModalGuardian').textContent = guardian;
-    document.getElementById('pModalContact').textContent  = `${contactEmail} · ${contactPhone}`;
-  }
-
-  // ── Register form handler ─────────────────────────────────────────────────
-
-  const registerForm  = document.getElementById('registerForm');
-  const registerError = document.getElementById('registerError');
-  const toastEl       = document.getElementById('adminToast');
-  const toastMsgEl    = document.getElementById('adminToastMsg');
-  const userSubmitBtn = document.getElementById('userSubmitBtn');
-  const regFirstNameEl = document.getElementById('regFirstName');
-  const regLastNameEl = document.getElementById('regLastName');
-  const regEmailEl = document.getElementById('regEmail');
-  const regPasswordEl = document.getElementById('regPassword');
-  const regRoleEl = document.getElementById('regRole');
-  const participantForm = document.getElementById('participantForm');
-  const participantError = document.getElementById('participantError');
-  const participantSubmitBtn = document.getElementById('participantSubmitBtn');
-  const volunteerAdminForm = document.getElementById('volunteerAdminForm');
-  const volunteerAdminError = document.getElementById('volunteerAdminError');
-  const volunteerAdminSubmitBtn = document.getElementById('volunteerAdminSubmitBtn');
-  const adminVolFirstNameEl = document.getElementById('adminVolFirstName');
-  const adminVolLastNameEl = document.getElementById('adminVolLastName');
-  const adminVolPhoneEl = document.getElementById('adminVolPhone');
-  const adminVolEmailEl = document.getElementById('adminVolEmail');
-  const adminVolAvailabilityEl = document.getElementById('adminVolAvailability');
-  const adminVolInterestsFeedbackEl = document.getElementById('adminVolInterestsFeedback');
-  const adminVolInterestsGroupEl = document.getElementById('adminVolInterestsGroup');
-  const adminVolInterestOtherEl = document.getElementById('adminVolInterestOther');
-  const adminVolInterestOtherTextEl = document.getElementById('adminVolInterestOtherText');
-  const adminVolInterestCheckboxEls = () => Array.from(document.querySelectorAll('input[name="adminVolInterests"]'));
-  const eventForm = document.getElementById('eventForm');
-  const eventError = document.getElementById('eventError');
-  const eventSubmitBtn = document.getElementById('eventSubmitBtn');
-  const adminGenerateNewsletterQuickBtn = document.getElementById('adminGenerateNewsletterQuickBtn');
-  let editingUserEmail = null;
-  let editingParticipantId = null;
-  let editingVolunteerEmail = null;
-  let editingEventId = null;
-  let editingJobId = null;
-
-  const jobForm = document.getElementById('jobForm');
-  const jobError = document.getElementById('jobError');
-  const jobSubmitBtn = document.getElementById('jobSubmitBtn');
-  const newsletterForm = document.getElementById('newsletterForm');
-  const newsletterError = document.getElementById('newsletterError');
-  const newsletterSuccess = document.getElementById('newsletterSuccess');
-  const newsletterSubjectEl = document.getElementById('newsletterSubject');
-  const newsletterEventsEl = document.getElementById('newsletterEvents');
-  const newsletterUpdatesEl = document.getElementById('newsletterUpdates');
-  const newsletterRecipientsListEl = document.getElementById('newsletterRecipientsList');
-  const newsletterPreviewBtn = document.getElementById('newsletterPreviewBtn');
-  const newsletterSaveDraftBtn = document.getElementById('newsletterSaveDraftBtn');
-  const newsletterPreviewSubjectEl = document.getElementById('newsletterPreviewSubject');
-  const newsletterPreviewEventsEl = document.getElementById('newsletterPreviewEvents');
-  const newsletterPreviewUpdatesEl = document.getElementById('newsletterPreviewUpdates');
-  const newsletterHistoryListEl = document.getElementById('newsletterHistoryList');
 
   function showToast(message) {
     if (!toastEl || !toastMsgEl) return;
@@ -580,147 +83,640 @@ document.addEventListener('DOMContentLoaded', async () => {
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
   }
 
-  function resetUserFormState() {
-    if (!registerForm) return;
-    registerForm.reset();
-    registerForm.classList.remove('was-validated');
-    registerError.classList.add('d-none');
-    editingUserEmail = null;
-    regPasswordEl.required = true;
-    regPasswordEl.placeholder = 'Temporary password';
-    if (userSubmitBtn) userSubmitBtn.textContent = 'Create Account';
+  function getSelectedValues(selectEl) {
+    return Array.from(selectEl?.selectedOptions || []).map((option) => option.value);
   }
 
-  async function startUserEdit(userEmail) {
+  function toggleInlineParticipantUserFields() {
+    const enabled = Boolean(document.getElementById('participantCreateUserToggle')?.checked);
+    const select = document.getElementById('participantUserId');
+    const email = document.getElementById('participantNewUserEmail');
+    const password = document.getElementById('participantNewUserPassword');
+    document.getElementById('participantNewUserEmailWrap')?.classList.toggle('d-none', !enabled);
+    document.getElementById('participantNewUserPasswordWrap')?.classList.toggle('d-none', !enabled);
+    if (select) {
+      select.disabled = enabled;
+      select.required = !enabled;
+      if (enabled) select.value = '';
+    }
+    if (email) email.required = enabled;
+    if (password) password.required = enabled;
+  }
+
+  function toggleInlineVolunteerUserFields() {
+    const enabled = Boolean(document.getElementById('adminVolCreateUserToggle')?.checked);
+    const select = document.getElementById('adminVolUserId');
+    const email = document.getElementById('adminVolNewUserEmail');
+    const password = document.getElementById('adminVolNewUserPassword');
+    document.getElementById('adminVolNewUserEmailWrap')?.classList.toggle('d-none', !enabled);
+    document.getElementById('adminVolNewUserPasswordWrap')?.classList.toggle('d-none', !enabled);
+    if (select) {
+      select.disabled = enabled;
+      select.required = !enabled;
+      if (enabled) select.value = '';
+    }
+    if (email) email.required = enabled;
+    if (password) password.required = enabled;
+  }
+
+  function syncUserLinkVisibility() {
+    const role = canonicalRole(document.getElementById('regRole')?.value);
+    document.getElementById('userParticipantLinkWrap')?.classList.toggle('d-none', role !== 'PARTICIPANT');
+    document.getElementById('userVolunteerLinkWrap')?.classList.toggle('d-none', role !== 'VOLUNTEER');
+    if (role !== 'PARTICIPANT') document.getElementById('userParticipantLinkId').value = '';
+    if (role !== 'VOLUNTEER') document.getElementById('userVolunteerLinkId').value = '';
+  }
+
+  function populateModalSummary({ name, email, role }) {
+    document.getElementById('modalSummaryName').textContent = name.trim();
+    document.getElementById('modalSummaryEmail').textContent = email.trim().toLowerCase();
+    const roleName = ROLE_LABEL[role] || role;
+    const badgeCls = ROLE_BADGE[role] || 'bg-secondary';
+    const badgeEl = document.getElementById('modalSummaryRole');
+    badgeEl.textContent = roleName;
+    badgeEl.className = `badge ${badgeCls}`;
+    document.getElementById('modalSummaryEmailTarget').textContent = email.trim().toLowerCase();
+  }
+
+  async function populateParticipantModalSummary(payload) {
+    const participantUser = await Auth.getUserById(payload.participantUserId);
     const users = await Auth.getUsers();
-    const user = users.find((u) => u.email.toLowerCase() === String(userEmail).toLowerCase());
-    if (!user || user.role === 'ADMIN') return;
+    const guardians = users.filter((user) => payload.guardianUserIds.includes(user.id));
+    document.getElementById('pModalName').textContent = `${payload.firstName} ${payload.lastName}`.trim();
+    document.getElementById('pModalAge').textContent = payload.age;
+    document.getElementById('pModalGuardian').textContent = guardians.map((guardian) => guardian.name).join(', ') || '—';
+    document.getElementById('pModalContact').textContent = `${payload.contactEmail} · ${payload.contactPhone}`;
+    if (participantUser) {
+      document.getElementById('pModalName').textContent += ` (${participantUser.email})`;
+    }
+  }
 
-    const nameParts = splitFullName(user.name);
-    regFirstNameEl.value = nameParts.firstName;
-    regLastNameEl.value = nameParts.lastName;
-    regEmailEl.value = user.email;
-    regRoleEl.value = user.role;
-    regPasswordEl.value = '';
-    regPasswordEl.required = false;
-    regPasswordEl.placeholder = 'Leave blank to keep current password';
+  function showParticipantsListView() {
+    document.getElementById('view-participants-list').classList.remove('d-none');
+    document.getElementById('view-participants-form').classList.add('d-none');
+  }
 
-    editingUserEmail = user.email;
-    registerError.classList.add('d-none');
-    registerForm.classList.remove('was-validated');
-    if (userSubmitBtn) userSubmitBtn.textContent = 'Update Account';
-    showUsersFormView(true);
+  function showParticipantsFormView(isEditing = false) {
+    document.getElementById('view-participants-list').classList.add('d-none');
+    document.getElementById('view-participants-form').classList.remove('d-none');
+    document.getElementById('participantFormTitle').textContent = isEditing ? 'Edit Participant' : 'New Participant';
+  }
+
+  function showUsersListView() {
+    document.getElementById('view-users-list').classList.remove('d-none');
+    document.getElementById('view-users-form').classList.add('d-none');
+  }
+
+  function showUsersFormView(isEditing = false) {
+    document.getElementById('view-users-list').classList.add('d-none');
+    document.getElementById('view-users-form').classList.remove('d-none');
+    document.getElementById('userFormTitle').textContent = isEditing ? 'Edit User' : 'New User';
+  }
+
+  function showVolunteersListView() {
+    document.getElementById('view-volunteers-list').classList.remove('d-none');
+    document.getElementById('view-volunteers-form').classList.add('d-none');
+  }
+
+  function showVolunteersFormView(isEditing = false) {
+    document.getElementById('view-volunteers-list').classList.add('d-none');
+    document.getElementById('view-volunteers-form').classList.remove('d-none');
+    document.getElementById('volunteerFormTitle').textContent = isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile';
+  }
+
+  function showEventsListView() {
+    document.getElementById('view-events-list').classList.remove('d-none');
+    document.getElementById('view-events-form').classList.add('d-none');
+  }
+
+  function showEventsFormView(isEditing = false) {
+    document.getElementById('view-events-list').classList.add('d-none');
+    document.getElementById('view-events-form').classList.remove('d-none');
+    document.getElementById('eventFormTitle').textContent = isEditing ? 'Edit Event' : 'New Event';
+  }
+
+  function showJobsListView() {
+    document.getElementById('view-jobs-list').classList.remove('d-none');
+    document.getElementById('view-jobs-form').classList.add('d-none');
+  }
+
+  function showJobsFormView(isEditing = false) {
+    document.getElementById('view-jobs-list').classList.add('d-none');
+    document.getElementById('view-jobs-form').classList.remove('d-none');
+    document.getElementById('jobFormTitle').textContent = isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity';
+  }
+
+  async function populateLinkedUserOptions() {
+    const [users, participants, volunteerProfiles] = await Promise.all([
+      Auth.getUsers(),
+      Auth.getParticipants(),
+      Auth.getVolunteerProfiles()
+    ]);
+    const participantUserSelect = document.getElementById('participantUserId');
+    const guardianSelect = document.getElementById('participantGuardianIds');
+    const volunteerUserSelect = document.getElementById('adminVolUserId');
+    const userParticipantLinkSelect = document.getElementById('userParticipantLinkId');
+    const userVolunteerLinkSelect = document.getElementById('userVolunteerLinkId');
+    const participantUsers = users.filter((user) => user.role === 'PARTICIPANT');
+    const guardianUsers = users.filter((user) => user.role === 'GUARDIAN');
+    const volunteerUsers = users.filter((user) => user.role === 'VOLUNTEER');
+
+    if (participantUserSelect) {
+      participantUserSelect.innerHTML = `<option value="" disabled selected>Select participant login...</option>${participantUsers.map((user) =>
+        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
+      ).join('')}`;
+    }
+
+    if (guardianSelect) {
+      guardianSelect.innerHTML = guardianUsers.map((user) =>
+        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
+      ).join('');
+    }
+
+    if (volunteerUserSelect) {
+      volunteerUserSelect.innerHTML = `<option value="" disabled selected>Select volunteer login...</option>${volunteerUsers.map((user) =>
+        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
+      ).join('')}`;
+    }
+
+    if (userParticipantLinkSelect) {
+      userParticipantLinkSelect.innerHTML = `<option value="">No participant record link</option>${participants.map((participant) =>
+        `<option value="${escapeHtml(participant.id)}">${escapeHtml(participant.fullName)}${participant.participantUser ? ` (${escapeHtml(participant.participantUser.email)})` : ' (unlinked)'}</option>`
+      ).join('')}`;
+    }
+
+    if (userVolunteerLinkSelect) {
+      userVolunteerLinkSelect.innerHTML = `<option value="">No volunteer profile link</option>${volunteerProfiles.map((profile) =>
+        `<option value="${escapeHtml(profile.userId)}">${escapeHtml(profile.fullName)} (${escapeHtml(profile.email || profile.linkedUser?.email || 'unlinked')})</option>`
+      ).join('')}`;
+    }
+  }
+
+  function resetUserFormState() {
+    registerForm?.reset();
+    registerForm?.classList.remove('was-validated');
+    registerError?.classList.add('d-none');
+    editingUserEmail = null;
+    const passwordEl = document.getElementById('regPassword');
+    if (passwordEl) {
+      passwordEl.required = true;
+      passwordEl.placeholder = 'Temporary password';
+    }
+    const submitBtn = document.getElementById('userSubmitBtn');
+    if (submitBtn) submitBtn.textContent = 'Create Account';
+    document.getElementById('userParticipantLinkId').value = '';
+    document.getElementById('userVolunteerLinkId').value = '';
+    syncUserLinkVisibility();
   }
 
   function resetParticipantFormState() {
-    if (!participantForm) return;
-    participantForm.reset();
-    participantForm.classList.remove('was-validated');
-    participantError.classList.add('d-none');
+    participantForm?.reset();
+    participantForm?.classList.remove('was-validated');
+    participantError?.classList.add('d-none');
     editingParticipantId = null;
-    if (participantSubmitBtn) participantSubmitBtn.textContent = 'Save Participant Record';
+    const submitBtn = document.getElementById('participantSubmitBtn');
+    if (submitBtn) submitBtn.textContent = 'Save Participant Record';
+    document.getElementById('participantCreateUserToggle').checked = false;
+    document.getElementById('participantNewUserEmail').value = '';
+    document.getElementById('participantNewUserPassword').value = '';
+    toggleInlineParticipantUserFields();
+  }
+
+  function resetVolunteerFormState() {
+    volunteerAdminForm?.reset();
+    volunteerAdminForm?.classList.remove('was-validated');
+    volunteerAdminError?.classList.add('d-none');
+    editingVolunteerUserId = null;
+    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
+    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
+    const submitBtn = document.getElementById('volunteerAdminSubmitBtn');
+    if (submitBtn) submitBtn.textContent = 'Save Volunteer Profile';
+    document.getElementById('adminVolCreateUserToggle').checked = false;
+    document.getElementById('adminVolNewUserEmail').value = '';
+    document.getElementById('adminVolNewUserPassword').value = '';
+    setAdminVolunteerOtherInterestInputState();
+    toggleInlineVolunteerUserFields();
+  }
+
+  function resetEventFormState() {
+    eventForm?.reset();
+    eventForm?.classList.remove('was-validated');
+    eventError?.classList.add('d-none');
+    editingEventId = null;
+    const submitBtn = document.getElementById('eventSubmitBtn');
+    if (submitBtn) submitBtn.textContent = 'Publish Event';
+  }
+
+  function resetJobFormState() {
+    jobForm?.reset();
+    jobForm?.classList.remove('was-validated');
+    jobError?.classList.add('d-none');
+    editingJobId = null;
+    const submitBtn = document.getElementById('jobSubmitBtn');
+    if (submitBtn) submitBtn.textContent = 'Save Opportunity';
   }
 
   function setAdminVolunteerOtherInterestInputState() {
-    const enabled = Boolean(adminVolInterestOtherEl?.checked);
-    if (!adminVolInterestOtherTextEl) return;
-    adminVolInterestOtherTextEl.disabled = !enabled;
-    if (!enabled) adminVolInterestOtherTextEl.value = '';
+    const checkbox = document.getElementById('adminVolInterestOther');
+    const input = document.getElementById('adminVolInterestOtherText');
+    const enabled = Boolean(checkbox?.checked);
+    if (!input) return;
+    input.disabled = !enabled;
+    if (!enabled) input.value = '';
   }
 
   function getAdminSelectedVolunteerInterests() {
-    const values = adminVolInterestCheckboxEls()
-      .filter((checkbox) => checkbox.checked)
-      .map((checkbox) => checkbox.value);
+    const values = Array.from(document.querySelectorAll('input[name="adminVolInterests"]:checked')).map((checkbox) => checkbox.value);
     if (values.includes('Other')) {
-      const customInterest = String(adminVolInterestOtherTextEl?.value || '').trim();
-      if (customInterest) {
-        return values.map((value) => (value === 'Other' ? `Other: ${customInterest}` : value));
+      const custom = String(document.getElementById('adminVolInterestOtherText')?.value || '').trim();
+      if (custom) {
+        return values.map((value) => value === 'Other' ? `Other: ${custom}` : value);
       }
     }
     return values;
   }
 
   function setAdminSelectedVolunteerInterests(interests) {
-    const list = Array.isArray(interests)
-      ? interests
-      : String(interests || '')
-          .split(',')
-          .map((item) => item.trim())
-          .filter(Boolean);
-
+    const list = Array.isArray(interests) ? interests : [];
     let otherText = '';
-    adminVolInterestCheckboxEls().forEach((checkbox) => {
-      const hasCustomOther = list.some((value) => value.startsWith('Other:'));
+    Array.from(document.querySelectorAll('input[name="adminVolInterests"]')).forEach((checkbox) => {
       if (checkbox.value === 'Other') {
-        checkbox.checked = list.includes('Other') || hasCustomOther;
-        if (hasCustomOther) {
-          const otherValue = list.find((value) => value.startsWith('Other:')) || '';
-          otherText = String(otherValue).replace(/^Other:\s*/i, '').trim();
-        }
+        const custom = list.find((item) => String(item).startsWith('Other:'));
+        checkbox.checked = Boolean(custom) || list.includes('Other');
+        otherText = custom ? String(custom).replace(/^Other:\s*/i, '').trim() : '';
       } else {
         checkbox.checked = list.includes(checkbox.value);
       }
     });
-
     setAdminVolunteerOtherInterestInputState();
-    if (otherText && adminVolInterestOtherTextEl) {
-      adminVolInterestOtherTextEl.value = otherText;
-    }
+    const input = document.getElementById('adminVolInterestOtherText');
+    if (input && otherText) input.value = otherText;
   }
 
   function validateAdminVolunteerInterests() {
     const selected = getAdminSelectedVolunteerInterests();
-    if (selected.length === 0) {
-      adminVolInterestsGroupEl?.classList.add('border-danger');
-      adminVolInterestsFeedbackEl?.classList.remove('d-none');
+    const group = document.getElementById('adminVolInterestsGroup');
+    const feedback = document.getElementById('adminVolInterestsFeedback');
+    if (!selected.length) {
+      group?.classList.add('border-danger');
+      feedback?.classList.remove('d-none');
       return false;
     }
-    adminVolInterestsGroupEl?.classList.remove('border-danger');
-    adminVolInterestsFeedbackEl?.classList.add('d-none');
+    group?.classList.remove('border-danger');
+    feedback?.classList.add('d-none');
     return true;
   }
 
-  function resetVolunteerFormState() {
-    if (!volunteerAdminForm) return;
-    volunteerAdminForm.reset();
-    volunteerAdminForm.classList.remove('was-validated');
-    volunteerAdminError.classList.add('d-none');
-    adminVolInterestsGroupEl?.classList.remove('border-danger');
-    adminVolInterestsFeedbackEl?.classList.add('d-none');
-    editingVolunteerEmail = null;
-    if (volunteerAdminSubmitBtn) volunteerAdminSubmitBtn.textContent = 'Save Volunteer Profile';
-    setAdminVolunteerOtherInterestInputState();
+  async function renderUsersTable() {
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) return;
+    const users = await Auth.getUsers();
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted px-3">No users found.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map((user) => {
+      const isSelf = session.userId === user.id;
+      const canEdit = user.role !== 'ADMIN';
+      return `
+        <tr>
+          <td class="ps-3">${escapeHtml(user.name)}</td>
+          <td class="text-muted small">${escapeHtml(user.email)}</td>
+          <td><span class="badge ${ROLE_BADGE[canonicalRole(user.role)] || 'bg-secondary'}">${escapeHtml(ROLE_LABEL[canonicalRole(user.role)] || user.role)}</span></td>
+          <td class="text-muted small">${escapeHtml(user.dateAdded)}</td>
+          <td class="pe-3" style="width:1%;white-space:nowrap;">
+            ${canEdit ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(user.email)}">Edit</button>` : ''}
+            ${isSelf
+              ? '<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>'
+              : `<button class="btn btn-outline-danger btn-sm" data-user-email="${escapeHtml(user.email)}">Delete</button>`}
+          </td>
+        </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('[data-user-edit-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const users = await Auth.getUsers();
+        const user = users.find((entry) => entry.email.toLowerCase() === String(button.dataset.userEditEmail).toLowerCase());
+        if (!user) return;
+        const nameParts = splitFullName(user.name);
+        document.getElementById('regFirstName').value = nameParts.firstName;
+        document.getElementById('regLastName').value = nameParts.lastName;
+        document.getElementById('regEmail').value = user.email;
+        document.getElementById('regRole').value = canonicalRole(user.role);
+        const passwordEl = document.getElementById('regPassword');
+        passwordEl.value = '';
+        passwordEl.required = false;
+        passwordEl.placeholder = 'Leave blank to keep current password';
+        const participants = await Auth.getParticipants();
+        const linkedParticipant = participants.find((participant) => String(participant.participantUserId) === String(user.id));
+        const volunteerProfile = await Auth.getVolunteerProfile(user.id);
+        document.getElementById('userParticipantLinkId').value = linkedParticipant?.id || '';
+        document.getElementById('userVolunteerLinkId').value = volunteerProfile?.userId || '';
+        editingUserEmail = user.email;
+        document.getElementById('userSubmitBtn').textContent = 'Update Account';
+        registerError.classList.add('d-none');
+        registerForm.classList.remove('was-validated');
+        syncUserLinkVisibility();
+        showUsersFormView(true);
+      });
+    });
+
+    tbody.querySelectorAll('[data-user-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeUser(button.dataset.userEmail);
+        if (!result.success) {
+          registerError.textContent = result.message;
+          registerError.classList.remove('d-none');
+          return;
+        }
+        await renderUsersTable();
+        await populateLinkedUserOptions();
+      });
+    });
   }
 
-  function resetEventFormState() {
-    if (!eventForm) return;
-    eventForm.reset();
-    eventForm.classList.remove('was-validated');
-    eventError.classList.add('d-none');
-    editingEventId = null;
-    if (eventSubmitBtn) eventSubmitBtn.textContent = 'Publish Event';
+  async function renderParticipantsTable() {
+    const tbody = document.getElementById('participantsTableBody');
+    if (!tbody) return;
+    const participants = await Auth.getParticipants();
+    if (!participants.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = participants.map((participant) => `
+      <tr>
+        <td class="ps-3">
+          <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
+          <div class="text-muted small">Age ${escapeHtml(participant.age || '—')}</div>
+        </td>
+        <td class="small text-muted">${participant.participantUser ? `${escapeHtml(participant.participantUser.name)}<div>${escapeHtml(participant.participantUser.email)}</div>` : '<span class="text-danger">Missing login</span>'}</td>
+        <td class="small">${participant.guardians.length
+          ? participant.guardians.map((guardian) => `<div>${escapeHtml(guardian.name)} <span class="text-muted">(${escapeHtml(guardian.email)})</span></div>`).join('')
+          : '<span class="text-danger">No guardians linked</span>'}</td>
+        <td class="small">
+          <div><span class="fw-semibold">Support:</span> ${escapeHtml(participant.specialNeeds || '—')}</div>
+          <div class="text-muted mt-1">${escapeHtml(participant.participantInterests.join(', ') || 'No participant interests yet')}</div>
+          <div class="text-muted mt-1">${escapeHtml(participant.pendingApprovalCount)} pending approvals • ${escapeHtml(participant.approvedJobCount)} approved job interests</div>
+        </td>
+        <td class="text-muted small">${escapeHtml(participant.dateAdded)}</td>
+        <td class="pe-3" style="width:1%;white-space:nowrap;">
+          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(participant.id)}">Edit</button>
+          <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(participant.id)}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('[data-participant-edit-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const participant = await Auth.getParticipantById(button.dataset.participantEditId);
+        if (!participant) return;
+        document.getElementById('participantFirstName').value = participant.firstName || '';
+        document.getElementById('participantLastName').value = participant.lastName || '';
+        document.getElementById('participantAge').value = participant.age || '';
+        document.getElementById('participantUserId').value = participant.participantUserId || '';
+        Array.from(document.getElementById('participantGuardianIds').options).forEach((option) => {
+          option.selected = participant.guardianUserIds.includes(option.value);
+        });
+        document.getElementById('participantEmail').value = participant.contactEmail || '';
+        document.getElementById('participantPhone').value = participant.contactPhone || '';
+        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
+        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
+        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
+        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
+        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
+        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
+        document.getElementById('participantCreateUserToggle').checked = false;
+        toggleInlineParticipantUserFields();
+        editingParticipantId = participant.id;
+        participantError.classList.add('d-none');
+        participantForm.classList.remove('was-validated');
+        document.getElementById('participantSubmitBtn').textContent = 'Update Participant Record';
+        showParticipantsFormView(true);
+      });
+    });
+
+    tbody.querySelectorAll('[data-participant-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeParticipant(button.dataset.participantId);
+        if (!result.success) {
+          participantError.textContent = result.message;
+          participantError.classList.remove('d-none');
+          return;
+        }
+        await renderParticipantsTable();
+      });
+    });
   }
 
-  function resetJobFormState() {
-    if (!jobForm) return;
-    jobForm.reset();
-    jobForm.classList.remove('was-validated');
-    jobError.classList.add('d-none');
-    editingJobId = null;
-    if (jobSubmitBtn) jobSubmitBtn.textContent = 'Save Opportunity';
+  async function renderVolunteersTable() {
+    const tbody = document.getElementById('volunteerProfilesTableBody');
+    if (!tbody) return;
+    const profiles = await Auth.getVolunteerProfiles();
+    if (!profiles.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = profiles.map((profile) => `
+      <tr>
+        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || '')}</div></td>
+        <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
+        <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
+        <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
+        <td class="small">${escapeHtml(profile.backgroundCheckStatus || 'Not Started')}</td>
+        <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
+        <td class="pe-3" style="width:1%;white-space:nowrap;">
+          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">Edit</button>
+          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId)}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('[data-volunteer-edit-user-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const profile = await Auth.getVolunteerProfile(button.dataset.volunteerEditUserId);
+        if (!profile) return;
+        document.getElementById('adminVolUserId').value = profile.userId || '';
+        document.getElementById('adminVolFirstName').value = profile.firstName || '';
+        document.getElementById('adminVolLastName').value = profile.lastName || '';
+        document.getElementById('adminVolPhone').value = profile.phone || '';
+        document.getElementById('adminVolAvailability').value = profile.availability || '';
+        document.getElementById('adminVolBackgroundCheck').value = profile.backgroundCheckStatus || 'Not Started';
+        setAdminSelectedVolunteerInterests(profile.interests);
+        document.getElementById('adminVolCreateUserToggle').checked = false;
+        toggleInlineVolunteerUserFields();
+        editingVolunteerUserId = profile.userId;
+        document.getElementById('volunteerAdminSubmitBtn').textContent = 'Update Volunteer Profile';
+        volunteerAdminError.classList.add('d-none');
+        volunteerAdminForm.classList.remove('was-validated');
+        showVolunteersFormView(true);
+      });
+    });
+
+    tbody.querySelectorAll('[data-volunteer-user-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeVolunteerProfile(button.dataset.volunteerUserId);
+        if (!result.success) {
+          volunteerAdminError.textContent = result.message;
+          volunteerAdminError.classList.remove('d-none');
+          return;
+        }
+        await renderVolunteersTable();
+      });
+    });
+  }
+
+  async function renderEventsTable() {
+    const tbody = document.getElementById('eventsTableBody');
+    if (!tbody) return;
+    const events = await Auth.getEvents();
+    if (!events.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No live events yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = events.map((event) => `
+      <tr>
+        <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(event.title)}</div></td>
+        <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
+        <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
+        <td class="small">${escapeHtml(event.location)}</td>
+        <td class="small fw-semibold">${escapeHtml(event.cost)}</td>
+        <td class="small text-muted"><div class="event-accommodations">${escapeHtml(event.accommodations)}</div></td>
+        <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
+        <td class="pe-3" style="width:1%;white-space:nowrap;">
+          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">Edit</button>
+          <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('[data-event-edit-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const events = await Auth.getEvents();
+        const event = events.find((entry) => String(entry.id) === String(button.dataset.eventEditId));
+        if (!event) return;
+        document.getElementById('eventTitle').value = event.title || '';
+        document.getElementById('eventCategory').value = event.category || '';
+        document.getElementById('eventDateTime').value = event.dateTime || '';
+        document.getElementById('eventLocation').value = event.location || '';
+        document.getElementById('eventCost').value = event.cost || '';
+        document.getElementById('eventAccommodations').value = event.accommodations || '';
+        editingEventId = event.id;
+        document.getElementById('eventSubmitBtn').textContent = 'Update Event';
+        showEventsFormView(true);
+      });
+    });
+
+    tbody.querySelectorAll('[data-event-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeEvent(button.dataset.eventId);
+        if (!result.success) {
+          eventError.textContent = result.message;
+          eventError.classList.remove('d-none');
+          return;
+        }
+        showToast('Event removed from the live log.');
+        await renderEventsTable();
+      });
+    });
+  }
+
+  async function renderJobsTable() {
+    const tbody = document.getElementById('jobsTableBody');
+    if (!tbody) return;
+    const [jobs, interestSummary] = await Promise.all([Auth.getJobs(), Auth.getJobInterestSummary()]);
+    if (!jobs.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
+      return;
+    }
+
+    const JOB_TYPE_BADGE = {
+      'Full-time': 'bg-success',
+      'Part-time': 'bg-primary',
+      'Casual': 'bg-warning text-dark',
+      Gig: 'bg-secondary'
+    };
+    const JOB_STATUS_BADGE = {
+      Open: 'bg-success',
+      Paused: 'bg-warning text-dark',
+      Filled: 'bg-secondary'
+    };
+
+    tbody.innerHTML = jobs.map((job) => {
+      const summary = interestSummary[job.id] || { approved: [], pending: [] };
+      const approvedMarkup = summary.approved.length
+        ? summary.approved.map((entry) => `<div class="text-success">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
+        : '<div class="text-muted">No approved interest yet</div>';
+      const pendingMarkup = summary.pending.length
+        ? summary.pending.map((entry) => `<div class="text-warning-emphasis">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
+        : '<div class="text-muted">No pending approvals</div>';
+      return `
+        <tr>
+          <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(job.title)}</div></td>
+          <td>${escapeHtml(job.employer)}</td>
+          <td class="small">${escapeHtml(job.location || '—')}</td>
+          <td>${job.jobType ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>` : '<span class="text-muted small">—</span>'}</td>
+          <td><span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span></td>
+          <td class="small">${job.salary ? `<span class="fw-semibold">${escapeHtml(job.salary)}</span>` : '<span class="text-muted small">—</span>'}</td>
+          <td class="small text-muted"><div class="event-accommodations">${escapeHtml(job.requirements)}</div></td>
+          <td class="small">
+            <div class="fw-semibold text-success mb-1">Approved</div>
+            ${approvedMarkup}
+            <div class="fw-semibold text-warning-emphasis mt-2 mb-1">Pending</div>
+            ${pendingMarkup}
+          </td>
+          <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
+          <td class="pe-3" style="width:1%;white-space:nowrap;">
+            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">Edit</button>
+            <button class="btn btn-outline-danger btn-sm" data-job-id="${escapeHtml(job.id)}">Delete</button>
+          </td>
+        </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('[data-job-edit-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const jobs = await Auth.getJobs();
+        const job = jobs.find((entry) => String(entry.id) === String(button.dataset.jobEditId));
+        if (!job) return;
+        document.getElementById('jobTitle').value = job.title || '';
+        document.getElementById('jobEmployer').value = job.employer || '';
+        document.getElementById('jobLocation').value = job.location || '';
+        document.getElementById('jobType').value = job.jobType || '';
+        document.getElementById('jobStatus').value = job.status || 'Open';
+        document.getElementById('jobSalary').value = job.salary || '';
+        document.getElementById('jobRequirements').value = job.requirements || '';
+        editingJobId = job.id;
+        document.getElementById('jobSubmitBtn').textContent = 'Update Opportunity';
+        showJobsFormView(true);
+      });
+    });
+
+    tbody.querySelectorAll('[data-job-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeJob(button.dataset.jobId);
+        if (!result.success) {
+          jobError.textContent = result.message;
+          jobError.classList.remove('d-none');
+          return;
+        }
+        showToast('Job opportunity removed.');
+        await renderJobsTable();
+      });
+    });
   }
 
   function getSelectedNewsletterRecipients() {
-    return Array.from(document.querySelectorAll('input[name="newsletterRecipients"]:checked'))
-      .map((checkbox) => checkbox.value);
+    return Array.from(document.querySelectorAll('input[name="newsletterRecipients"]:checked')).map((checkbox) => checkbox.value);
   }
 
   function getNewsletterPayload() {
     return {
-      subject: newsletterSubjectEl?.value || '',
-      eventHighlights: newsletterEventsEl?.value || '',
-      updates: newsletterUpdatesEl?.value || '',
+      subject: document.getElementById('newsletterSubject')?.value || '',
+      eventHighlights: document.getElementById('newsletterEvents')?.value || '',
+      updates: document.getElementById('newsletterUpdates')?.value || '',
       recipients: getSelectedNewsletterRecipients()
     };
   }
@@ -745,448 +741,397 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderNewsletterRecipients() {
-    if (!newsletterRecipientsListEl) return;
+    const container = document.getElementById('newsletterRecipientsList');
+    if (!container) return;
     const users = await Auth.getUsers();
     const recipients = users.filter((user) => user.role !== 'ADMIN');
-    if (!recipients.length) {
-      newsletterRecipientsListEl.innerHTML = '<p class="text-muted small mb-0">No eligible recipients yet.</p>';
-      return;
-    }
-
-    newsletterRecipientsListEl.innerHTML = recipients.map((user) => `
-      <div class="form-check mb-2">
-        <input class="form-check-input" type="checkbox" value="${escapeHtml(user.email)}" id="newsletterRecipient_${escapeHtml(user.email)}" name="newsletterRecipients" checked>
-        <label class="form-check-label small" for="newsletterRecipient_${escapeHtml(user.email)}">
-          ${escapeHtml(user.name)} <span class="text-muted">(${escapeHtml(user.email)})</span>
-        </label>
-      </div>
-    `).join('');
+    container.innerHTML = recipients.length
+      ? recipients.map((user) => `
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" value="${escapeHtml(user.email)}" id="newsletterRecipient_${escapeHtml(user.id)}" name="newsletterRecipients" checked>
+          <label class="form-check-label small" for="newsletterRecipient_${escapeHtml(user.id)}">
+            ${escapeHtml(user.name)} <span class="text-muted">(${escapeHtml(user.email)})</span>
+          </label>
+        </div>`).join('')
+      : '<p class="text-muted small mb-0">No eligible recipients yet.</p>';
   }
 
   async function hydrateNewsletterDraft() {
-    if (!newsletterForm) return;
     const draft = await Auth.getNewsletterDraft();
     if (!draft) return;
-
-    newsletterSubjectEl.value = draft.subject || '';
-    newsletterEventsEl.value = draft.eventHighlights || '';
-    newsletterUpdatesEl.value = draft.updates || '';
-    const recipients = Array.isArray(draft.recipients) ? new Set(draft.recipients.map((r) => String(r).toLowerCase())) : new Set();
+    document.getElementById('newsletterSubject').value = draft.subject || '';
+    document.getElementById('newsletterEvents').value = draft.eventHighlights || '';
+    document.getElementById('newsletterUpdates').value = draft.updates || '';
+    const recipients = new Set(Array.isArray(draft.recipients) ? draft.recipients.map((entry) => String(entry).toLowerCase()) : []);
     document.querySelectorAll('input[name="newsletterRecipients"]').forEach((checkbox) => {
-      checkbox.checked = recipients.has(String(checkbox.value || '').toLowerCase());
+      checkbox.checked = recipients.has(String(checkbox.value).toLowerCase());
     });
     showNewsletterSuccess(`Draft loaded (last updated ${draft.updatedAtLabel || 'recently'}).`);
   }
 
   function renderNewsletterPreview() {
-    if (!newsletterPreviewSubjectEl || !newsletterPreviewEventsEl || !newsletterPreviewUpdatesEl) return;
     const payload = getNewsletterPayload();
-    newsletterPreviewSubjectEl.textContent = payload.subject.trim() || 'Untitled Newsletter';
-    newsletterPreviewEventsEl.textContent = payload.eventHighlights.trim() || 'No event highlights provided.';
-    newsletterPreviewUpdatesEl.textContent = payload.updates.trim() || 'No updates provided.';
+    document.getElementById('newsletterPreviewSubject').textContent = payload.subject.trim() || 'Untitled Newsletter';
+    document.getElementById('newsletterPreviewEvents').textContent = payload.eventHighlights.trim() || 'No event highlights provided.';
+    document.getElementById('newsletterPreviewUpdates').textContent = payload.updates.trim() || 'No updates provided.';
   }
 
   async function renderNewsletterHistory() {
-    if (!newsletterHistoryListEl) return;
     const history = await Auth.getNewsletterHistory();
-    if (!history.length) {
-      newsletterHistoryListEl.innerHTML = '<p class="text-muted small mb-0">No newsletters distributed yet.</p>';
-      return;
-    }
-    newsletterHistoryListEl.innerHTML = history.slice(0, 5).map((entry) => `
-      <div class="border-bottom pb-2 mb-2">
-        <div class="fw-semibold small">${escapeHtml(entry.subject || 'Untitled Newsletter')}</div>
-        <div class="text-muted small">${escapeHtml(entry.recipientCount || 0)} recipients • ${escapeHtml(entry.sentAtLabel || '')}</div>
-      </div>
-    `).join('');
+    const list = document.getElementById('newsletterHistoryList');
+    if (!list) return;
+    list.innerHTML = history.length
+      ? history.slice(0, 5).map((entry) => `
+        <div class="border-bottom pb-2 mb-2">
+          <div class="fw-semibold small">${escapeHtml(entry.subject || 'Untitled Newsletter')}</div>
+          <div class="text-muted small">${escapeHtml(entry.recipientCount || 0)} recipients • ${escapeHtml(entry.sentAtLabel || '')}</div>
+        </div>`).join('')
+      : '<p class="text-muted small mb-0">No newsletters distributed yet.</p>';
   }
 
-  async function startParticipantEdit(participantId) {
-    const participants = await Auth.getParticipants();
-    const participant = participants.find((p) => String(p.id) === String(participantId));
-    if (!participant || !participantForm) return;
+  registerForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    registerForm.classList.add('was-validated');
+    if (!registerForm.checkValidity()) return;
+    const fullName = `${document.getElementById('regFirstName').value} ${document.getElementById('regLastName').value}`.trim();
+    const payload = {
+      name: fullName,
+      email: document.getElementById('regEmail').value,
+      password: document.getElementById('regPassword').value,
+      role: document.getElementById('regRole').value,
+      linkParticipantId: document.getElementById('userParticipantLinkId').value,
+      linkVolunteerProfileId: document.getElementById('userVolunteerLinkId').value
+    };
 
-    document.getElementById('participantFirstName').value = participant.firstName || '';
-    document.getElementById('participantLastName').value = participant.lastName || '';
-    document.getElementById('participantAge').value = participant.age || '';
-    document.getElementById('participantGuardian').value = participant.guardian || '';
-    document.getElementById('participantEmail').value = participant.contactEmail || '';
-    document.getElementById('participantPhone').value = participant.contactPhone || '';
-    document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
-    document.getElementById('participantNotes').value = participant.notes || '';
-
-    editingParticipantId = participant.id;
-    participantError.classList.add('d-none');
-    participantForm.classList.remove('was-validated');
-    if (participantSubmitBtn) participantSubmitBtn.textContent = 'Update Participant Record';
-    showParticipantsFormView(true);
-  }
-
-  async function startVolunteerEdit(volunteerEmail) {
-    const profiles = await Auth.getVolunteerProfiles();
-    const profile = profiles.find((item) => item.email.toLowerCase() === String(volunteerEmail).toLowerCase());
-    if (!profile || !volunteerAdminForm) return;
-
-    adminVolFirstNameEl.value = profile.firstName || '';
-    adminVolLastNameEl.value = profile.lastName || '';
-    adminVolPhoneEl.value = profile.phone || '';
-    adminVolEmailEl.value = profile.email || '';
-    adminVolAvailabilityEl.value = profile.availability || '';
-    setAdminSelectedVolunteerInterests(profile.interests);
-
-    editingVolunteerEmail = profile.email;
-    volunteerAdminError.classList.add('d-none');
-    volunteerAdminForm.classList.remove('was-validated');
-    if (volunteerAdminSubmitBtn) volunteerAdminSubmitBtn.textContent = 'Update Volunteer Profile';
-    showVolunteersFormView(true);
-  }
-
-  async function startEventEdit(eventId) {
-    const events = await Auth.getEvents();
-    const event = events.find((item) => String(item.id) === String(eventId));
-    if (!event || !eventForm) return;
-
-    document.getElementById('eventTitle').value = event.title || '';
-    document.getElementById('eventCategory').value = event.category || '';
-    document.getElementById('eventDateTime').value = event.dateTime || '';
-    document.getElementById('eventLocation').value = event.location || '';
-    document.getElementById('eventCost').value = event.cost || '';
-    document.getElementById('eventAccommodations').value = event.accommodations || '';
-
-    editingEventId = event.id;
-    eventError.classList.add('d-none');
-    eventForm.classList.remove('was-validated');
-    if (eventSubmitBtn) eventSubmitBtn.textContent = 'Update Event';
-    showEventsFormView(true);
-  }
-
-  async function startJobEdit(jobId) {
-    const jobs = await Auth.getJobs();
-    const job = jobs.find((item) => String(item.id) === String(jobId));
-    if (!job || !jobForm) return;
-
-    document.getElementById('jobTitle').value = job.title || '';
-    document.getElementById('jobEmployer').value = job.employer || '';
-    document.getElementById('jobLocation').value = job.location || '';
-    document.getElementById('jobType').value = job.jobType || '';
-    document.getElementById('jobStatus').value = job.status || 'Open';
-    document.getElementById('jobSalary').value = job.salary || '';
-    document.getElementById('jobRequirements').value = job.requirements || '';
-
-    editingJobId = job.id;
-    jobError.classList.add('d-none');
-    jobForm.classList.remove('was-validated');
-    if (jobSubmitBtn) jobSubmitBtn.textContent = 'Update Opportunity';
-    showJobsFormView(true);
-  }
-
-  if (registerForm) {
-    registerForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = this;
-      form.classList.add('was-validated');
-
-      // Field-level HTML5 validation first.
-      if (!form.checkValidity()) return;
-
-      const fullName = `${regFirstNameEl.value} ${regLastNameEl.value}`.trim();
-      const payload = {
-        name: fullName,
-        email: regEmailEl.value,
-        password: regPasswordEl.value,
-        role: regRoleEl.value
-      };
-
-      if (editingUserEmail) {
-        const result = await Auth.updateUser(editingUserEmail, payload);
-        if (result.success) {
-          resetUserFormState();
-          showToast(`Success: Account for ${fullName} updated.`);
-          await renderUsersTable();
-          showUsersListView();
-        } else {
-          registerError.textContent = result.message;
-          registerError.classList.remove('d-none');
-        }
-        return;
-      }
-
-      // Create mode: open confirmation modal before persisting.
-      pendingUser = payload;
-      populateModalSummary(pendingUser);
-      confirmModal.show();
-    });
-
-    // Hide the error banner when the user starts correcting the form.
-    registerForm.addEventListener('input', () => {
-      registerError.classList.add('d-none');
-    });
-  }
-
-  if (participantForm) {
-    participantForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = this;
-      form.classList.add('was-validated');
-      if (!form.checkValidity()) return;
-
-      const payload = {
-        firstName: document.getElementById('participantFirstName').value,
-        lastName: document.getElementById('participantLastName').value,
-        age: document.getElementById('participantAge').value,
-        guardian: document.getElementById('participantGuardian').value,
-        contactEmail: document.getElementById('participantEmail').value,
-        contactPhone: document.getElementById('participantPhone').value,
-        specialNeeds: document.getElementById('participantSpecialNeeds').value,
-        notes: document.getElementById('participantNotes').value
-      };
-
-      if (editingParticipantId) {
-        // Edit mode: update directly, no modal.
-        const resolved = await Auth.updateParticipant(editingParticipantId, payload);
-        if (resolved.success) {
-          resetParticipantFormState();
-          showToast('Participant record updated successfully.');
-          await renderParticipantsTable();
-          showParticipantsListView();
-        } else {
-          participantError.textContent = resolved.message;
-          participantError.classList.remove('d-none');
-        }
-        return;
-      }
-
-      // Create mode: show confirmation modal before saving.
-      pendingParticipant = payload;
-      populateParticipantModalSummary(pendingParticipant);
-      confirmParticipantModal.show();
-    });
-
-    participantForm.addEventListener('input', () => {
-      participantError.classList.add('d-none');
-    });
-  }
-
-  if (volunteerAdminForm) {
-    adminVolInterestOtherEl?.addEventListener('change', () => {
-      setAdminVolunteerOtherInterestInputState();
-      volunteerAdminError.classList.add('d-none');
-      validateAdminVolunteerInterests();
-    });
-
-    adminVolInterestCheckboxEls().forEach((checkbox) => {
-      checkbox.addEventListener('change', () => {
-        volunteerAdminError.classList.add('d-none');
-        validateAdminVolunteerInterests();
-      });
-    });
-
-    volunteerAdminForm.addEventListener('input', () => {
-      volunteerAdminError.classList.add('d-none');
-      adminVolInterestsGroupEl?.classList.remove('border-danger');
-      adminVolInterestsFeedbackEl?.classList.add('d-none');
-    });
-
-    volunteerAdminForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = this;
-      form.classList.add('was-validated');
-      const interestsValid = validateAdminVolunteerInterests();
-      if (!form.checkValidity() || !interestsValid) return;
-
-      const payload = {
-        firstName: adminVolFirstNameEl.value,
-        lastName: adminVolLastNameEl.value,
-        phone: adminVolPhoneEl.value,
-        email: adminVolEmailEl.value,
-        interests: getAdminSelectedVolunteerInterests(),
-        availability: adminVolAvailabilityEl.value
-      };
-
-      const result = await Auth.saveVolunteerProfile(payload);
-      if (result.success) {
-        const wasEditingVolunteer = Boolean(editingVolunteerEmail);
-        resetVolunteerFormState();
-        showToast(
-          wasEditingVolunteer
-            ? 'Volunteer profile updated successfully.'
-            : 'Volunteer profile saved successfully.'
-        );
-        await renderVolunteersTable();
-        showVolunteersListView();
-      } else {
-        volunteerAdminError.textContent = result.message || 'Unable to save volunteer profile.';
-        volunteerAdminError.classList.remove('d-none');
-      }
-    });
-  }
-
-  if (eventForm) {
-    eventForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = this;
-      form.classList.add('was-validated');
-      if (!form.checkValidity()) return;
-
-      const payload = {
-        title: document.getElementById('eventTitle').value,
-        category: document.getElementById('eventCategory').value,
-        dateTime: document.getElementById('eventDateTime').value,
-        location: document.getElementById('eventLocation').value,
-        cost: document.getElementById('eventCost').value,
-        accommodations: document.getElementById('eventAccommodations').value
-      };
-
-      const result = editingEventId
-        ? await Auth.updateEvent(editingEventId, payload)
-        : await Auth.addEvent(payload);
-      const wasEditingEvent = Boolean(editingEventId);
-
-      if (result.success) {
-        resetEventFormState();
-        showToast(
-          wasEditingEvent
-            ? 'Event updated and remains live for families.'
-            : `"${payload.title.trim()}" is now live for families to view.`
-        );
-        await renderEventsTable();
-        showEventsListView();
-      } else {
-        eventError.textContent = result.message;
-        eventError.classList.remove('d-none');
-      }
-    });
-
-    eventForm.addEventListener('input', () => {
-      eventError.classList.add('d-none');
-    });
-  }
-
-  if (jobForm) {
-    jobForm.addEventListener('submit', async function (e) {
-      e.preventDefault();
-
-      const form = this;
-      form.classList.add('was-validated');
-      if (!form.checkValidity()) return;
-
-      const employer = document.getElementById('jobEmployer').value.trim();
-      const payload = {
-        title: document.getElementById('jobTitle').value,
-        employer,
-        location: document.getElementById('jobLocation').value,
-        jobType: document.getElementById('jobType').value,
-        status: document.getElementById('jobStatus').value,
-        salary: document.getElementById('jobSalary').value,
-        requirements: document.getElementById('jobRequirements').value
-      };
-
-      const result = editingJobId
-        ? await Auth.updateJob(editingJobId, payload)
-        : await Auth.addJob(payload);
-      const wasEditingJob = Boolean(editingJobId);
-
-      if (result.success) {
-        resetJobFormState();
-        showToast(
-          wasEditingJob
-            ? `Job opportunity for ${employer} updated successfully.`
-            : `Job opportunity for ${employer} successfully logged and visible to participants.`
-        );
-        await renderJobsTable();
-        showJobsListView();
-      } else {
-        jobError.textContent = result.message;
-        jobError.classList.remove('d-none');
-      }
-    });
-
-    jobForm.addEventListener('input', () => {
-      jobError.classList.add('d-none');
-    });
-  }
-
-  setAdminVolunteerOtherInterestInputState();
-
-  adminGenerateNewsletterQuickBtn?.addEventListener('click', async () => {
-    navigateTo('communications');
-  });
-
-  // ── Confirm button (user account creation modal) ──────────────────────────
-
-  if (confirmBtn) {
-    confirmBtn.addEventListener('click', async () => {
-      if (!pendingUser) return;
-
-      const result = await Auth.addUser(pendingUser);
-
-      confirmModal.hide();
-
-      if (result.success) {
-        // Reset form state.
-        resetUserFormState();
-
-        // Show success toast.
-        const roleName = ROLE_LABEL[pendingUser.role] || pendingUser.role;
-        showToast(`Success: Account for ${pendingUser.name.trim()} created as ${roleName}.`);
-
-        // Refresh the users table and return to the list.
-        await renderUsersTable();
-        showUsersListView();
-
-      } else {
-        // Duplicate email — surface the error on the form (modal is already closing).
+    if (editingUserEmail) {
+      const result = await Auth.updateUser(editingUserEmail, payload);
+      if (!result.success) {
         registerError.textContent = result.message;
         registerError.classList.remove('d-none');
+        return;
       }
+      resetUserFormState();
+      await renderUsersTable();
+      await populateLinkedUserOptions();
+      showUsersListView();
+      showToast(`Success: Account for ${fullName} updated.`);
+      return;
+    }
 
-      pendingUser = null;
-    });
-  }
+    pendingUser = payload;
+    populateModalSummary(payload);
+    confirmModal?.show();
+  });
 
-  // Clear pending state if the modal is dismissed via Cancel or the × button.
-  if (confirmModalEl) {
-    confirmModalEl.addEventListener('hidden.bs.modal', () => {
-      pendingUser = null;
-    });
-  }
+  registerForm?.addEventListener('input', () => registerError?.classList.add('d-none'));
 
-  // ── Confirm button (participant record creation modal) ────────────────────
+  participantForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    participantForm.classList.add('was-validated');
+    const guardianIds = getSelectedValues(document.getElementById('participantGuardianIds'));
+    if (!participantForm.checkValidity() || !guardianIds.length) {
+      document.getElementById('participantGuardianIds')?.setCustomValidity(guardianIds.length ? '' : 'Select at least one guardian.');
+      participantForm.reportValidity();
+      return;
+    }
+    document.getElementById('participantGuardianIds')?.setCustomValidity('');
+    const payload = {
+      firstName: document.getElementById('participantFirstName').value,
+      lastName: document.getElementById('participantLastName').value,
+      age: document.getElementById('participantAge').value,
+      participantUserId: document.getElementById('participantUserId').value,
+      guardianUserIds: guardianIds,
+      contactEmail: document.getElementById('participantEmail').value,
+      contactPhone: document.getElementById('participantPhone').value,
+      participantInterests: document.getElementById('participantInterests').value,
+      jobGoals: document.getElementById('participantJobGoals').value,
+      specialNeeds: document.getElementById('participantSpecialNeeds').value,
+      medicalNotes: document.getElementById('participantMedicalNotes').value,
+      sensoryNotes: document.getElementById('participantSensoryNotes').value,
+      guardianNotes: document.getElementById('participantGuardianNotes').value
+    };
 
-  if (confirmParticipantBtn) {
-    confirmParticipantBtn.addEventListener('click', async () => {
-      if (!pendingParticipant) return;
+    if (document.getElementById('participantCreateUserToggle')?.checked) {
+      const createResult = await Auth.addUser({
+        name: `${payload.firstName} ${payload.lastName}`.trim(),
+        email: document.getElementById('participantNewUserEmail').value,
+        password: document.getElementById('participantNewUserPassword').value,
+        role: 'PARTICIPANT'
+      });
+      if (!createResult.success) {
+        participantError.textContent = createResult.message;
+        participantError.classList.remove('d-none');
+        return;
+      }
+      payload.participantUserId = createResult.user.id;
+    }
 
-      const result = await Auth.addParticipant(pendingParticipant);
-
-      confirmParticipantModal.hide();
-
-      if (result.success) {
-        resetParticipantFormState();
-        showToast('Participant record saved successfully.');
-        await renderParticipantsTable();
-        showParticipantsListView();
-      } else {
+    if (editingParticipantId) {
+      const result = await Auth.updateParticipant(editingParticipantId, payload);
+      if (!result.success) {
         participantError.textContent = result.message;
         participantError.classList.remove('d-none');
+        return;
       }
+      resetParticipantFormState();
+      await renderParticipantsTable();
+      showParticipantsListView();
+      showToast('Participant record updated successfully.');
+      return;
+    }
 
-      pendingParticipant = null;
+    pendingParticipant = payload;
+    await populateParticipantModalSummary(payload);
+    confirmParticipantModal?.show();
+  });
+
+  participantForm?.addEventListener('input', () => participantError?.classList.add('d-none'));
+
+  document.getElementById('adminVolInterestOther')?.addEventListener('change', () => {
+    setAdminVolunteerOtherInterestInputState();
+    volunteerAdminError?.classList.add('d-none');
+  });
+
+  document.querySelectorAll('input[name="adminVolInterests"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', () => {
+      volunteerAdminError?.classList.add('d-none');
+      validateAdminVolunteerInterests();
     });
-  }
+  });
 
-  if (confirmParticipantModalEl) {
-    confirmParticipantModalEl.addEventListener('hidden.bs.modal', () => {
+  volunteerAdminForm?.addEventListener('input', () => {
+    volunteerAdminError?.classList.add('d-none');
+    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
+    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
+  });
+
+  volunteerAdminForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    volunteerAdminForm.classList.add('was-validated');
+    const interestsValid = validateAdminVolunteerInterests();
+    if (!volunteerAdminForm.checkValidity() || !interestsValid) return;
+    const payload = {
+      userId: document.getElementById('adminVolUserId').value,
+      firstName: document.getElementById('adminVolFirstName').value,
+      lastName: document.getElementById('adminVolLastName').value,
+      phone: document.getElementById('adminVolPhone').value,
+      interests: getAdminSelectedVolunteerInterests(),
+      availability: document.getElementById('adminVolAvailability').value,
+      backgroundCheckStatus: document.getElementById('adminVolBackgroundCheck').value
+    };
+
+    if (document.getElementById('adminVolCreateUserToggle')?.checked) {
+      const createResult = await Auth.addUser({
+        name: `${payload.firstName} ${payload.lastName}`.trim(),
+        email: document.getElementById('adminVolNewUserEmail').value,
+        password: document.getElementById('adminVolNewUserPassword').value,
+        role: 'VOLUNTEER'
+      });
+      if (!createResult.success) {
+        volunteerAdminError.textContent = createResult.message || 'Unable to create linked volunteer user.';
+        volunteerAdminError.classList.remove('d-none');
+        return;
+      }
+      payload.userId = createResult.user.id;
+    }
+    const result = await Auth.saveVolunteerProfile(payload);
+    if (!result.success) {
+      volunteerAdminError.textContent = result.message || 'Unable to save volunteer profile.';
+      volunteerAdminError.classList.remove('d-none');
+      return;
+    }
+    const wasEditing = Boolean(editingVolunteerUserId);
+    resetVolunteerFormState();
+    await renderVolunteersTable();
+    showVolunteersListView();
+    showToast(wasEditing ? 'Volunteer profile updated successfully.' : 'Volunteer profile saved successfully.');
+  });
+
+  eventForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    eventForm.classList.add('was-validated');
+    if (!eventForm.checkValidity()) return;
+    const payload = {
+      title: document.getElementById('eventTitle').value,
+      category: document.getElementById('eventCategory').value,
+      dateTime: document.getElementById('eventDateTime').value,
+      location: document.getElementById('eventLocation').value,
+      cost: document.getElementById('eventCost').value,
+      accommodations: document.getElementById('eventAccommodations').value
+    };
+    const result = editingEventId ? await Auth.updateEvent(editingEventId, payload) : await Auth.addEvent(payload);
+    if (!result.success) {
+      eventError.textContent = result.message;
+      eventError.classList.remove('d-none');
+      return;
+    }
+    const wasEditing = Boolean(editingEventId);
+    resetEventFormState();
+    await renderEventsTable();
+    showEventsListView();
+    showToast(wasEditing ? 'Event updated and remains live for families.' : `"${payload.title.trim()}" is now live for families to view.`);
+  });
+
+  eventForm?.addEventListener('input', () => eventError?.classList.add('d-none'));
+
+  jobForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    jobForm.classList.add('was-validated');
+    if (!jobForm.checkValidity()) return;
+    const payload = {
+      title: document.getElementById('jobTitle').value,
+      employer: document.getElementById('jobEmployer').value,
+      location: document.getElementById('jobLocation').value,
+      jobType: document.getElementById('jobType').value,
+      status: document.getElementById('jobStatus').value,
+      salary: document.getElementById('jobSalary').value,
+      requirements: document.getElementById('jobRequirements').value
+    };
+    const result = editingJobId ? await Auth.updateJob(editingJobId, payload) : await Auth.addJob(payload);
+    if (!result.success) {
+      jobError.textContent = result.message;
+      jobError.classList.remove('d-none');
+      return;
+    }
+    const wasEditing = Boolean(editingJobId);
+    resetJobFormState();
+    await renderJobsTable();
+    showJobsListView();
+    showToast(wasEditing ? `Job opportunity for ${payload.employer} updated successfully.` : `Job opportunity for ${payload.employer} successfully logged and visible to participants.`);
+  });
+
+  jobForm?.addEventListener('input', () => jobError?.classList.add('d-none'));
+
+  confirmBtn?.addEventListener('click', async () => {
+    if (!pendingUser) return;
+    const result = await Auth.addUser(pendingUser);
+    confirmModal?.hide();
+    if (!result.success) {
+      registerError.textContent = result.message;
+      registerError.classList.remove('d-none');
+      pendingUser = null;
+      return;
+    }
+    const createdRoleLabel = ROLE_LABEL[pendingUser.role] || pendingUser.role;
+    resetUserFormState();
+    await renderUsersTable();
+    await populateLinkedUserOptions();
+    showUsersListView();
+    showToast(`Success: Account for ${pendingUser.name.trim()} created as ${createdRoleLabel}.`);
+    pendingUser = null;
+  });
+
+  confirmModalEl?.addEventListener('hidden.bs.modal', () => {
+    pendingUser = null;
+  });
+
+  confirmParticipantBtn?.addEventListener('click', async () => {
+    if (!pendingParticipant) return;
+    const result = await Auth.addParticipant(pendingParticipant);
+    confirmParticipantModal?.hide();
+    if (!result.success) {
+      participantError.textContent = result.message;
+      participantError.classList.remove('d-none');
       pendingParticipant = null;
-    });
-  }
+      return;
+    }
+    resetParticipantFormState();
+    await renderParticipantsTable();
+    showParticipantsListView();
+    showToast('Participant record saved successfully.');
+    pendingParticipant = null;
+  });
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  confirmParticipantModalEl?.addEventListener('hidden.bs.modal', () => {
+    pendingParticipant = null;
+  });
 
+  document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
+    resetParticipantFormState();
+    showParticipantsFormView(false);
+  });
+  document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
+    resetParticipantFormState();
+    showParticipantsListView();
+  });
+  document.getElementById('newVolunteerBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersFormView(false);
+  });
+  document.getElementById('backToVolunteersBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersListView();
+  });
+  document.getElementById('newEventBtn')?.addEventListener('click', () => {
+    resetEventFormState();
+    showEventsFormView(false);
+  });
+  document.getElementById('backToEventsBtn')?.addEventListener('click', () => {
+    resetEventFormState();
+    showEventsListView();
+  });
+  document.getElementById('newJobBtn')?.addEventListener('click', () => {
+    resetJobFormState();
+    showJobsFormView(false);
+  });
+  document.getElementById('backToJobsBtn')?.addEventListener('click', () => {
+    resetJobFormState();
+    showJobsListView();
+  });
+  document.getElementById('newUserBtn')?.addEventListener('click', () => {
+    resetUserFormState();
+    showUsersFormView(false);
+  });
+  document.getElementById('backToUsersBtn')?.addEventListener('click', () => {
+    resetUserFormState();
+    showUsersListView();
+  });
+  document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => navigateTo('communications'));
+
+  document.getElementById('newsletterPreviewBtn')?.addEventListener('click', () => {
+    clearNewsletterMessages();
+    renderNewsletterPreview();
+  });
+
+  document.getElementById('newsletterSaveDraftBtn')?.addEventListener('click', async () => {
+    clearNewsletterMessages();
+    const result = await Auth.saveNewsletterDraft(getNewsletterPayload());
+    if (!result.success) {
+      showNewsletterError(result.message || 'Unable to save draft.');
+      return;
+    }
+    showNewsletterSuccess('Draft saved successfully.');
+    renderNewsletterPreview();
+  });
+
+  newsletterForm?.addEventListener('input', () => clearNewsletterMessages());
+  newsletterForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    newsletterForm.classList.add('was-validated');
+    clearNewsletterMessages();
+    const payload = getNewsletterPayload();
+    if (!newsletterForm.checkValidity()) {
+      showNewsletterError('Please complete required newsletter fields.');
+      return;
+    }
+    if (!payload.recipients.length) {
+      showNewsletterError('Select at least one recipient before distributing.');
+      return;
+    }
+    const result = await Auth.distributeNewsletter(payload);
+    if (!result.success) {
+      showNewsletterError(result.message || 'Distribution failed. Retry or save as draft.');
+      return;
+    }
+    showNewsletterSuccess(`Newsletter distributed successfully to ${result.recipientCount} recipient(s).`);
+    newsletterForm.reset();
+    newsletterForm.classList.remove('was-validated');
+    await renderNewsletterRecipients();
+    await renderNewsletterHistory();
+    renderNewsletterPreview();
+  });
+
+  await populateLinkedUserOptions();
   await renderUsersTable();
   await renderParticipantsTable();
   await renderVolunteersTable();
@@ -1196,107 +1141,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   await hydrateNewsletterDraft();
   await renderNewsletterHistory();
   renderNewsletterPreview();
-
-  // Wire "New" buttons to reset the form and show the form sub-view.
-  document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
-    resetParticipantFormState();
-    showParticipantsFormView(false);
-  });
-
-  document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
-    resetParticipantFormState();
-    showParticipantsListView();
-  });
-
-  document.getElementById('newEventBtn')?.addEventListener('click', () => {
-    resetEventFormState();
-    showEventsFormView(false);
-  });
-
-  document.getElementById('backToEventsBtn')?.addEventListener('click', () => {
-    resetEventFormState();
-    showEventsListView();
-  });
-
-  document.getElementById('newVolunteerBtn')?.addEventListener('click', () => {
-    resetVolunteerFormState();
-    showVolunteersFormView(false);
-  });
-
-  document.getElementById('backToVolunteersBtn')?.addEventListener('click', () => {
-    resetVolunteerFormState();
-    showVolunteersListView();
-  });
-
-  document.getElementById('newJobBtn')?.addEventListener('click', () => {
-    resetJobFormState();
-    showJobsFormView(false);
-  });
-
-  document.getElementById('backToJobsBtn')?.addEventListener('click', () => {
-    resetJobFormState();
-    showJobsListView();
-  });
-
-  document.getElementById('newUserBtn')?.addEventListener('click', () => {
-    resetUserFormState();
-    showUsersFormView(false);
-  });
-
-  document.getElementById('backToUsersBtn')?.addEventListener('click', () => {
-    resetUserFormState();
-    showUsersListView();
-  });
-
-  newsletterPreviewBtn?.addEventListener('click', () => {
-    clearNewsletterMessages();
-    renderNewsletterPreview();
-  });
-
-  newsletterSaveDraftBtn?.addEventListener('click', async () => {
-    if (!newsletterForm) return;
-    clearNewsletterMessages();
-    const payload = getNewsletterPayload();
-    const result = await Auth.saveNewsletterDraft(payload);
-    if (!result.success) {
-      showNewsletterError(result.message || 'Unable to save draft.');
-      return;
-    }
-    showNewsletterSuccess('Draft saved successfully.');
-    renderNewsletterPreview();
-  });
-
-  newsletterForm?.addEventListener('input', () => {
-    clearNewsletterMessages();
-  });
-
-  newsletterForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = newsletterForm;
-    form.classList.add('was-validated');
-    clearNewsletterMessages();
-    const payload = getNewsletterPayload();
-    if (!form.checkValidity()) {
-      showNewsletterError('Please complete required newsletter fields.');
-      return;
-    }
-    if (payload.recipients.length === 0) {
-      showNewsletterError('Select at least one recipient before distributing.');
-      return;
-    }
-
-    const result = await Auth.distributeNewsletter(payload);
-    if (!result.success) {
-      showNewsletterError(result.message || 'Distribution failed. Retry or save as draft.');
-      return;
-    }
-
-    showNewsletterSuccess(`Newsletter distributed successfully to ${result.recipientCount} recipient(s).`);
-    form.reset();
-    form.classList.remove('was-validated');
-    await renderNewsletterRecipients();
-    await renderNewsletterHistory();
-    renderNewsletterPreview();
-  });
-
+  setAdminVolunteerOtherInterestInputState();
+  toggleInlineParticipantUserFields();
+  toggleInlineVolunteerUserFields();
+  syncUserLinkVisibility();
+  document.getElementById('regRole')?.addEventListener('change', syncUserLinkVisibility);
+  document.getElementById('participantCreateUserToggle')?.addEventListener('change', toggleInlineParticipantUserFields);
+  document.getElementById('adminVolCreateUserToggle')?.addEventListener('change', toggleInlineVolunteerUserFields);
 });

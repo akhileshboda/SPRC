@@ -565,6 +565,12 @@
     <!-- ════════════ EVENTS GRID ════════════ -->
     <main id="events-main">
         <div class="container">
+            <div id="guardianEventTargetPanel" class="card border-primary-subtle mb-3 d-none">
+                <div class="card-body py-3">
+                    <label for="guardianEventParticipantSelect" class="form-label small text-muted mb-2">Guardian mode: choose which linked participant you are saving events for</label>
+                    <select id="guardianEventParticipantSelect" class="form-select"></select>
+                </div>
+            </div>
             <p id="resultsCount" class="mb-3" aria-live="polite" aria-atomic="true"></p>
             <div id="eventsGrid" role="list" aria-label="Community events"></div>
         </div>
@@ -585,7 +591,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/nav.js"></script>
-    <script src="js/auth.js?v=7"></script>
+    <script src="js/auth.js?v=8"></script>
     <script>
         // Scroll shadow is handled by js/nav.js
 
@@ -595,6 +601,7 @@
         let searchQuery = '';
         let currentSession = null;
         let interestedEventIds = new Set();
+        let guardianParticipantSelectEl = null;
 
         function escapeHtml(str) {
             return String(str ?? '')
@@ -616,9 +623,15 @@
                     <i class="bi bi-box-arrow-in-right me-1"></i>Login to save
                 </a>`;
             }
+            if (currentSession.role === 'GUARDIAN') {
+                const disabled = guardianParticipantSelectEl?.value ? '' : 'disabled';
+                return `<button class="btn btn-sm btn-primary js-event-toggle-btn" data-event-id="${escapeHtml(event.id)}" data-event-title="${escapeHtml(event.title)}" ${disabled} style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;">
+                    <i class="bi bi-people me-1"></i>Save for participant
+                </button>`;
+            }
             if (currentSession.role !== 'PARTICIPANT') {
-                return `<button class="btn btn-sm btn-outline-secondary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" disabled title="Participants can save event interests">
-                    Participants only
+                return `<button class="btn btn-sm btn-outline-secondary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" disabled title="Participants or guardians can save event interests">
+                    Restricted
                 </button>`;
             }
             if (interestedEventIds.has(String(event.id))) {
@@ -677,14 +690,15 @@
                 interestedEventIds = new Set();
                 return;
             }
-            interestedEventIds = new Set(await Auth.getInterestedEventIds(currentSession.email));
+            interestedEventIds = new Set(await Auth.getInterestedEventIds());
         }
 
         function wireEventToggleButtons() {
             document.querySelectorAll('.js-event-toggle-btn').forEach((btn) => {
                 btn.addEventListener('click', async () => {
                     btn.disabled = true;
-                    const result = await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
+                    const options = currentSession?.role === 'GUARDIAN' ? { participantId: guardianParticipantSelectEl?.value } : {};
+                    const result = await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle, options);
                     if (!result.success) {
                         alert(result.message || 'Could not update event interest.');
                         btn.disabled = false;
@@ -746,11 +760,24 @@
 
         document.addEventListener('DOMContentLoaded', async () => {
             currentSession = await Auth.getSession();
+            guardianParticipantSelectEl = document.getElementById('guardianEventParticipantSelect');
             
             const signinBtn = document.getElementById('nav-signin-btn');
             if (signinBtn && currentSession) {
                 signinBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i>Back to Dashboard';
                 signinBtn.href = 'dashboard.html';
+            }
+
+            if (currentSession?.role === 'GUARDIAN') {
+                const linkedParticipants = await Auth.getLinkedParticipantsForCurrentUser();
+                const panel = document.getElementById('guardianEventTargetPanel');
+                if (panel && guardianParticipantSelectEl) {
+                    panel.classList.remove('d-none');
+                    guardianParticipantSelectEl.innerHTML = linkedParticipants.length
+                        ? linkedParticipants.map((participant) => `<option value="${escapeHtml(participant.id)}">${escapeHtml(participant.fullName)}</option>`).join('')
+                        : '<option value="">No linked participants</option>';
+                    guardianParticipantSelectEl.addEventListener('change', filterAndRender);
+                }
             }
             
             const grid = document.getElementById('eventsGrid');

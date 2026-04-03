@@ -63,7 +63,7 @@
 
                 if (!navRight) return;
 
-                const roleClass   = { ADMIN: 'badge-ADMIN', PARTICIPANT: 'badge-PARTICIPANT', VOLUNTEER: 'badge-VOLUNTEER' }[session.role] || 'bg-secondary';
+                const roleClass   = { ADMIN: 'badge-ADMIN', GUARDIAN: 'badge-GUARDIAN', PARTICIPANT: 'badge-PARTICIPANT', VOLUNTEER: 'badge-VOLUNTEER' }[session.role] || 'bg-secondary';
                 const displayName = (session.name || session.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const nameEl      = filename === 'dashboard'
                     ? `<span class="nav-user-name">${displayName}</span>`
