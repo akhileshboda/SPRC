@@ -318,7 +318,7 @@
 
         .event-meta-row {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 0.45rem;
             font-size: 0.8rem;
             color: var(--k-muted);
@@ -327,6 +327,42 @@
         .event-meta-row i {
             font-size: 0.78rem;
             color: var(--k-indigo);
+            flex-shrink: 0;
+            line-height: 1.5;
+            margin-top: 0.05rem;
+        }
+
+        .event-meta-text {
+            min-width: 0;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .event-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-top: auto;
+            flex-wrap: wrap;
+        }
+
+        .event-card-footer-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            min-width: 0;
+            flex: 1 1 12rem;
+            flex-wrap: wrap;
+        }
+
+        .event-added-date {
+            font-size: 0.72rem;
+            color: var(--k-muted);
+            line-height: 1.4;
+        }
+
+        .event-card-footer .btn {
             flex-shrink: 0;
         }
 
@@ -468,6 +504,14 @@
             #eventsGrid {
                 grid-template-columns: 1fr;
             }
+
+            .event-card-footer {
+                align-items: stretch;
+            }
+
+            .event-card-footer .btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -608,8 +652,8 @@
           <div class="event-card-title">${escapeHtml(event.title)}</div>
 
           <div class="d-flex flex-column gap-1">
-            ${event.dateTimeLabel ? `<div class="event-meta-row"><i class="bi bi-calendar3"></i><span>${escapeHtml(event.dateTimeLabel)}</span></div>` : ''}
-            ${event.location ? `<div class="event-meta-row"><i class="bi bi-geo-alt"></i><span>${escapeHtml(event.location)}</span></div>` : ''}
+            ${event.dateTimeLabel ? `<div class="event-meta-row"><i class="bi bi-calendar3"></i><span class="event-meta-text">${escapeHtml(event.dateTimeLabel)}</span></div>` : ''}
+            ${event.location ? `<div class="event-meta-row"><i class="bi bi-geo-alt"></i><span class="event-meta-text">${escapeHtml(event.location)}</span></div>` : ''}
           </div>
 
           <hr class="event-card-divider">
@@ -618,9 +662,12 @@
             ${escapeHtml(event.accommodations || '—')}
           </div>
 
-          <div class="d-flex align-items-center justify-content-between mt-auto">
-            ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span></span>'}
-            <span style="font-size:0.72rem;color:var(--k-muted);">Added ${escapeHtml(event.dateAdded || '')}</span> ${actionButton(event, upcoming)}
+          <div class="event-card-footer">
+            <div class="event-card-footer-meta">
+              ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : ''}
+              <span class="event-added-date">Added ${escapeHtml(event.dateAdded || '')}</span>
+            </div>
+            ${actionButton(event, upcoming)}
           </div>
         </article>`;
         }
