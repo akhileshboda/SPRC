@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls /Users/akhilboda/Github/SPRC/*.js /Users/akhilboda/Github/SPRC/*.json)",
-      "Bash(python3 -c \":*)"
-    ]
-  }
-}
