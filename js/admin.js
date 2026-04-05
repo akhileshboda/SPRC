@@ -305,6 +305,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     editingEventId = null;
     const submitBtn = document.getElementById('eventSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Publish Event';
+    const urgentCheck = document.getElementById('eventIsUrgent');
+    if (urgentCheck) urgentCheck.checked = false;
   }
 
   function resetJobFormState() {
@@ -314,6 +316,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     editingJobId = null;
     const submitBtn = document.getElementById('jobSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Save Opportunity';
+    const urgentCheck = document.getElementById('jobIsUrgent');
+    if (urgentCheck) urgentCheck.checked = false;
   }
 
   function setAdminVolunteerOtherInterestInputState() {
@@ -604,6 +608,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('eventLocation').value = event.location || '';
         document.getElementById('eventCost').value = event.cost || '';
         document.getElementById('eventAccommodations').value = event.accommodations || '';
+        const urgentCheck = document.getElementById('eventIsUrgent');
+        if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
         editingEventId = event.id;
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         showEventsFormView(true);
@@ -688,6 +694,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('jobStatus').value = job.status || 'Open';
         document.getElementById('jobSalary').value = job.salary || '';
         document.getElementById('jobRequirements').value = job.requirements || '';
+        const urgentCheck = document.getElementById('jobIsUrgent');
+        if (urgentCheck) urgentCheck.checked = Boolean(job.isUrgent);
         editingJobId = job.id;
         document.getElementById('jobSubmitBtn').textContent = 'Update Opportunity';
         showJobsFormView(true);
@@ -957,7 +965,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       dateTime: document.getElementById('eventDateTime').value,
       location: document.getElementById('eventLocation').value,
       cost: document.getElementById('eventCost').value,
-      accommodations: document.getElementById('eventAccommodations').value
+      accommodations: document.getElementById('eventAccommodations').value,
+      isUrgent: Boolean(document.getElementById('eventIsUrgent')?.checked)
     };
     const result = editingEventId ? await Auth.updateEvent(editingEventId, payload) : await Auth.addEvent(payload);
     if (!result.success) {
@@ -985,7 +994,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       jobType: document.getElementById('jobType').value,
       status: document.getElementById('jobStatus').value,
       salary: document.getElementById('jobSalary').value,
-      requirements: document.getElementById('jobRequirements').value
+      requirements: document.getElementById('jobRequirements').value,
+      isUrgent: Boolean(document.getElementById('jobIsUrgent')?.checked)
     };
     const result = editingJobId ? await Auth.updateJob(editingJobId, payload) : await Auth.addJob(payload);
     if (!result.success) {
@@ -1087,6 +1097,264 @@ document.addEventListener('DOMContentLoaded', async () => {
     showUsersListView();
   });
   document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => navigateTo('communications'));
+  document.getElementById('adminUrgentAlertsQuickBtn')?.addEventListener('click', () => navigateTo('urgent-notifications'));
+
+  // ─── Urgent Notifications UI ─────────────────────────────────────────────────────
+
+  let urgentCurrentDraft = null; // holds the current draft context
+
+  function showUrgentError(message) {
+    const el = document.getElementById('urgentNotifError');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('d-none');
+    document.getElementById('urgentNotifSuccess')?.classList.add('d-none');
+  }
+
+  function showUrgentSuccess(message) {
+    const el = document.getElementById('urgentNotifSuccess');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.remove('d-none');
+    document.getElementById('urgentNotifError')?.classList.add('d-none');
+  }
+
+  function clearUrgentMessages() {
+    document.getElementById('urgentNotifError')?.classList.add('d-none');
+    document.getElementById('urgentNotifSuccess')?.classList.add('d-none');
+  }
+
+  function getSelectedUrgentRecipients() {
+    return Array.from(document.querySelectorAll('input[name="urgentRecipients"]:checked')).map((cb) => cb.value);
+  }
+
+  async function renderUrgentRecipients(suggestedEmails = []) {
+    const container = document.getElementById('urgentRecipientsList');
+    if (!container) return;
+    const users = await Auth.getUsers();
+    const suggestedSet = new Set(suggestedEmails.map((e) => String(e).toLowerCase()));
+    // Exclude volunteers and admins
+    const eligible = users.filter((user) => user.role !== 'VOLUNTEER' && user.role !== 'ADMIN');
+    if (!eligible.length) {
+      container.innerHTML = '<p class="text-muted small mb-0">No eligible recipients.</p>';
+      return;
+    }
+    container.innerHTML = eligible.map((user) => {
+      const suggested = suggestedSet.has(String(user.email).toLowerCase());
+      return `
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" value="${escapeHtml(user.email)}"
+            id="urgentRecipient_${escapeHtml(user.id)}" name="urgentRecipients"
+            ${suggested ? 'checked' : ''}>
+          <label class="form-check-label small" for="urgentRecipient_${escapeHtml(user.id)}">
+            ${escapeHtml(user.name)}
+            <span class="text-muted">(${escapeHtml(user.email)})</span>
+            ${suggested ? '<span class="badge bg-success ms-1" style="font-size:0.65rem;">Matched</span>' : ''}
+          </label>
+        </div>`;
+    }).join('');
+  }
+
+  async function renderUrgentOpportunitiesList() {
+    const list = document.getElementById('urgentOpportunitiesList');
+    const countBadge = document.getElementById('urgentOpportunityCount');
+    if (!list) return;
+
+    const { events, jobs } = await Auth.getUrgentOpportunities();
+    const total = events.length + jobs.length;
+    if (countBadge) countBadge.textContent = total;
+
+    if (!total) {
+      list.innerHTML = `
+        <div class="p-4 text-center">
+          <i class="bi bi-check-circle text-success fs-2 mb-2 d-block"></i>
+          <div class="fw-semibold mb-1">No urgent opportunities right now</div>
+          <div class="text-muted small">Events starting within 48 hours and jobs flagged as urgent will appear here.</div>
+        </div>`;
+      return;
+    }
+
+    const eventItems = events.map((event) => `
+      <div class="p-3 border-bottom">
+        <div class="d-flex align-items-start gap-2">
+          <span class="badge bg-danger mt-1" style="font-size:0.65rem; white-space:nowrap;">
+            ${event.isUrgent ? 'URGENT' : 'SOON'}
+          </span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold small">${escapeHtml(event.title)}</div>
+            <div class="text-muted" style="font-size:0.78rem;">
+              <i class="bi bi-calendar2 me-1"></i>${escapeHtml(event.dateTimeLabel)}
+            </div>
+            <div class="text-muted" style="font-size:0.78rem;">
+              <i class="bi bi-geo-alt me-1"></i>${escapeHtml(event.location)}
+            </div>
+            <span class="badge bg-light text-dark border mt-1" style="font-size:0.65rem;">${escapeHtml(event.category)}</span>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-danger w-100 mt-2"
+          data-urgent-type="event" data-urgent-id="${escapeHtml(event.id)}" data-urgent-title="${escapeHtml(event.title)}">
+          <i class="bi bi-pencil-square me-1"></i>Draft Notification
+        </button>
+      </div>`).join('');
+
+    const jobItems = jobs.map((job) => `
+      <div class="p-3 border-bottom">
+        <div class="d-flex align-items-start gap-2">
+          <span class="badge bg-danger mt-1" style="font-size:0.65rem;">URGENT</span>
+          <div class="flex-grow-1">
+            <div class="fw-semibold small">${escapeHtml(job.title)}</div>
+            <div class="text-muted" style="font-size:0.78rem;">
+              <i class="bi bi-building me-1"></i>${escapeHtml(job.employer)}
+            </div>
+            <div class="text-muted" style="font-size:0.78rem;">
+              <i class="bi bi-geo-alt me-1"></i>${escapeHtml(job.location || 'Local area')}
+            </div>
+            ${job.salary ? `<div class="text-muted" style="font-size:0.78rem;"><i class="bi bi-currency-dollar"></i>${escapeHtml(job.salary)}</div>` : ''}
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-danger w-100 mt-2"
+          data-urgent-type="job" data-urgent-id="${escapeHtml(job.id)}" data-urgent-title="${escapeHtml(job.title)}">
+          <i class="bi bi-pencil-square me-1"></i>Draft Notification
+        </button>
+      </div>`).join('');
+
+    list.innerHTML = eventItems + jobItems;
+
+    // Wire Draft Notification buttons
+    list.querySelectorAll('[data-urgent-type]').forEach((btn) => {
+      btn.addEventListener('click', () => loadUrgentDraft(btn.dataset.urgentType, btn.dataset.urgentId, btn.dataset.urgentTitle));
+    });
+  }
+
+  async function loadUrgentDraft(type, id, title) {
+    clearUrgentMessages();
+    const badge = document.getElementById('urgentDraftOpportunityBadge');
+    if (badge) {
+      badge.textContent = `${type === 'event' ? '📅 Event' : '💼 Job'}: ${title}`;
+      badge.classList.remove('d-none');
+      badge.className = `badge ms-auto ${type === 'event' ? 'bg-primary' : 'bg-warning text-dark'}`;
+    }
+
+    const result = await Auth.generateUrgentDraft(type, id);
+    if (!result.success) {
+      showUrgentError(result.message || 'Unable to generate draft.');
+      return;
+    }
+
+    urgentCurrentDraft = result;
+
+    document.getElementById('urgentSubject').value = result.subject;
+    document.getElementById('urgentBody').value = result.body;
+
+    const banner = document.getElementById('urgentMatchBanner');
+    if (banner) {
+      if (result.wasFallback) {
+        banner.className = 'alert alert-warning mb-3 py-2 small';
+        banner.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i><strong>No precise profile matches found.</strong> All ${result.totalParticipantCount} participant(s) and their guardians have been pre-selected as recipients.`;
+      } else {
+        banner.className = 'alert alert-success mb-3 py-2 small';
+        banner.innerHTML = `<i class="bi bi-bullseye me-1"></i><strong>${result.matchedParticipantCount} participant(s) matched</strong> based on profile keywords. Their contact emails and linked guardian emails are pre-selected below.`;
+      }
+    }
+
+    await renderUrgentRecipients(result.suggestedRecipientEmails);
+
+    document.getElementById('urgentDraftPlaceholder')?.classList.add('d-none');
+    document.getElementById('urgentDraftForm')?.classList.remove('d-none');
+  }
+
+  async function renderUrgentDispatchHistory() {
+    const container = document.getElementById('urgentDispatchHistory');
+    if (!container) return;
+    const history = await Auth.getUrgentNotificationHistory();
+    if (!history.length) {
+      container.innerHTML = '<div class="p-3 text-muted small text-center">No alerts sent yet.</div>';
+      return;
+    }
+    container.innerHTML = history.slice(0, 10).map((entry) => `
+      <div class="p-3 border-bottom">
+        <div class="d-flex align-items-start gap-2 mb-1">
+          <i class="bi bi-send-fill text-danger mt-1" style="font-size: 0.8rem;"></i>
+          <div>
+            <div class="fw-semibold" style="font-size:0.82rem; line-height:1.3;">${escapeHtml(entry.subject)}</div>
+            <div class="text-muted" style="font-size:0.73rem;">
+              ${escapeHtml(entry.opportunityTitle || entry.opportunityType || '')}
+            </div>
+          </div>
+        </div>
+        <div class="text-muted" style="font-size:0.72rem;">
+          <i class="bi bi-person-check me-1"></i>${escapeHtml(entry.sentByName)} &bull;
+          <i class="bi bi-people me-1 ms-1"></i>${entry.recipientCount} recipient(s)<br>
+          <i class="bi bi-clock me-1"></i>${escapeHtml(entry.sentAtLabel)}
+        </div>
+      </div>`).join('');
+  }
+
+  document.getElementById('urgentSendBtn')?.addEventListener('click', async () => {
+    clearUrgentMessages();
+    const subject = document.getElementById('urgentSubject')?.value?.trim();
+    const body = document.getElementById('urgentBody')?.value?.trim();
+    const recipients = getSelectedUrgentRecipients();
+
+    if (!subject || !body) {
+      showUrgentError('Please provide a subject and message body before sending.');
+      return;
+    }
+    if (!recipients.length) {
+      showUrgentError('Select at least one recipient before sending.');
+      return;
+    }
+
+    const payload = {
+      subject,
+      body,
+      recipients,
+      opportunityType: urgentCurrentDraft?.opportunityType || '',
+      opportunityId: urgentCurrentDraft?.opportunityId || '',
+      opportunityTitle: urgentCurrentDraft?.opportunityTitle || ''
+    };
+
+    const btn = document.getElementById('urgentSendBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending…'; }
+
+    const result = await Auth.sendUrgentNotification(payload);
+
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-send-fill me-2"></i>Send Urgent Notification'; }
+
+    if (!result.success) {
+      showUrgentError(result.message || 'Unable to send notification.');
+      return;
+    }
+
+    showUrgentSuccess(`✓ Urgent notification dispatched to ${result.recipientCount} recipient(s) at ${result.sentAtLabel}.`);
+    showToast(`Urgent alert sent to ${result.recipientCount} recipient(s).`);
+
+    // Reset draft form
+    document.getElementById('urgentDraftForm')?.classList.add('d-none');
+    document.getElementById('urgentDraftPlaceholder')?.classList.remove('d-none');
+    const badge = document.getElementById('urgentDraftOpportunityBadge');
+    if (badge) badge.classList.add('d-none');
+    urgentCurrentDraft = null;
+
+    await renderUrgentDispatchHistory();
+  });
+
+  document.getElementById('urgentSelectAllRecipientsBtn')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="urgentRecipients"]').forEach((cb) => { cb.checked = true; });
+  });
+
+  document.getElementById('urgentClearRecipientsBtn')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="urgentRecipients"]').forEach((cb) => { cb.checked = false; });
+  });
+
+  document.getElementById('urgentRefreshBtn')?.addEventListener('click', async () => {
+    await renderUrgentOpportunitiesList();
+    await renderUrgentDispatchHistory();
+    showToast('Urgent opportunities refreshed.');
+  });
+
+  await renderUrgentOpportunitiesList();
+  await renderUrgentDispatchHistory();
 
   document.getElementById('newsletterPreviewBtn')?.addEventListener('click', () => {
     clearNewsletterMessages();

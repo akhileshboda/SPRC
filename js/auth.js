@@ -16,6 +16,8 @@ const Auth = (() => {
   const NEWSLETTERS_KEY = 'kindred_newsletters';
   const NEWSLETTER_DRAFT_KEY = 'kindred_newsletter_draft';
   const NEWSLETTER_LOG_KEY = 'kindred_newsletter_log';
+  const URGENT_NOTIFICATIONS_KEY = 'kindred_urgent_notifications';
+  const AUDIT_LOG_KEY = 'kindred_audit_log';
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
   const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals'];
@@ -278,6 +280,14 @@ const Auth = (() => {
     return parseJson(NEWSLETTER_LOG_KEY, []);
   }
 
+  function getRawUrgentNotifications() {
+    return parseJson(URGENT_NOTIFICATIONS_KEY, []);
+  }
+
+  function getRawAuditLog() {
+    return parseJson(AUDIT_LOG_KEY, []);
+  }
+
   function normalizeRole(role, fallback = 'PARTICIPANT') {
     const upper = String(role || '').trim().toUpperCase();
     if (upper === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
@@ -534,6 +544,8 @@ const Auth = (() => {
 
     if (!localStorage.getItem(NEWSLETTERS_KEY)) setJson(NEWSLETTERS_KEY, []);
     if (!localStorage.getItem(NEWSLETTER_LOG_KEY)) setJson(NEWSLETTER_LOG_KEY, []);
+    if (!localStorage.getItem(URGENT_NOTIFICATIONS_KEY)) setJson(URGENT_NOTIFICATIONS_KEY, []);
+    if (!localStorage.getItem(AUDIT_LOG_KEY)) setJson(AUDIT_LOG_KEY, []);
   }
 
   function getUserByIdInternal(userId) {
@@ -650,7 +662,9 @@ const Auth = (() => {
       APPROVALS_KEY,
       NEWSLETTERS_KEY,
       NEWSLETTER_DRAFT_KEY,
-      NEWSLETTER_LOG_KEY
+      NEWSLETTER_LOG_KEY,
+      URGENT_NOTIFICATIONS_KEY,
+      AUDIT_LOG_KEY
     ].forEach((key) => localStorage.removeItem(key));
     if (reseed) initStores();
     return { success: true };
@@ -1100,6 +1114,7 @@ const Auth = (() => {
       location: String(payload.location || '').trim(),
       cost: String(payload.cost || '').trim(),
       accommodations: String(payload.accommodations || '').trim(),
+      isUrgent: Boolean(payload.isUrgent),
       createdAtMs: Date.now(),
       dateAdded: formatDateLabel(new Date())
     });
@@ -1122,7 +1137,8 @@ const Auth = (() => {
       eventTimestamp: getEventTimestamp(payload.dateTime),
       location: String(payload.location || '').trim(),
       cost: String(payload.cost || '').trim(),
-      accommodations: String(payload.accommodations || '').trim()
+      accommodations: String(payload.accommodations || '').trim(),
+      isUrgent: Boolean(payload.isUrgent)
     };
     setJson(EVENTS_KEY, events);
     return { success: true };
@@ -1258,6 +1274,7 @@ const Auth = (() => {
       salary: String(payload.salary || '').trim(),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || 'Open').trim() || 'Open',
+      isUrgent: Boolean(payload.isUrgent),
       createdAtMs: Date.now(),
       dateAdded: formatDateLabel(new Date())
     });
@@ -1280,7 +1297,8 @@ const Auth = (() => {
       jobType: String(payload.jobType || '').trim(),
       salary: String(payload.salary || '').trim(),
       requirements: String(payload.requirements || '').trim(),
-      status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open'
+      status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open',
+      isUrgent: Boolean(payload.isUrgent)
     };
     setJson(JOBS_KEY, jobs);
     return { success: true };
@@ -1753,6 +1771,233 @@ const Auth = (() => {
     return { success: true, recipientCount: registeredRecipientCount };
   }
 
+  // ─── Urgent Notification helpers ──────────────────────────────────────────
+
+  const URGENT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+  function isUrgentEvent(event) {
+    if (event.isUrgent) return true;
+    const ts = getEventTimestamp(event.dateTime);
+    if (ts === null) return false;
+    const delta = ts - Date.now();
+    return delta >= 0 && delta <= URGENT_WINDOW_MS;
+  }
+
+  function isUrgentJob(job) {
+    return Boolean(job.isUrgent);
+  }
+
+  function tokenize(text) {
+    return String(text || '')
+      .toLowerCase()
+      .split(/[\s,;.!?()\-/]+/)
+      .filter((token) => token.length > 3);
+  }
+
+  function hasKeywordOverlap(sourceText, targetText) {
+    const sourceTokens = tokenize(sourceText);
+    const targetTokens = new Set(tokenize(targetText));
+    return sourceTokens.some((token) => targetTokens.has(token));
+  }
+
+  function getMatchingParticipantsForEvent(event, participants) {
+    const opportunityText = `${event.accommodations || ''} ${event.category || ''} ${event.title || ''}`;
+    return participants.filter((participant) => {
+      const profileText = [
+        participant.specialNeeds,
+        Array.isArray(participant.participantInterests) ? participant.participantInterests.join(' ') : participant.participantInterests,
+        participant.sensoryNotes
+      ].join(' ');
+      return hasKeywordOverlap(opportunityText, profileText);
+    });
+  }
+
+  function getMatchingParticipantsForJob(job, participants) {
+    const opportunityText = `${job.requirements || ''} ${job.title || ''} ${job.employer || ''}`;
+    return participants.filter((participant) => {
+      const profileText = [
+        participant.jobGoals,
+        Array.isArray(participant.participantInterests) ? participant.participantInterests.join(' ') : participant.participantInterests,
+        participant.specialNeeds
+      ].join(' ');
+      return hasKeywordOverlap(opportunityText, profileText);
+    });
+  }
+
+  function buildRecipientListForParticipants(matchedParticipants, allParticipants, users) {
+    const targetParticipants = matchedParticipants.length > 0 ? matchedParticipants : allParticipants;
+    const emails = new Set();
+    targetParticipants.forEach((participant) => {
+      if (participant.contactEmail) emails.add(normalizeEmail(participant.contactEmail));
+      (participant.guardianUserIds || []).forEach((guardianId) => {
+        const guardian = users.find((user) => String(user.id) === String(guardianId));
+        if (guardian?.email) emails.add(normalizeEmail(guardian.email));
+      });
+    });
+    return Array.from(emails);
+  }
+
+  async function getUrgentOpportunities() {
+    const session = await getSession();
+    if (!requireRole(session, ['ADMIN'])) return { events: [], jobs: [] };
+    const [allEvents, allJobs] = await Promise.all([getEvents(), getJobs()]);
+    return {
+      events: allEvents.filter(isUrgentEvent),
+      jobs: allJobs.filter(isUrgentJob)
+    };
+  }
+
+  async function generateUrgentDraft(opportunityType, opportunityId) {
+    const session = await getSession();
+    if (!requireRole(session, ['ADMIN'])) {
+      return { success: false, message: 'Only administrators can generate urgent notifications.' };
+    }
+    const participants = getRawParticipants();
+    const users = getRawUsers();
+    let opportunity = null;
+    let matchedParticipants = [];
+    let subject = '';
+    let body = '';
+
+    if (opportunityType === 'event') {
+      opportunity = getRawEvents().find((event) => String(event.id) === String(opportunityId));
+      if (!opportunity) return { success: false, message: 'Event not found.' };
+      matchedParticipants = getMatchingParticipantsForEvent(opportunity, participants);
+      subject = `Urgent Community Alert: ${opportunity.title}`;
+      body = [
+        `Dear Participant and Family,`,
+        ``,
+        `We wanted to make sure you don't miss a time-sensitive community opportunity:`,
+        ``,
+        `📅 ${opportunity.title}`,
+        `📍 ${opportunity.location}`,
+        `🗓 ${formatEventDateTime(opportunity.dateTime)}`,
+        `💰 ${opportunity.cost}`,
+        ``,
+        `Details & Accommodations:`,
+        opportunity.accommodations || 'Please contact us for accessibility details.',
+        ``,
+        `Space may be limited — please reach out to your Kindred coordinator if you'd like to register.`,
+        ``,
+        `Warm regards,`,
+        `Kindred Administration`
+      ].join('\n');
+    } else if (opportunityType === 'job') {
+      opportunity = getRawJobs().find((job) => String(job.id) === String(opportunityId));
+      if (!opportunity) return { success: false, message: 'Job opportunity not found.' };
+      matchedParticipants = getMatchingParticipantsForJob(opportunity, participants);
+      subject = `Urgent Job Opportunity: ${opportunity.title} at ${opportunity.employer}`;
+      body = [
+        `Dear Participant and Family,`,
+        ``,
+        `An urgent job opportunity has become available that may be a great fit:`,
+        ``,
+        `💼 ${opportunity.title}`,
+        `🏢 ${opportunity.employer}`,
+        `📍 ${opportunity.location || 'Local area'}`,
+        `⏰ ${opportunity.jobType || 'Position type TBC'}${opportunity.salary ? ` | ${opportunity.salary}` : ''}`,
+        ``,
+        `Requirements:`,
+        opportunity.requirements || 'Please contact us for details.',
+        ``,
+        `If this sounds like a good fit, please contact your Kindred coordinator as soon as possible.`,
+        ``,
+        `Warm regards,`,
+        `Kindred Administration`
+      ].join('\n');
+    } else {
+      return { success: false, message: 'Invalid opportunity type. Must be "event" or "job".' };
+    }
+
+    const suggestedRecipientEmails = buildRecipientListForParticipants(matchedParticipants, participants, users);
+    const totalParticipants = participants.length;
+    const matchCount = matchedParticipants.length;
+
+    return {
+      success: true,
+      opportunityType,
+      opportunityId,
+      opportunityTitle: opportunity.title,
+      subject,
+      body,
+      suggestedRecipientEmails,
+      matchedParticipantCount: matchCount,
+      totalParticipantCount: totalParticipants,
+      wasFallback: matchCount === 0 && totalParticipants > 0
+    };
+  }
+
+  async function sendUrgentNotification(payload) {
+    const session = await getSession();
+    if (!requireRole(session, ['ADMIN'])) {
+      return { success: false, message: 'Only administrators can send urgent notifications.' };
+    }
+    const subject = String(payload.subject || '').trim();
+    const body = String(payload.body || '').trim();
+    const recipients = Array.isArray(payload.recipients)
+      ? payload.recipients.map(normalizeEmail).filter(Boolean)
+      : [];
+    if (!subject) return { success: false, message: 'A subject line is required.' };
+    if (!body) return { success: false, message: 'Message body is required.' };
+    if (!recipients.length) return { success: false, message: 'Select at least one recipient.' };
+
+    const users = getRawUsers();
+    const validRecipientCount = recipients.filter((email) => users.some((user) => user.email === email)).length;
+    if (!validRecipientCount) {
+      return { success: false, message: 'No valid registered recipients selected.' };
+    }
+
+    const sentAtMs = Date.now();
+    const sentAtLabel = new Date(sentAtMs).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+
+    const notificationRecord = {
+      id: makeId('un'),
+      opportunityType: String(payload.opportunityType || '').trim(),
+      opportunityId: String(payload.opportunityId || '').trim(),
+      opportunityTitle: String(payload.opportunityTitle || '').trim(),
+      subject,
+      body,
+      recipients,
+      recipientCount: validRecipientCount,
+      sentByUserId: session.userId,
+      sentByName: session.name,
+      sentAtMs,
+      sentAtLabel
+    };
+
+    const auditEntry = {
+      id: makeId('al'),
+      action: 'URGENT_NOTIFICATION_SENT',
+      adminUserId: session.userId,
+      adminName: session.name,
+      opportunityType: notificationRecord.opportunityType,
+      opportunityId: notificationRecord.opportunityId,
+      opportunityTitle: notificationRecord.opportunityTitle,
+      recipientCount: validRecipientCount,
+      recipients,
+      sentAtMs,
+      sentAtLabel
+    };
+
+    const notifications = getRawUrgentNotifications();
+    notifications.push(notificationRecord);
+    setJson(URGENT_NOTIFICATIONS_KEY, notifications);
+
+    const auditLog = getRawAuditLog();
+    auditLog.push(auditEntry);
+    setJson(AUDIT_LOG_KEY, auditLog);
+
+    return { success: true, recipientCount: validRecipientCount, sentAtLabel };
+  }
+
+  async function getUrgentNotificationHistory() {
+    const session = await getSession();
+    if (!requireRole(session, ['ADMIN'])) return [];
+    return getRawUrgentNotifications().slice().sort((a, b) => (b.sentAtMs || 0) - (a.sentAtMs || 0));
+  }
+
   initStores();
 
   return {
@@ -1804,6 +2049,10 @@ const Auth = (() => {
     getNewsletterDraft,
     saveNewsletterDraft,
     getNewsletterHistory,
-    distributeNewsletter
+    distributeNewsletter,
+    getUrgentOpportunities,
+    generateUrgentDraft,
+    sendUrgentNotification,
+    getUrgentNotificationHistory
   };
 })();

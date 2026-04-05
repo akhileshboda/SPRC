@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { id: 'events',       label: 'Events',       icon: 'bi-calendar-event', roles: ['ADMIN'] },
   { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
+  { id: 'urgent-notifications', label: 'Urgent Alerts', icon: 'bi-bell-fill', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
   // GUARDIAN sections
   { id: 'g-participants', label: 'My Participants', icon: 'bi-people-fill', roles: ['GUARDIAN'] },
