@@ -65,13 +65,16 @@
 
                 const roleClass   = { ADMIN: 'badge-ADMIN', GUARDIAN: 'badge-GUARDIAN', PARTICIPANT: 'badge-PARTICIPANT', VOLUNTEER: 'badge-VOLUNTEER' }[session.role] || 'bg-secondary';
                 const displayName = (session.name || session.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const nameEl      = filename === 'dashboard'
-                    ? `<span class="nav-user-name">${displayName}</span>`
-                    : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
+                const dashboardBtn = filename === 'dashboard'
+                    ? ''
+                    : `<a href="dashboard.html" class="btn-nav-dashboard">
+                        <i class="bi bi-speedometer2 me-1" aria-hidden="true"></i>Dashboard
+                    </a>`;
 
                 navRight.innerHTML = `
-                    ${nameEl}
+                    <span class="nav-user-name">${displayName}</span>
                     <span class="badge ${roleClass}">${session.role}</span>
+                    ${dashboardBtn}
                     <button class="btn-nav-logout js-logout-btn" type="button">
                         <i class="bi bi-box-arrow-right me-1"></i>Logout
                     </button>`;

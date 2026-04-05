@@ -527,17 +527,37 @@ body {
   box-shadow:  0 4px 14px rgba(79, 98, 176, 0.35);
 }
 
-/* Dashboard nav: user name + logout button */
+/* Dashboard nav: user name label */
 .nav-user-name {
-  font-size:      0.82rem;
-  font-weight:    600;
-  color:          var(--k-text, #1a1d2e);
-  white-space:    nowrap;
-  text-decoration: none;
+  font-size:   0.82rem;
+  font-weight: 600;
+  color:       var(--k-text, #1a1d2e);
+  white-space: nowrap;
 }
 
-a.nav-user-name:hover {
-  color: var(--k-indigo, #4F62B0);
+/* Dashboard nav: dashboard button */
+.btn-nav-dashboard {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.25rem;
+  padding:       0.4rem 0.9rem;
+  border-radius: var(--radius-pill, 2rem);
+  background:    transparent;
+  color:         var(--k-indigo, #4F62B0);
+  font-size:     0.82rem;
+  font-weight:   600;
+  border:        1.5px solid var(--k-indigo, #4F62B0);
+  cursor:        pointer;
+  white-space:   nowrap;
+  text-decoration: none;
+  transition:    background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-nav-dashboard:hover,
+.btn-nav-dashboard:focus-visible {
+  background: var(--k-indigo, #4F62B0);
+  color:      #fff;
+  outline:    none;
 }
 
 .btn-nav-logout {
