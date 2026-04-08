@@ -291,4 +291,124 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Render full events grid now (for when volunteer clicks Events in sidebar)
   await renderVolunteerEvents();
+
+  // ── Background Check Consent Flow ───────────────────────────────────────
+
+  const BG_STATUS_BADGE = {
+    'Not Started': { cls: 'bg-secondary',          icon: 'bi-dash-circle' },
+    'Pending':     { cls: 'bg-warning text-dark',   icon: 'bi-hourglass-split' },
+    'Cleared':     { cls: 'bg-success',             icon: 'bi-check-circle-fill' },
+    'Denied':      { cls: 'bg-danger',              icon: 'bi-x-circle-fill' },
+    'Expired':     { cls: 'bg-dark',                icon: 'bi-exclamation-triangle-fill' }
+  };
+
+  async function renderBgCheckPanel() {
+    const statusDisplay = document.getElementById('bgCheckStatusDisplay');
+    const consentArea = document.getElementById('bgCheckConsentArea');
+    const historyContainer = document.getElementById('bgCheckVolunteerHistory');
+    if (!statusDisplay) return;
+
+    const record = await Auth.getMyBgCheckRecord();
+    const status = record?.status || 'Not Started';
+    const badge = BG_STATUS_BADGE[status] || BG_STATUS_BADGE['Not Started'];
+    const consentSubmitted = Boolean(record?.consentSubmitted);
+
+    statusDisplay.innerHTML = `
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <span class="badge ${badge.cls} fs-6 px-3 py-2">
+          <i class="bi ${badge.icon} me-1"></i>${escHtml(status)}
+        </span>
+        ${consentSubmitted
+          ? `<span class="text-muted small"><i class="bi bi-check2 me-1"></i>Consent submitted ${escHtml(record.consentSubmittedAtLabel || '')}</span>`
+          : '<span class="text-muted small"><i class="bi bi-x me-1"></i>Consent not yet submitted</span>'
+        }
+      </div>
+      ${status === 'Cleared'
+        ? '<div class="alert alert-success small mb-0 mt-2"><i class="bi bi-shield-fill-check me-1"></i>Your background check is cleared. You are eligible to participate in events.</div>'
+        : ''
+      }
+      ${status === 'Denied'
+        ? '<div class="alert alert-danger small mb-0 mt-2"><i class="bi bi-shield-fill-exclamation me-1"></i>Your background check has been denied. Contact your Kindred coordinator for details.</div>'
+        : ''
+      }
+      ${status === 'Expired'
+        ? '<div class="alert alert-warning small mb-0 mt-2"><i class="bi bi-shield-fill-exclamation me-1"></i>Your background check has expired. Please resubmit consent or contact your administrator.</div>'
+        : ''
+      }`;
+
+    if (consentArea) {
+      if (consentSubmitted && status !== 'Expired') {
+        consentArea.classList.add('d-none');
+      } else {
+        consentArea.classList.remove('d-none');
+      }
+    }
+
+    if (historyContainer && record?.statusHistory?.length) {
+      historyContainer.innerHTML = record.statusHistory
+        .slice()
+        .reverse()
+        .map((entry) => `
+          <div class="border-bottom pb-2 mb-2">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge ${(BG_STATUS_BADGE[entry.status] || BG_STATUS_BADGE['Not Started']).cls}">
+                ${escHtml(entry.status)}
+              </span>
+              <span class="text-muted small">${escHtml(entry.changedAtLabel || '')}</span>
+            </div>
+            <div class="small text-muted">
+              Changed by: ${escHtml(entry.changedByName || 'System')} (${escHtml(entry.changedByRole || '')})
+              ${entry.note ? ` — ${escHtml(entry.note)}` : ''}
+            </div>
+          </div>`)
+        .join('');
+    } else if (historyContainer) {
+      historyContainer.innerHTML = '<p class="text-muted small mb-0">No history yet.</p>';
+    }
+  }
+
+  const consentCheckbox = document.getElementById('bgCheckConsentCheckbox');
+  const consentSubmitBtn = document.getElementById('bgCheckSubmitConsentBtn');
+  const consentErrorEl = document.getElementById('bgCheckConsentError');
+  const consentSuccessEl = document.getElementById('bgCheckConsentSuccess');
+
+  if (consentCheckbox && consentSubmitBtn) {
+    consentCheckbox.addEventListener('change', () => {
+      consentSubmitBtn.disabled = !consentCheckbox.checked;
+    });
+
+    consentSubmitBtn.addEventListener('click', async () => {
+      consentErrorEl?.classList.add('d-none');
+      consentSuccessEl?.classList.add('d-none');
+
+      if (!consentCheckbox.checked) {
+        if (consentErrorEl) {
+          consentErrorEl.textContent = 'You must check the consent box before submitting.';
+          consentErrorEl.classList.remove('d-none');
+        }
+        return;
+      }
+
+      consentSubmitBtn.disabled = true;
+      const result = await Auth.submitBgCheckConsent();
+
+      if (!result.success) {
+        if (consentErrorEl) {
+          consentErrorEl.textContent = result.message || 'Unable to submit consent.';
+          consentErrorEl.classList.remove('d-none');
+        }
+        consentSubmitBtn.disabled = false;
+        return;
+      }
+
+      if (consentSuccessEl) {
+        consentSuccessEl.textContent = 'Consent submitted successfully! Your background check is now pending administrator review.';
+        consentSuccessEl.classList.remove('d-none');
+      }
+
+      await renderBgCheckPanel();
+    });
+  }
+
+  await renderBgCheckPanel();
 });

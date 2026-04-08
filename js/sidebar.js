@@ -21,6 +21,7 @@ const NAV_ITEMS = [
   { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
+  { id: 'v-bgcheck',    label: 'Background Check', icon: 'bi-shield-lock', roles: ['VOLUNTEER'] },
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
 ];
 

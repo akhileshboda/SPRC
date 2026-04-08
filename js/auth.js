@@ -16,8 +16,11 @@ const Auth = (() => {
   const NEWSLETTERS_KEY = 'kindred_newsletters';
   const NEWSLETTER_DRAFT_KEY = 'kindred_newsletter_draft';
   const NEWSLETTER_LOG_KEY = 'kindred_newsletter_log';
+  const BG_CHECK_KEY = 'kindred_bg_checks';
   const URGENT_NOTIFICATIONS_KEY = 'kindred_urgent_notifications';
   const AUDIT_LOG_KEY = 'kindred_audit_log';
+
+  const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired'];
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
   const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals'];
@@ -278,6 +281,10 @@ const Auth = (() => {
 
   function getRawNewsletterLog() {
     return parseJson(NEWSLETTER_LOG_KEY, []);
+  }
+
+  function getRawBgChecks() {
+    return parseJson(BG_CHECK_KEY, []);
   }
 
   function getRawUrgentNotifications() {
@@ -544,6 +551,7 @@ const Auth = (() => {
 
     if (!localStorage.getItem(NEWSLETTERS_KEY)) setJson(NEWSLETTERS_KEY, []);
     if (!localStorage.getItem(NEWSLETTER_LOG_KEY)) setJson(NEWSLETTER_LOG_KEY, []);
+    if (!localStorage.getItem(BG_CHECK_KEY)) setJson(BG_CHECK_KEY, []);
     if (!localStorage.getItem(URGENT_NOTIFICATIONS_KEY)) setJson(URGENT_NOTIFICATIONS_KEY, []);
     if (!localStorage.getItem(AUDIT_LOG_KEY)) setJson(AUDIT_LOG_KEY, []);
   }
@@ -663,6 +671,7 @@ const Auth = (() => {
       NEWSLETTERS_KEY,
       NEWSLETTER_DRAFT_KEY,
       NEWSLETTER_LOG_KEY,
+      BG_CHECK_KEY,
       URGENT_NOTIFICATIONS_KEY,
       AUDIT_LOG_KEY
     ].forEach((key) => localStorage.removeItem(key));
@@ -1771,6 +1780,169 @@ const Auth = (() => {
     return { success: true, recipientCount: registeredRecipientCount };
   }
 
+  // ─── Background Check Management (Req 801 / 802) ────────────────────────
+
+  function getBgCheckRecordInternal(volunteerUserId) {
+    return getRawBgChecks().find((entry) => String(entry.volunteerUserId) === String(volunteerUserId)) || null;
+  }
+
+  function makeDateLabel() {
+    return new Date().toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  async function getBgCheckRecord(volunteerUserId) {
+    return getBgCheckRecordInternal(volunteerUserId);
+  }
+
+  async function getMyBgCheckRecord() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return null;
+    return getBgCheckRecordInternal(session.userId);
+  }
+
+  async function submitBgCheckConsent() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can submit background check consent.' };
+    }
+
+    const records = getRawBgChecks();
+    const existing = records.find((entry) => String(entry.volunteerUserId) === String(session.userId));
+
+    if (existing && existing.consentSubmitted) {
+      return { success: false, message: 'You have already submitted your background check consent.' };
+    }
+
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+    const historyEntry = {
+      status: 'Pending',
+      changedByUserId: session.userId,
+      changedByName: session.name,
+      changedByRole: 'VOLUNTEER',
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      note: 'Volunteer submitted consent'
+    };
+
+    if (existing) {
+      existing.consentSubmitted = true;
+      existing.consentSubmittedAtMs = now;
+      existing.consentSubmittedAtLabel = dateLabel;
+      existing.status = 'Pending';
+      existing.statusHistory.push(historyEntry);
+    } else {
+      records.push({
+        id: makeId('bgc'),
+        volunteerUserId: session.userId,
+        consentSubmitted: true,
+        consentSubmittedAtMs: now,
+        consentSubmittedAtLabel: dateLabel,
+        status: 'Pending',
+        statusHistory: [historyEntry],
+        notes: ''
+      });
+    }
+
+    setJson(BG_CHECK_KEY, records);
+
+    const profile = getVolunteerProfileByUserIdInternal(session.userId);
+    if (profile) {
+      const profiles = getRawVolunteerProfiles();
+      const idx = profiles.findIndex((p) => String(p.userId) === String(session.userId));
+      if (idx >= 0) {
+        profiles[idx].backgroundCheckStatus = 'Pending';
+        setJson(VOLUNTEER_PROFILES_KEY, profiles);
+      }
+    }
+
+    return { success: true };
+  }
+
+  async function updateBgCheckStatus(volunteerUserId, newStatus, notes = '') {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can update background check status.' };
+    }
+
+    if (!BG_CHECK_STATUSES.includes(newStatus)) {
+      return { success: false, message: `Invalid status. Must be one of: ${BG_CHECK_STATUSES.join(', ')}` };
+    }
+
+    const records = getRawBgChecks();
+    let record = records.find((entry) => String(entry.volunteerUserId) === String(volunteerUserId));
+
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+    const historyEntry = {
+      status: newStatus,
+      changedByUserId: session.userId,
+      changedByName: session.name,
+      changedByRole: 'ADMIN',
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      note: String(notes || '').trim()
+    };
+
+    if (record) {
+      record.status = newStatus;
+      record.notes = String(notes || record.notes || '').trim();
+      record.statusHistory.push(historyEntry);
+    } else {
+      record = {
+        id: makeId('bgc'),
+        volunteerUserId: String(volunteerUserId),
+        consentSubmitted: false,
+        consentSubmittedAtMs: null,
+        consentSubmittedAtLabel: '',
+        status: newStatus,
+        statusHistory: [historyEntry],
+        notes: String(notes || '').trim()
+      };
+      records.push(record);
+    }
+
+    setJson(BG_CHECK_KEY, records);
+
+    const profiles = getRawVolunteerProfiles();
+    const profileIdx = profiles.findIndex((p) => String(p.userId) === String(volunteerUserId));
+    if (profileIdx >= 0) {
+      profiles[profileIdx].backgroundCheckStatus = newStatus;
+      setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    }
+
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'BG_CHECK_STATUS_UPDATED',
+      adminUserId: session.userId,
+      adminName: session.name,
+      volunteerUserId: String(volunteerUserId),
+      previousStatus: record.statusHistory.length >= 2
+        ? record.statusHistory[record.statusHistory.length - 2].status
+        : 'N/A',
+      newStatus,
+      notes: String(notes || '').trim(),
+      changedAtMs: now,
+      changedAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+
+    return { success: true };
+  }
+
+  async function getAllBgCheckRecords() {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return [];
+    return getRawBgChecks().slice().sort((a, b) => {
+      const aTime = a.statusHistory?.length ? a.statusHistory[a.statusHistory.length - 1].changedAtMs : 0;
+      const bTime = b.statusHistory?.length ? b.statusHistory[b.statusHistory.length - 1].changedAtMs : 0;
+      return (bTime || 0) - (aTime || 0);
+    });
+  }
+
   // ─── Urgent Notification helpers ──────────────────────────────────────────
 
   const URGENT_WINDOW_MS = 48 * 60 * 60 * 1000; // 48 hours
@@ -2050,6 +2222,12 @@ const Auth = (() => {
     saveNewsletterDraft,
     getNewsletterHistory,
     distributeNewsletter,
+    BG_CHECK_STATUSES,
+    getBgCheckRecord,
+    getMyBgCheckRecord,
+    submitBgCheckConsent,
+    updateBgCheckStatus,
+    getAllBgCheckRecords,
     getUrgentOpportunities,
     generateUrgentDraft,
     sendUrgentNotification,

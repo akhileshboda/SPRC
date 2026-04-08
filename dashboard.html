@@ -428,6 +428,68 @@
         </div>
       </section>
 
+      <!-- ══ SECTION: Volunteer — Background Check Consent ══ -->
+      <section id="section-v-bgcheck" class="content-section d-none">
+        <div class="mb-3">
+          <h5 class="portal-section-title mb-0">
+            <i class="bi bi-shield-lock me-2 text-info"></i>Background Check Consent
+          </h5>
+          <p class="text-muted small mb-0">Submit your consent so you can be approved to participate in events.</p>
+        </div>
+
+        <div id="bgCheckVolunteerPanel">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info bg-opacity-10 border-info border-opacity-25 fw-semibold">
+              <i class="bi bi-shield-check me-2 text-info"></i>My Background Check Status
+            </div>
+            <div class="card-body">
+              <div id="bgCheckStatusDisplay" class="mb-3">
+                <div class="text-muted small">Loading status...</div>
+              </div>
+
+              <div id="bgCheckConsentArea">
+                <div class="alert alert-light border mb-3">
+                  <h6 class="fw-semibold mb-2"><i class="bi bi-info-circle me-1"></i>Background Check Consent</h6>
+                  <p class="mb-2 small">
+                    To participate in events involving participants with special needs, all volunteers are required to
+                    complete a background check. By submitting your consent below, you authorize Kindred to initiate
+                    a background check through our approved third-party provider.
+                  </p>
+                  <ul class="small mb-0">
+                    <li>Your information will be handled according to our privacy policy.</li>
+                    <li>Results are reviewed by an administrator and used solely for eligibility decisions.</li>
+                    <li>You may withdraw consent at any time by contacting your Kindred coordinator.</li>
+                  </ul>
+                </div>
+
+                <div class="form-check mb-3">
+                  <input class="form-check-input" type="checkbox" id="bgCheckConsentCheckbox">
+                  <label class="form-check-label" for="bgCheckConsentCheckbox">
+                    I understand and consent to a background check being performed for my volunteer eligibility.
+                  </label>
+                </div>
+
+                <div id="bgCheckConsentError" class="alert alert-danger d-none small" role="alert"></div>
+                <div id="bgCheckConsentSuccess" class="alert alert-success d-none small" role="alert"></div>
+
+                <button type="button" class="btn btn-info text-white fw-semibold" id="bgCheckSubmitConsentBtn" disabled>
+                  <i class="bi bi-send-check me-2"></i>Submit Consent
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm">
+            <div class="card-header bg-light fw-semibold">
+              <i class="bi bi-clock-history me-2"></i>Status History
+            </div>
+            <div class="card-body" id="bgCheckVolunteerHistory">
+              <p class="text-muted small mb-0">No history yet.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ══ SECTION: Volunteer — Events Discovery ══ -->
       <section id="section-v-events" class="content-section d-none">
         <div class="d-flex align-items-center justify-content-between mb-3">
@@ -602,7 +664,7 @@
                     <th scope="col">Contact</th>
                     <th scope="col">Interests</th>
                     <th scope="col">Availability</th>
-                    <th scope="col">Matched Opportunities</th>
+                    <th scope="col">Background Check</th>
                     <th scope="col">Last Updated</th>
                     <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
                   </tr>
@@ -714,6 +776,8 @@
                       <option value="Not Started">Not Started</option>
                       <option value="Pending">Pending</option>
                       <option value="Cleared">Cleared</option>
+                      <option value="Denied">Denied</option>
+                      <option value="Expired">Expired</option>
                     </select>
                   </div>
                   
@@ -1397,8 +1461,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=8"></script>
-  <script src="js/sidebar.js?v=3"></script>
+  <script src="js/auth.js?v=9"></script>
+  <script src="js/sidebar.js?v=4"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 

@@ -514,6 +514,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  const BG_STATUS_BADGE = {
+    'Not Started': 'bg-secondary',
+    'Pending':     'bg-warning text-dark',
+    'Cleared':     'bg-success',
+    'Denied':      'bg-danger',
+    'Expired':     'bg-dark'
+  };
+
+  function bgCheckBadge(status) {
+    const label = status || 'Not Started';
+    const cls = BG_STATUS_BADGE[label] || 'bg-secondary';
+    return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
+  }
+
   async function renderVolunteersTable() {
     const tbody = document.getElementById('volunteerProfilesTableBody');
     if (!tbody) return;
@@ -523,20 +537,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    tbody.innerHTML = profiles.map((profile) => `
+    tbody.innerHTML = profiles.map((profile) => {
+      const bgStatus = profile.backgroundCheckStatus || 'Not Started';
+      const eligible = bgStatus === 'Cleared';
+      const eligibilityMarkup = eligible
+        ? '<div class="text-success small mt-1"><i class="bi bi-check-circle-fill me-1"></i>Eligible</div>'
+        : (bgStatus === 'Denied' || bgStatus === 'Expired'
+          ? '<div class="text-danger small mt-1"><i class="bi bi-x-circle-fill me-1"></i>Ineligible</div>'
+          : '');
+      return `
       <tr>
         <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || '')}</div></td>
         <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
         <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
-        <td class="small">${escapeHtml(profile.backgroundCheckStatus || 'Not Started')}</td>
+        <td class="small">${bgCheckBadge(bgStatus)}${eligibilityMarkup}</td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
           <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">Edit</button>
           <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId)}">Delete</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
 
     tbody.querySelectorAll('[data-volunteer-edit-user-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -948,6 +970,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       volunteerAdminError.classList.remove('d-none');
       return;
     }
+
+    const newBgStatus = payload.backgroundCheckStatus || 'Not Started';
+    if (payload.userId && newBgStatus !== 'Not Started') {
+      await Auth.updateBgCheckStatus(payload.userId, newBgStatus, 'Updated by admin via volunteer profile form');
+    }
+
     const wasEditing = Boolean(editingVolunteerUserId);
     resetVolunteerFormState();
     await renderVolunteersTable();
