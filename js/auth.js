@@ -183,6 +183,21 @@ const Auth = (() => {
     }
   ];
 
+  const SEED_VOLUNTEER_PROFILES = [
+    {
+      userId: 'seed_u_volunteer',
+      firstName: 'Jane',
+      lastName: 'Wilde',
+      phone: '(555) 555-0199',
+      email: 'janew@kindred.org',
+      interests: ['Mentoring', 'Community Events'],
+      availability: 'Weeknights after 6 PM, Saturday mornings',
+      backgroundCheckStatus: 'Not Started',
+      updatedAt: 1735689600000,
+      updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
+    }
+  ];
+
   function makeId(prefix) {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
@@ -406,7 +421,7 @@ const Auth = (() => {
     const volunteerUsers = users.filter((user) => user.role === 'VOLUNTEER');
     const usersByEmail = new Map(users.map((user) => [user.email, user]));
 
-    return profiles
+    const result = profiles
       .map((profile) => {
         const email = normalizeEmail(profile.email);
         const linkedUser = profile.userId
@@ -433,6 +448,14 @@ const Auth = (() => {
         };
       })
       .filter(Boolean);
+
+    if (!result.length && SEED_VOLUNTEER_PROFILES.length) {
+      return SEED_VOLUNTEER_PROFILES
+        .filter((profile) => volunteerUsers.some((user) => String(user.id) === String(profile.userId)))
+        .map((profile) => ({ ...profile }));
+    }
+
+    return result;
   }
 
   function normalizeEventSignups(signups, participants, users) {
@@ -1848,14 +1871,28 @@ const Auth = (() => {
 
     setJson(BG_CHECK_KEY, records);
 
-    const profile = getVolunteerProfileByUserIdInternal(session.userId);
-    if (profile) {
-      const profiles = getRawVolunteerProfiles();
-      const idx = profiles.findIndex((p) => String(p.userId) === String(session.userId));
-      if (idx >= 0) {
-        profiles[idx].backgroundCheckStatus = 'Pending';
-        setJson(VOLUNTEER_PROFILES_KEY, profiles);
-      }
+    const user = getUserByIdInternal(session.userId);
+    const profiles = getRawVolunteerProfiles();
+    const profileIdx = profiles.findIndex((p) => String(p.userId) === String(session.userId));
+
+    if (profileIdx >= 0) {
+      profiles[profileIdx].backgroundCheckStatus = 'Pending';
+      setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    } else if (user) {
+      const nameParts = splitName(user.name);
+      profiles.push({
+        userId: user.id,
+        firstName: nameParts.firstName,
+        lastName: nameParts.lastName,
+        phone: '',
+        email: user.email,
+        interests: [],
+        availability: '',
+        backgroundCheckStatus: 'Pending',
+        updatedAt: now,
+        updatedAtLabel: dateLabel
+      });
+      setJson(VOLUNTEER_PROFILES_KEY, profiles);
     }
 
     return { success: true };

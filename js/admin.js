@@ -545,13 +545,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         : (bgStatus === 'Denied' || bgStatus === 'Expired'
           ? '<div class="text-danger small mt-1"><i class="bi bi-x-circle-fill me-1"></i>Ineligible</div>'
           : '');
+      const statusOptions = (Auth.BG_CHECK_STATUSES || ['Not Started','Pending','Cleared','Denied','Expired'])
+        .map((s) => `<option value="${escapeHtml(s)}"${s === bgStatus ? ' selected' : ''}>${escapeHtml(s)}</option>`)
+        .join('');
+
       return `
       <tr>
         <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || '')}</div></td>
         <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
         <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
-        <td class="small">${bgCheckBadge(bgStatus)}${eligibilityMarkup}</td>
+        <td class="small">
+          ${bgCheckBadge(bgStatus)}${eligibilityMarkup}
+          <div class="mt-2 d-flex align-items-center gap-1">
+            <select class="form-select form-select-sm" data-bgcheck-user-id="${escapeHtml(profile.userId)}" style="width:auto;min-width:110px;">${statusOptions}</select>
+            <button class="btn btn-outline-success btn-sm text-nowrap" data-bgcheck-save-user-id="${escapeHtml(profile.userId)}">
+              <i class="bi bi-check-lg"></i>
+            </button>
+          </div>
+        </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
           <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">Edit</button>
@@ -589,6 +601,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           volunteerAdminError.classList.remove('d-none');
           return;
         }
+        await renderVolunteersTable();
+      });
+    });
+
+    tbody.querySelectorAll('[data-bgcheck-save-user-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.dataset.bgcheckSaveUserId;
+        const select = tbody.querySelector(`select[data-bgcheck-user-id="${userId}"]`);
+        if (!select) return;
+        btn.disabled = true;
+        const result = await Auth.updateBgCheckStatus(userId, select.value, 'Status updated by administrator');
+        if (!result.success) {
+          showToast(result.message || 'Unable to update background check status.');
+          btn.disabled = false;
+          return;
+        }
+        showToast(`Background check status updated to "${select.value}".`);
         await renderVolunteersTable();
       });
     });
