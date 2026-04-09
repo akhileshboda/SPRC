@@ -153,15 +153,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function setFormFieldsDisabled(formId, disabled) {
+    document.getElementById(formId).querySelectorAll('input, select, textarea').forEach((el) => {
+      el.disabled = disabled;
+    });
+  }
+
   function showParticipantsListView() {
     document.getElementById('view-participants-list').classList.remove('d-none');
     document.getElementById('view-participants-form').classList.add('d-none');
   }
 
-  function showParticipantsFormView(isEditing = false) {
+  function showParticipantsFormView(isEditing = false, viewMode = false) {
     document.getElementById('view-participants-list').classList.add('d-none');
     document.getElementById('view-participants-form').classList.remove('d-none');
-    document.getElementById('participantFormTitle').textContent = isEditing ? 'Edit Participant' : 'New Participant';
+    document.getElementById('participantFormTitle').textContent = viewMode ? 'Participant Details' : (isEditing ? 'Edit Participant' : 'New Participant');
+    setFormFieldsDisabled('participantForm', viewMode);
+    document.getElementById('participantSubmitBtn').classList.toggle('d-none', viewMode);
+    document.getElementById('participantFormEditBtn').classList.toggle('d-none', !viewMode);
   }
 
   function showUsersListView() {
@@ -180,10 +189,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('view-volunteers-form').classList.add('d-none');
   }
 
-  function showVolunteersFormView(isEditing = false) {
+  function showVolunteersFormView(isEditing = false, viewMode = false) {
     document.getElementById('view-volunteers-list').classList.add('d-none');
     document.getElementById('view-volunteers-form').classList.remove('d-none');
-    document.getElementById('volunteerFormTitle').textContent = isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile';
+    document.getElementById('volunteerFormTitle').textContent = viewMode ? 'Volunteer Details' : (isEditing ? 'Edit Volunteer Profile' : 'New Volunteer Profile');
+    setFormFieldsDisabled('volunteerAdminForm', viewMode);
+    document.getElementById('volunteerAdminSubmitBtn').classList.toggle('d-none', viewMode);
+    document.getElementById('volunteerFormEditBtn').classList.toggle('d-none', !viewMode);
   }
 
   function showEventsListView() {
@@ -191,10 +203,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('view-events-form').classList.add('d-none');
   }
 
-  function showEventsFormView(isEditing = false) {
+  function showEventsFormView(isEditing = false, viewMode = false) {
     document.getElementById('view-events-list').classList.add('d-none');
     document.getElementById('view-events-form').classList.remove('d-none');
-    document.getElementById('eventFormTitle').textContent = isEditing ? 'Edit Event' : 'New Event';
+    document.getElementById('eventFormTitle').textContent = viewMode ? 'Event Details' : (isEditing ? 'Edit Event' : 'New Event');
+    setFormFieldsDisabled('eventForm', viewMode);
+    document.getElementById('eventSubmitBtn').classList.toggle('d-none', viewMode);
+    document.getElementById('eventFormEditBtn').classList.toggle('d-none', !viewMode);
   }
 
   function showJobsListView() {
@@ -202,10 +217,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('view-jobs-form').classList.add('d-none');
   }
 
-  function showJobsFormView(isEditing = false) {
+  function showJobsFormView(isEditing = false, viewMode = false) {
     document.getElementById('view-jobs-list').classList.add('d-none');
     document.getElementById('view-jobs-form').classList.remove('d-none');
-    document.getElementById('jobFormTitle').textContent = isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity';
+    document.getElementById('jobFormTitle').textContent = viewMode ? 'Job Details' : (isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity');
+    setFormFieldsDisabled('jobForm', viewMode);
+    document.getElementById('jobSubmitBtn').classList.toggle('d-none', viewMode);
+    document.getElementById('jobFormEditBtn').classList.toggle('d-none', !viewMode);
   }
 
   async function populateLinkedUserOptions() {
@@ -470,7 +488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
         <td class="text-muted small">${escapeHtml(participant.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(participant.id)}">Edit</button>
+          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(participant.id)}">View</button>
           <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(participant.id)}">Delete</button>
         </td>
       </tr>
@@ -501,7 +519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');
         document.getElementById('participantSubmitBtn').textContent = 'Update Participant Record';
-        showParticipantsFormView(true);
+        showParticipantsFormView(true, true);
       });
     });
 
@@ -595,7 +613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">Edit</button>
+          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">View</button>
           <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId)}">Delete</button>
         </td>
       </tr>`;
@@ -625,7 +643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('volunteerAdminSubmitBtn').textContent = 'Update Volunteer Profile';
         volunteerAdminError.classList.add('d-none');
         volunteerAdminForm.classList.remove('was-validated');
-        showVolunteersFormView(true);
+        showVolunteersFormView(true, true);
       });
     });
 
@@ -701,7 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td class="small text-muted"><div class="event-accommodations">${escapeHtml(event.accommodations)}</div></td>
         <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">Edit</button>
+          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">View</button>
           <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
         </td>
       </tr>
@@ -722,7 +740,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
         editingEventId = event.id;
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
-        showEventsFormView(true);
+        showEventsFormView(true, true);
       });
     });
 
@@ -786,7 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </td>
           <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
-            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">Edit</button>
+            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">View</button>
             <button class="btn btn-outline-danger btn-sm" data-job-id="${escapeHtml(job.id)}">Delete</button>
           </td>
         </tr>`;
@@ -808,7 +826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (urgentCheck) urgentCheck.checked = Boolean(job.isUrgent);
         editingJobId = job.id;
         document.getElementById('jobSubmitBtn').textContent = 'Update Opportunity';
-        showJobsFormView(true);
+        showJobsFormView(true, true);
       });
     });
 
@@ -1180,6 +1198,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetParticipantFormState();
     showParticipantsListView();
   });
+  document.getElementById('participantFormEditBtn')?.addEventListener('click', () => {
+    document.getElementById('participantFormTitle').textContent = 'Edit Participant';
+    setFormFieldsDisabled('participantForm', false);
+    document.getElementById('participantSubmitBtn').classList.remove('d-none');
+    document.getElementById('participantFormEditBtn').classList.add('d-none');
+  });
   document.getElementById('newVolunteerBtn')?.addEventListener('click', () => {
     resetVolunteerFormState();
     showVolunteersFormView(false);
@@ -1187,6 +1211,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('backToVolunteersBtn')?.addEventListener('click', () => {
     resetVolunteerFormState();
     showVolunteersListView();
+  });
+  document.getElementById('volunteerFormEditBtn')?.addEventListener('click', () => {
+    document.getElementById('volunteerFormTitle').textContent = 'Edit Volunteer Profile';
+    setFormFieldsDisabled('volunteerAdminForm', false);
+    document.getElementById('volunteerAdminSubmitBtn').classList.remove('d-none');
+    document.getElementById('volunteerFormEditBtn').classList.add('d-none');
   });
   document.getElementById('newEventBtn')?.addEventListener('click', () => {
     resetEventFormState();
@@ -1202,6 +1232,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       showEventsListView();
     }
   });
+  document.getElementById('eventFormEditBtn')?.addEventListener('click', () => {
+    document.getElementById('eventFormTitle').textContent = 'Edit Event';
+    setFormFieldsDisabled('eventForm', false);
+    document.getElementById('eventSubmitBtn').classList.remove('d-none');
+    document.getElementById('eventFormEditBtn').classList.add('d-none');
+  });
   document.getElementById('newJobBtn')?.addEventListener('click', () => {
     resetJobFormState();
     showJobsFormView(false);
@@ -1215,6 +1251,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       showJobsListView();
     }
+  });
+  document.getElementById('jobFormEditBtn')?.addEventListener('click', () => {
+    document.getElementById('jobFormTitle').textContent = 'Edit Job Opportunity';
+    setFormFieldsDisabled('jobForm', false);
+    document.getElementById('jobSubmitBtn').classList.remove('d-none');
+    document.getElementById('jobFormEditBtn').classList.add('d-none');
   });
   document.getElementById('newUserBtn')?.addEventListener('click', () => {
     resetUserFormState();
