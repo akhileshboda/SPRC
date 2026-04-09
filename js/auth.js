@@ -1998,6 +1998,53 @@ const Auth = (() => {
     return getRawUrgentNotifications().slice().sort((a, b) => (b.sentAtMs || 0) - (a.sentAtMs || 0));
   }
 
+  const NOTIFICATION_READS_KEY   = 'kindred_notification_reads';
+  const NOTIFICATION_DELETES_KEY = 'kindred_notification_deletes';
+
+  function getReadNotificationIds() {
+    try { return JSON.parse(localStorage.getItem(NOTIFICATION_READS_KEY)) || []; } catch { return []; }
+  }
+
+  function getDeletedNotificationIds() {
+    try { return JSON.parse(localStorage.getItem(NOTIFICATION_DELETES_KEY)) || []; } catch { return []; }
+  }
+
+  function markNotificationsRead(notificationIds) {
+    const existing = getReadNotificationIds();
+    const merged = Array.from(new Set([...existing, ...notificationIds]));
+    localStorage.setItem(NOTIFICATION_READS_KEY, JSON.stringify(merged));
+    return { success: true };
+  }
+
+  function toggleNotificationRead(notificationId) {
+    const existing = getReadNotificationIds();
+    const id = String(notificationId);
+    const updated = existing.includes(id) ? existing.filter((x) => x !== id) : [...existing, id];
+    localStorage.setItem(NOTIFICATION_READS_KEY, JSON.stringify(updated));
+    return { success: true, isNowRead: updated.includes(id) };
+  }
+
+  function deleteMyNotification(notificationId) {
+    const existing = getDeletedNotificationIds();
+    const merged = Array.from(new Set([...existing, String(notificationId)]));
+    localStorage.setItem(NOTIFICATION_DELETES_KEY, JSON.stringify(merged));
+    return { success: true };
+  }
+
+  async function getMyNotifications() {
+    const session = await getSession();
+    if (!session || !['PARTICIPANT', 'GUARDIAN'].includes(session.role)) return [];
+    const users = getRawUsers();
+    const me = users.find((u) => u.id === session.userId);
+    if (!me) return [];
+    const myEmail = normalizeEmail(me.email);
+    const deleted = new Set(getDeletedNotificationIds());
+    return getRawUrgentNotifications()
+      .filter((n) => Array.isArray(n.recipients) && n.recipients.some((r) => normalizeEmail(r) === myEmail) && !deleted.has(String(n.id)))
+      .slice()
+      .sort((a, b) => (b.sentAtMs || 0) - (a.sentAtMs || 0));
+  }
+
   initStores();
 
   return {
@@ -2053,6 +2100,11 @@ const Auth = (() => {
     getUrgentOpportunities,
     generateUrgentDraft,
     sendUrgentNotification,
-    getUrgentNotificationHistory
+    getUrgentNotificationHistory,
+    getMyNotifications,
+    getReadNotificationIds,
+    markNotificationsRead,
+    toggleNotificationRead,
+    deleteMyNotification
   };
 })();

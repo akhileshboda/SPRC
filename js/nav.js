@@ -69,13 +69,19 @@
                     ? `<span class="nav-user-name">${displayName}</span>`
                     : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
 
+                const bellPlaceholder = session.role === 'PARTICIPANT'
+                    ? `<span id="nav-notifications-bell" class="position-relative me-1"></span>`
+                    : '';
+
                 navRight.innerHTML = `
                     ${nameEl}
                     <span class="badge ${roleClass}">${session.role}</span>
+                    ${bellPlaceholder}
                     <button class="btn-nav-logout js-logout-btn" type="button">
                         <i class="bi bi-box-arrow-right me-1"></i>Logout
                     </button>`;
                 navRight.querySelector('.js-logout-btn').addEventListener('click', function () { Auth.logout(); });
+                document.dispatchEvent(new CustomEvent('kindred:nav-ready', { detail: { session: session } }));
             });
         }
 
