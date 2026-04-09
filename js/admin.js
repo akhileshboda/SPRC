@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let editingJobId = null;
   let eventsEditOrigin = null; // 'urgent-notifications' when editing from dispatcher
   let jobsEditOrigin = null;
+  let participantsViewOrigin = null; // section to return to when closing participant form
   let pendingUser = null;
   let pendingParticipant = null;
 
@@ -519,6 +520,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');
         document.getElementById('participantSubmitBtn').textContent = 'Update Participant Record';
+        participantsViewOrigin = null;
         showParticipantsFormView(true, true);
       });
     });
@@ -1192,11 +1194,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
     resetParticipantFormState();
+    participantsViewOrigin = null;
     showParticipantsFormView(false);
   });
   document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
+    const origin = participantsViewOrigin;
     resetParticipantFormState();
-    showParticipantsListView();
+    participantsViewOrigin = null;
+    if (origin) {
+      navigateTo(origin);
+    } else {
+      showParticipantsListView();
+    }
   });
   document.getElementById('participantFormEditBtn')?.addEventListener('click', () => {
     document.getElementById('participantFormTitle').textContent = 'Edit Participant';
@@ -1556,13 +1565,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       container.innerHTML = '<div class="p-3 text-muted small text-center">No alerts sent yet.</div>';
       return;
     }
-    const emailToName = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u.name]));
+    const emailToUser = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u]));
     container.innerHTML = history.slice(0, 10).map((entry) => {
       const recipientList = Array.isArray(entry.recipients) && entry.recipients.length
         ? entry.recipients.map((email) => {
-            const name = emailToName[email.toLowerCase()];
-            return name
-              ? `<span title="${escapeHtml(email)}">${escapeHtml(name)}</span>`
+            const user = emailToUser[email.toLowerCase()];
+            return user
+              ? `<button class="btn btn-link p-0 js-dispatch-recipient" data-user-id="${escapeHtml(user.id)}" data-user-role="${escapeHtml(user.role)}"
+                   title="${escapeHtml(email)}" style="font-size:inherit;vertical-align:baseline;">
+                   ${escapeHtml(user.name)}
+                 </button>`
               : `<span class="text-muted">${escapeHtml(email)}</span>`;
           }).join(', ')
         : '<span class="text-muted">—</span>';
@@ -1586,6 +1598,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>`;
     }).join('');
+
+    // Wire recipient name clicks → open participant record in view mode
+    container.querySelectorAll('.js-dispatch-recipient').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const participants = await Auth.getParticipants();
+        let participant = null;
+        if (btn.dataset.userRole === 'PARTICIPANT') {
+          participant = participants.find((p) => String(p.participantUserId) === String(btn.dataset.userId));
+        } else if (btn.dataset.userRole === 'GUARDIAN') {
+          participant = participants.find((p) => p.guardianUserIds.includes(btn.dataset.userId));
+        }
+        if (!participant) { showToast('No participant record linked to this user.'); return; }
+
+        document.getElementById('participantFirstName').value = participant.firstName || '';
+        document.getElementById('participantLastName').value = participant.lastName || '';
+        document.getElementById('participantAge').value = participant.age || '';
+        document.getElementById('participantUserId').value = participant.participantUserId || '';
+        Array.from(document.getElementById('participantGuardianIds').options).forEach((opt) => {
+          opt.selected = participant.guardianUserIds.includes(opt.value);
+        });
+        document.getElementById('participantEmail').value = participant.contactEmail || '';
+        document.getElementById('participantPhone').value = participant.contactPhone || '';
+        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
+        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
+        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
+        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
+        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
+        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
+        document.getElementById('participantCreateUserToggle').checked = false;
+        toggleInlineParticipantUserFields();
+        editingParticipantId = participant.id;
+        participantError.classList.add('d-none');
+        participantForm.classList.remove('was-validated');
+        participantsViewOrigin = 'urgent-notifications';
+        navigateTo('participants');
+        showParticipantsFormView(true, true);
+      });
+    });
   }
 
   document.getElementById('urgentSendBtn')?.addEventListener('click', async () => {
