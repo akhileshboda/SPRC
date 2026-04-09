@@ -308,10 +308,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const historyContainer = document.getElementById('bgCheckVolunteerHistory');
     if (!statusDisplay) return;
 
+    Auth.checkAndExpireBgRecords();
+
     const record = await Auth.getMyBgCheckRecord();
     const status = record?.status || 'Not Started';
     const badge = BG_STATUS_BADGE[status] || BG_STATUS_BADGE['Not Started'];
     const consentSubmitted = Boolean(record?.consentSubmitted);
+
+    let expiryInfo = '';
+    if (status === 'Cleared' && record?.expiresAtMs) {
+      const expiresLabel = record.expiresAtLabel || new Date(record.expiresAtMs).toLocaleDateString();
+      expiryInfo = `<div class="text-info small mt-1"><i class="bi bi-clock me-1"></i>Valid until: <strong>${escHtml(expiresLabel)}</strong></div>`;
+    }
 
     statusDisplay.innerHTML = `
       <div class="d-flex align-items-center gap-3 mb-2">
@@ -324,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       </div>
       ${status === 'Cleared'
-        ? '<div class="alert alert-success small mb-0 mt-2"><i class="bi bi-shield-fill-check me-1"></i>Your background check is cleared. You are eligible to participate in events.</div>'
+        ? `<div class="alert alert-success small mb-0 mt-2"><i class="bi bi-shield-fill-check me-1"></i>Your background check is cleared. You are eligible to participate in events.</div>${expiryInfo}`
         : ''
       }
       ${status === 'Denied'

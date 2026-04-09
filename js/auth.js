@@ -1898,7 +1898,43 @@ const Auth = (() => {
     return { success: true };
   }
 
-  async function updateBgCheckStatus(volunteerUserId, newStatus, notes = '') {
+  const BG_EXPIRY_OPTIONS = {
+    '6months': { label: '6 Months', ms: 6 * 30 * 24 * 60 * 60 * 1000 },
+    '1year':   { label: '1 Year',   ms: 365 * 24 * 60 * 60 * 1000 }
+  };
+
+  function checkAndExpireBgRecords() {
+    const records = getRawBgChecks();
+    const profiles = getRawVolunteerProfiles();
+    let changed = false;
+
+    records.forEach((record) => {
+      if (record.status === 'Cleared' && record.expiresAtMs && Date.now() >= record.expiresAtMs) {
+        record.status = 'Expired';
+        record.statusHistory.push({
+          status: 'Expired',
+          changedByUserId: 'system',
+          changedByName: 'System (auto-expiry)',
+          changedByRole: 'SYSTEM',
+          changedAtMs: Date.now(),
+          changedAtLabel: makeDateLabel(),
+          note: 'Background check expired automatically'
+        });
+        const profileIdx = profiles.findIndex((p) => String(p.userId) === String(record.volunteerUserId));
+        if (profileIdx >= 0) {
+          profiles[profileIdx].backgroundCheckStatus = 'Expired';
+        }
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setJson(BG_CHECK_KEY, records);
+      setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    }
+  }
+
+  async function updateBgCheckStatus(volunteerUserId, newStatus, notes = '', expiryKey = '') {
     const session = await getSession();
     if (!session || session.role !== 'ADMIN') {
       return { success: false, message: 'Only administrators can update background check status.' };
@@ -1911,8 +1947,22 @@ const Auth = (() => {
     const records = getRawBgChecks();
     let record = records.find((entry) => String(entry.volunteerUserId) === String(volunteerUserId));
 
+    if (record && record.status === 'Cleared' && record.expiresAtMs && Date.now() < record.expiresAtMs) {
+      return { success: false, message: 'This volunteer is verified and their status is locked until the background check expires.' };
+    }
+
     const now = Date.now();
     const dateLabel = makeDateLabel();
+
+    let expiresAtMs = null;
+    let expiresAtLabel = '';
+    if (newStatus === 'Cleared' && expiryKey && BG_EXPIRY_OPTIONS[expiryKey]) {
+      expiresAtMs = now + BG_EXPIRY_OPTIONS[expiryKey].ms;
+      expiresAtLabel = new Date(expiresAtMs).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric'
+      });
+    }
+
     const historyEntry = {
       status: newStatus,
       changedByUserId: session.userId,
@@ -1921,12 +1971,20 @@ const Auth = (() => {
       changedAtMs: now,
       changedAtLabel: dateLabel,
       note: String(notes || '').trim()
+        + (expiresAtLabel ? ` | Expires: ${expiresAtLabel}` : '')
     };
 
     if (record) {
       record.status = newStatus;
       record.notes = String(notes || record.notes || '').trim();
       record.statusHistory.push(historyEntry);
+      if (newStatus === 'Cleared') {
+        record.expiresAtMs = expiresAtMs;
+        record.expiresAtLabel = expiresAtLabel;
+      } else {
+        record.expiresAtMs = null;
+        record.expiresAtLabel = '';
+      }
     } else {
       record = {
         id: makeId('bgc'),
@@ -1936,7 +1994,9 @@ const Auth = (() => {
         consentSubmittedAtLabel: '',
         status: newStatus,
         statusHistory: [historyEntry],
-        notes: String(notes || '').trim()
+        notes: String(notes || '').trim(),
+        expiresAtMs: newStatus === 'Cleared' ? expiresAtMs : null,
+        expiresAtLabel: newStatus === 'Cleared' ? expiresAtLabel : ''
       };
       records.push(record);
     }
@@ -1961,6 +2021,7 @@ const Auth = (() => {
         ? record.statusHistory[record.statusHistory.length - 2].status
         : 'N/A',
       newStatus,
+      expiresAtLabel: expiresAtLabel || '',
       notes: String(notes || '').trim(),
       changedAtMs: now,
       changedAtLabel: dateLabel
@@ -2260,6 +2321,8 @@ const Auth = (() => {
     getNewsletterHistory,
     distributeNewsletter,
     BG_CHECK_STATUSES,
+    BG_EXPIRY_OPTIONS,
+    checkAndExpireBgRecords,
     getBgCheckRecord,
     getMyBgCheckRecord,
     submitBgCheckConsent,

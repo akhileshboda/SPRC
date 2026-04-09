@@ -291,6 +291,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
     const submitBtn = document.getElementById('volunteerAdminSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Save Volunteer Profile';
+    const bgSelect = document.getElementById('adminVolBackgroundCheck');
+    if (bgSelect) bgSelect.disabled = false;
     document.getElementById('adminVolCreateUserToggle').checked = false;
     document.getElementById('adminVolNewUserEmail').value = '';
     document.getElementById('adminVolNewUserPassword').value = '';
@@ -531,23 +533,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderVolunteersTable() {
     const tbody = document.getElementById('volunteerProfilesTableBody');
     if (!tbody) return;
+
+    Auth.checkAndExpireBgRecords();
+
     const profiles = await Auth.getVolunteerProfiles();
     if (!profiles.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
       return;
     }
 
+    const allBgRecords = await Auth.getAllBgCheckRecords();
+
     tbody.innerHTML = profiles.map((profile) => {
       const bgStatus = profile.backgroundCheckStatus || 'Not Started';
+      const bgRecord = allBgRecords.find((r) => String(r.volunteerUserId) === String(profile.userId));
+      const isLocked = bgStatus === 'Cleared' && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
       const eligible = bgStatus === 'Cleared';
       const eligibilityMarkup = eligible
         ? '<div class="text-success small mt-1"><i class="bi bi-check-circle-fill me-1"></i>Eligible</div>'
         : (bgStatus === 'Denied' || bgStatus === 'Expired'
           ? '<div class="text-danger small mt-1"><i class="bi bi-x-circle-fill me-1"></i>Ineligible</div>'
           : '');
+
+      let expiryMarkup = '';
+      if (bgRecord?.expiresAtMs && bgStatus === 'Cleared') {
+        expiryMarkup = `<div class="text-info small mt-1"><i class="bi bi-clock me-1"></i>Expires: ${escapeHtml(bgRecord.expiresAtLabel || new Date(bgRecord.expiresAtMs).toLocaleDateString())}</div>`;
+      }
+
       const statusOptions = (Auth.BG_CHECK_STATUSES || ['Not Started','Pending','Cleared','Denied','Expired'])
         .map((s) => `<option value="${escapeHtml(s)}"${s === bgStatus ? ' selected' : ''}>${escapeHtml(s)}</option>`)
         .join('');
+
+      const expiryOptions = Object.entries(Auth.BG_EXPIRY_OPTIONS || {})
+        .map(([key, opt]) => `<option value="${escapeHtml(key)}">${escapeHtml(opt.label)}</option>`)
+        .join('');
+
+      const controlsMarkup = isLocked
+        ? `<div class="mt-2 text-muted small fst-italic"><i class="bi bi-lock-fill me-1"></i>Verified &mdash; status locked until expiry</div>`
+        : `<div class="mt-2 d-flex align-items-center gap-1 flex-wrap">
+            <select class="form-select form-select-sm" data-bgcheck-user-id="${escapeHtml(profile.userId)}" style="width:auto;min-width:110px;">${statusOptions}</select>
+            <select class="form-select form-select-sm d-none" data-bgexpiry-user-id="${escapeHtml(profile.userId)}" style="width:auto;min-width:100px;">
+              <option value="" disabled selected>Expiry…</option>
+              ${expiryOptions}
+            </select>
+            <button class="btn btn-outline-success btn-sm text-nowrap" data-bgcheck-save-user-id="${escapeHtml(profile.userId)}">
+              <i class="bi bi-check-lg"></i>
+            </button>
+          </div>`;
 
       return `
       <tr>
@@ -556,13 +588,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
         <td class="small">
-          ${bgCheckBadge(bgStatus)}${eligibilityMarkup}
-          <div class="mt-2 d-flex align-items-center gap-1">
-            <select class="form-select form-select-sm" data-bgcheck-user-id="${escapeHtml(profile.userId)}" style="width:auto;min-width:110px;">${statusOptions}</select>
-            <button class="btn btn-outline-success btn-sm text-nowrap" data-bgcheck-save-user-id="${escapeHtml(profile.userId)}">
-              <i class="bi bi-check-lg"></i>
-            </button>
-          </div>
+          ${bgCheckBadge(bgStatus)}${eligibilityMarkup}${expiryMarkup}
+          ${controlsMarkup}
         </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
@@ -581,7 +608,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('adminVolLastName').value = profile.lastName || '';
         document.getElementById('adminVolPhone').value = profile.phone || '';
         document.getElementById('adminVolAvailability').value = profile.availability || '';
-        document.getElementById('adminVolBackgroundCheck').value = profile.backgroundCheckStatus || 'Not Started';
+        const bgSelect = document.getElementById('adminVolBackgroundCheck');
+        bgSelect.value = profile.backgroundCheckStatus || 'Not Started';
+
+        const bgRecord = await Auth.getBgCheckRecord(profile.userId);
+        const isLocked = profile.backgroundCheckStatus === 'Cleared'
+          && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
+        bgSelect.disabled = isLocked;
+
         setAdminSelectedVolunteerInterests(profile.interests);
         document.getElementById('adminVolCreateUserToggle').checked = false;
         toggleInlineVolunteerUserFields();
@@ -605,13 +639,36 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
+    tbody.querySelectorAll('select[data-bgcheck-user-id]').forEach((select) => {
+      const userId = select.dataset.bgcheckUserId;
+      const expirySelect = tbody.querySelector(`select[data-bgexpiry-user-id="${userId}"]`);
+      if (!expirySelect) return;
+      select.addEventListener('change', () => {
+        if (select.value === 'Cleared') {
+          expirySelect.classList.remove('d-none');
+        } else {
+          expirySelect.classList.add('d-none');
+          expirySelect.selectedIndex = 0;
+        }
+      });
+      if (select.value === 'Cleared') expirySelect.classList.remove('d-none');
+    });
+
     tbody.querySelectorAll('[data-bgcheck-save-user-id]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const userId = btn.dataset.bgcheckSaveUserId;
         const select = tbody.querySelector(`select[data-bgcheck-user-id="${userId}"]`);
+        const expirySelect = tbody.querySelector(`select[data-bgexpiry-user-id="${userId}"]`);
         if (!select) return;
+
+        if (select.value === 'Cleared' && expirySelect && !expirySelect.value) {
+          showToast('Please select an expiration period before clearing.');
+          return;
+        }
+
         btn.disabled = true;
-        const result = await Auth.updateBgCheckStatus(userId, select.value, 'Status updated by administrator');
+        const expiryKey = select.value === 'Cleared' && expirySelect ? expirySelect.value : '';
+        const result = await Auth.updateBgCheckStatus(userId, select.value, 'Status updated by administrator', expiryKey);
         if (!result.success) {
           showToast(result.message || 'Unable to update background check status.');
           btn.disabled = false;
