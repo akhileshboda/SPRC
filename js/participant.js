@@ -384,6 +384,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       container.innerHTML = emptyState('bi-bell', 'No alerts yet. Kindred Administration will send you personalised alerts here when time-sensitive opportunities arise.');
       return;
     }
+
+    // "Clear all" header
+    const clearAllHtml = `
+      <div class="d-flex justify-content-end mb-3">
+        <button class="btn btn-outline-secondary btn-sm js-notif-clear-all">
+          <i class="bi bi-trash3 me-1"></i>Clear all
+        </button>
+      </div>`;
     const readSet = new Set(readIds);
     const sorted = [...notifications].sort((a, b) => {
       const aUnread = readSet.has(a.id) ? 1 : 0;
@@ -394,7 +402,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     Auth.markNotificationsRead(notifications.map((n) => n.id));
     renderNavNotificationBell();
 
-    container.innerHTML = sorted.map((n) => {
+    container.innerHTML = clearAllHtml + sorted.map((n) => {
       const isUnread = !readSet.has(n.id);
       const headerCls = isUnread ? 'bg-danger text-white' : 'bg-secondary bg-opacity-10 text-secondary';
       const cardBorder = isUnread ? 'border-danger' : 'border-secondary';
@@ -430,7 +438,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="card-footer d-flex align-items-center justify-content-between bg-transparent border-top">
             <small class="text-muted"><i class="bi bi-person-fill me-1"></i>From ${escHtml(n.sentByName || 'Kindred Administration')}</small>
-            <div>${actionBtn}</div>
+            <div class="d-flex gap-2">
+              ${actionBtn}
+              <button class="btn btn-sm btn-outline-secondary js-notif-delete" data-notif-id="${escHtml(n.id)}" title="Delete alert">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
           </div>
         </div>`;
     }).join('');
@@ -449,6 +462,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
         await renderNotifications(containerId);
       });
+    });
+
+    container.querySelectorAll('.js-notif-delete').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        Auth.deleteMyNotification(btn.dataset.notifId);
+        await renderNotifications(containerId);
+        await renderNavNotificationBell();
+        await renderNotificationBanner('p-notifications-banner');
+      });
+    });
+
+    container.querySelector('.js-notif-clear-all')?.addEventListener('click', async () => {
+      notifications.forEach((n) => Auth.deleteMyNotification(n.id));
+      await renderNotifications(containerId);
+      await renderNavNotificationBell();
+      await renderNotificationBanner('p-notifications-banner');
     });
   }
 

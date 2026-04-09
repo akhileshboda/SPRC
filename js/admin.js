@@ -1420,26 +1420,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.addEventListener('click', () => loadUrgentDraft(btn.dataset.urgentType, btn.dataset.urgentId, btn.dataset.urgentTitle));
     });
 
-    // Wire checkboxes — highlight selected rows and show/hide "Clear selection"
-    const clearSelBtn = document.getElementById('urgentClearSelectionBtn');
+    // Wire checkboxes — highlight selected rows and show/hide selection actions
+    const selectionActions = document.getElementById('urgentSelectionActions');
     function syncSelectionState() {
       const checked = list.querySelectorAll('.js-urgent-checkbox:checked');
       list.querySelectorAll('.js-urgent-item').forEach((row) => {
         const cb = row.querySelector('.js-urgent-checkbox');
         row.style.background = cb?.checked ? 'rgba(220,53,69,0.06)' : '';
       });
-      if (clearSelBtn) clearSelBtn.classList.toggle('d-none', checked.length === 0);
+      if (selectionActions) selectionActions.classList.toggle('d-none', checked.length === 0);
     }
     list.querySelectorAll('.js-urgent-checkbox').forEach((cb) => {
       cb.addEventListener('change', syncSelectionState);
     });
+
+    // Clear selection
+    const clearSelBtn = document.getElementById('urgentClearSelectionBtn');
     if (clearSelBtn) {
-      // Replace listener each render to avoid stacking
-      const newBtn = clearSelBtn.cloneNode(true);
-      clearSelBtn.replaceWith(newBtn);
-      newBtn.addEventListener('click', () => {
+      const newClear = clearSelBtn.cloneNode(true);
+      clearSelBtn.replaceWith(newClear);
+      newClear.addEventListener('click', () => {
         list.querySelectorAll('.js-urgent-checkbox').forEach((cb) => { cb.checked = false; });
         syncSelectionState();
+      });
+    }
+
+    // Delete selected
+    const deleteSelBtn = document.getElementById('urgentDeleteSelectedBtn');
+    if (deleteSelBtn) {
+      const newDelete = deleteSelBtn.cloneNode(true);
+      deleteSelBtn.replaceWith(newDelete);
+      newDelete.addEventListener('click', async () => {
+        const checked = list.querySelectorAll('.js-urgent-checkbox:checked');
+        if (!checked.length) return;
+        const count = checked.length;
+        if (!confirm(`Delete ${count} selected opportunit${count > 1 ? 'ies' : 'y'}? This cannot be undone.`)) return;
+        const removes = Array.from(checked).map((cb) => {
+          const [type, id] = cb.dataset.itemId.split('-');
+          return type === 'event' ? Auth.removeEvent(id) : Auth.removeJob(id);
+        });
+        await Promise.all(removes);
+        showToast(`${count} opportunit${count > 1 ? 'ies' : 'y'} deleted.`);
+        await renderUrgentOpportunitiesList();
+        await renderUrgentDispatchHistory();
       });
     }
 
