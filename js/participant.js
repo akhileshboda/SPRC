@@ -585,7 +585,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderParticipantDashboard();
     await renderParticipantEventPreview();
     await renderParticipantSavedJobs();
-    await renderParticipantEvents();
     await renderNewsletter('p-newsletter-content');
     await renderNotificationBanner('p-notifications-banner');
     // Bell is injected by nav.js asynchronously; render once the element exists
@@ -595,6 +594,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.addEventListener('kindred:nav-ready', renderNavNotificationBell, { once: true });
     }
     // Only render+mark-read when the user actually opens the Alerts section
+    const eventsSection = document.getElementById('section-p-events');
+    if (eventsSection) {
+      new MutationObserver(() => {
+        if (!eventsSection.classList.contains('d-none')) {
+          renderParticipantEvents();
+        }
+      }).observe(eventsSection, { attributes: true, attributeFilter: ['class'] });
+    }
     const alertsSection = document.getElementById('section-p-notifications');
     if (alertsSection) {
       new MutationObserver(() => {
