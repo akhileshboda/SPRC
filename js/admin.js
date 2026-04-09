@@ -1372,28 +1372,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderUrgentDispatchHistory() {
     const container = document.getElementById('urgentDispatchHistory');
     if (!container) return;
-    const history = await Auth.getUrgentNotificationHistory();
+    const [history, users] = await Promise.all([Auth.getUrgentNotificationHistory(), Auth.getUsers()]);
     if (!history.length) {
       container.innerHTML = '<div class="p-3 text-muted small text-center">No alerts sent yet.</div>';
       return;
     }
-    container.innerHTML = history.slice(0, 10).map((entry) => `
+    const emailToName = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u.name]));
+    container.innerHTML = history.slice(0, 10).map((entry) => {
+      const recipientList = Array.isArray(entry.recipients) && entry.recipients.length
+        ? entry.recipients.map((email) => {
+            const name = emailToName[email.toLowerCase()];
+            return name
+              ? `<span title="${escapeHtml(email)}">${escapeHtml(name)}</span>`
+              : `<span class="text-muted">${escapeHtml(email)}</span>`;
+          }).join(', ')
+        : '<span class="text-muted">—</span>';
+
+      return `
       <div class="p-3 border-bottom">
         <div class="d-flex align-items-start gap-2 mb-1">
-          <i class="bi bi-send-fill text-danger mt-1" style="font-size: 0.8rem;"></i>
+          <i class="bi bi-send-fill text-danger mt-1 flex-shrink-0" style="font-size: 0.8rem;"></i>
           <div>
             <div class="fw-semibold" style="font-size:0.82rem; line-height:1.3;">${escapeHtml(entry.subject)}</div>
-            <div class="text-muted" style="font-size:0.73rem;">
-              ${escapeHtml(entry.opportunityTitle || entry.opportunityType || '')}
-            </div>
+            <div class="text-muted" style="font-size:0.73rem;">${escapeHtml(entry.opportunityTitle || entry.opportunityType || '')}</div>
           </div>
         </div>
-        <div class="text-muted" style="font-size:0.72rem;">
+        <div class="text-muted mb-1" style="font-size:0.72rem;">
           <i class="bi bi-person-check me-1"></i>${escapeHtml(entry.sentByName)} &bull;
-          <i class="bi bi-people me-1 ms-1"></i>${entry.recipientCount} recipient(s)<br>
-          <i class="bi bi-clock me-1"></i>${escapeHtml(entry.sentAtLabel)}
+          <i class="bi bi-clock me-1 ms-1"></i>${escapeHtml(entry.sentAtLabel)}
         </div>
-      </div>`).join('');
+        <div style="font-size:0.72rem;">
+          <span class="text-muted"><i class="bi bi-people me-1"></i>Recipients:</span>
+          <span class="ms-1">${recipientList}</span>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   document.getElementById('urgentSendBtn')?.addEventListener('click', async () => {
