@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { id: 'p-profile',    label: 'My Profile', icon: 'bi-person-vcard', roles: ['PARTICIPANT'] },
   { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
+  { id: 'p-notifications', label: 'Alerts', icon: 'bi-bell-fill', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
   { id: 'v-bgcheck',    label: 'Background Check', icon: 'bi-shield-lock', roles: ['VOLUNTEER'] },
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
@@ -75,6 +76,7 @@ function initSidebar(session) {
     btn.addEventListener('click', () => Auth.logout());
   });
 }
+
 
 function navigateTo(sectionId) {
   // Hide all content sections

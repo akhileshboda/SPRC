@@ -60,6 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let editingVolunteerUserId = null;
   let editingEventId = null;
   let editingJobId = null;
+  let eventsEditOrigin = null; // 'urgent-notifications' when editing from dispatcher
+  let jobsEditOrigin = null;
   let pendingUser = null;
   let pendingParticipant = null;
 
@@ -1191,16 +1193,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     showEventsFormView(false);
   });
   document.getElementById('backToEventsBtn')?.addEventListener('click', () => {
+    const origin = eventsEditOrigin;
     resetEventFormState();
-    showEventsListView();
+    eventsEditOrigin = null;
+    if (origin === 'urgent-notifications') {
+      navigateTo('urgent-notifications');
+    } else {
+      showEventsListView();
+    }
   });
   document.getElementById('newJobBtn')?.addEventListener('click', () => {
     resetJobFormState();
     showJobsFormView(false);
   });
   document.getElementById('backToJobsBtn')?.addEventListener('click', () => {
+    const origin = jobsEditOrigin;
     resetJobFormState();
-    showJobsListView();
+    jobsEditOrigin = null;
+    if (origin === 'urgent-notifications') {
+      navigateTo('urgent-notifications');
+    } else {
+      showJobsListView();
+    }
   });
   document.getElementById('newUserBtn')?.addEventListener('click', () => {
     resetUserFormState();
@@ -1216,6 +1230,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ─── Urgent Notifications UI ─────────────────────────────────────────────────────
 
   let urgentCurrentDraft = null; // holds the current draft context
+
+  function showUrgentListView() {
+    document.getElementById('view-urgent-list')?.classList.remove('d-none');
+    document.getElementById('view-urgent-draft')?.classList.add('d-none');
+  }
+
+  function showUrgentDraftView() {
+    document.getElementById('view-urgent-list')?.classList.add('d-none');
+    document.getElementById('view-urgent-draft')?.classList.remove('d-none');
+    document.getElementById('mainContent').scrollTop = 0;
+  }
 
   function showUrgentError(message) {
     const el = document.getElementById('urgentNotifError');
@@ -1289,8 +1314,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const eventItems = events.map((event) => `
-      <div class="p-3 border-bottom">
+      <div class="p-3 border-bottom js-urgent-item" data-item-id="event-${escapeHtml(event.id)}">
         <div class="d-flex align-items-start gap-2">
+          <input class="form-check-input flex-shrink-0 js-urgent-checkbox mt-1" type="checkbox"
+            data-item-id="event-${escapeHtml(event.id)}" style="cursor:pointer;">
           <span class="badge bg-danger mt-1" style="font-size:0.65rem; white-space:nowrap;">
             ${event.isUrgent ? 'URGENT' : 'SOON'}
           </span>
@@ -1305,15 +1332,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="badge bg-light text-dark border mt-1" style="font-size:0.65rem;">${escapeHtml(event.category)}</span>
           </div>
         </div>
-        <button class="btn btn-sm btn-outline-danger w-100 mt-2"
-          data-urgent-type="event" data-urgent-id="${escapeHtml(event.id)}" data-urgent-title="${escapeHtml(event.title)}">
-          <i class="bi bi-pencil-square me-1"></i>Draft Notification
-        </button>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-sm btn-outline-danger flex-grow-1"
+            data-urgent-type="event" data-urgent-id="${escapeHtml(event.id)}" data-urgent-title="${escapeHtml(event.title)}">
+            <i class="bi bi-send me-1"></i>Draft Notification
+          </button>
+          <button class="btn btn-sm btn-outline-secondary js-urgent-edit-event" data-event-id="${escapeHtml(event.id)}">
+            <i class="bi bi-pencil me-1"></i>Edit
+          </button>
+        </div>
       </div>`).join('');
 
     const jobItems = jobs.map((job) => `
-      <div class="p-3 border-bottom">
+      <div class="p-3 border-bottom js-urgent-item" data-item-id="job-${escapeHtml(job.id)}">
         <div class="d-flex align-items-start gap-2">
+          <input class="form-check-input flex-shrink-0 js-urgent-checkbox mt-1" type="checkbox"
+            data-item-id="job-${escapeHtml(job.id)}" style="cursor:pointer;">
           <span class="badge bg-danger mt-1" style="font-size:0.65rem;">URGENT</span>
           <div class="flex-grow-1">
             <div class="fw-semibold small">${escapeHtml(job.title)}</div>
@@ -1326,10 +1360,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${job.salary ? `<div class="text-muted" style="font-size:0.78rem;"><i class="bi bi-currency-dollar"></i>${escapeHtml(job.salary)}</div>` : ''}
           </div>
         </div>
-        <button class="btn btn-sm btn-outline-danger w-100 mt-2"
-          data-urgent-type="job" data-urgent-id="${escapeHtml(job.id)}" data-urgent-title="${escapeHtml(job.title)}">
-          <i class="bi bi-pencil-square me-1"></i>Draft Notification
-        </button>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-sm btn-outline-danger flex-grow-1"
+            data-urgent-type="job" data-urgent-id="${escapeHtml(job.id)}" data-urgent-title="${escapeHtml(job.title)}">
+            <i class="bi bi-send me-1"></i>Draft Notification
+          </button>
+          <button class="btn btn-sm btn-outline-secondary js-urgent-edit-job" data-job-id="${escapeHtml(job.id)}">
+            <i class="bi bi-pencil me-1"></i>Edit
+          </button>
+        </div>
       </div>`).join('');
 
     list.innerHTML = eventItems + jobItems;
@@ -1337,6 +1376,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wire Draft Notification buttons
     list.querySelectorAll('[data-urgent-type]').forEach((btn) => {
       btn.addEventListener('click', () => loadUrgentDraft(btn.dataset.urgentType, btn.dataset.urgentId, btn.dataset.urgentTitle));
+    });
+
+    // Wire checkboxes — highlight selected rows and show/hide "Clear selection"
+    const clearSelBtn = document.getElementById('urgentClearSelectionBtn');
+    function syncSelectionState() {
+      const checked = list.querySelectorAll('.js-urgent-checkbox:checked');
+      list.querySelectorAll('.js-urgent-item').forEach((row) => {
+        const cb = row.querySelector('.js-urgent-checkbox');
+        row.style.background = cb?.checked ? 'rgba(220,53,69,0.06)' : '';
+      });
+      if (clearSelBtn) clearSelBtn.classList.toggle('d-none', checked.length === 0);
+    }
+    list.querySelectorAll('.js-urgent-checkbox').forEach((cb) => {
+      cb.addEventListener('change', syncSelectionState);
+    });
+    if (clearSelBtn) {
+      // Replace listener each render to avoid stacking
+      const newBtn = clearSelBtn.cloneNode(true);
+      clearSelBtn.replaceWith(newBtn);
+      newBtn.addEventListener('click', () => {
+        list.querySelectorAll('.js-urgent-checkbox').forEach((cb) => { cb.checked = false; });
+        syncSelectionState();
+      });
+    }
+
+    // Wire Edit Event buttons
+    list.querySelectorAll('.js-urgent-edit-event').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const events = await Auth.getEvents();
+        const event = events.find((e) => String(e.id) === String(btn.dataset.eventId));
+        if (!event) return;
+        document.getElementById('eventTitle').value = event.title || '';
+        document.getElementById('eventCategory').value = event.category || '';
+        document.getElementById('eventDateTime').value = event.dateTime || '';
+        document.getElementById('eventLocation').value = event.location || '';
+        document.getElementById('eventCost').value = event.cost || '';
+        document.getElementById('eventAccommodations').value = event.accommodations || '';
+        const urgentCheck = document.getElementById('eventIsUrgent');
+        if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
+        editingEventId = event.id;
+        eventsEditOrigin = 'urgent-notifications';
+        document.getElementById('eventSubmitBtn').textContent = 'Update Event';
+        navigateTo('events');
+        showEventsFormView(true);
+      });
+    });
+
+    // Wire Edit Job buttons
+    list.querySelectorAll('.js-urgent-edit-job').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const jobs = await Auth.getJobs();
+        const job = jobs.find((j) => String(j.id) === String(btn.dataset.jobId));
+        if (!job) return;
+        document.getElementById('jobTitle').value = job.title || '';
+        document.getElementById('jobEmployer').value = job.employer || '';
+        document.getElementById('jobLocation').value = job.location || '';
+        document.getElementById('jobType').value = job.jobType || '';
+        document.getElementById('jobStatus').value = job.status || '';
+        document.getElementById('jobSalary').value = job.salary || '';
+        document.getElementById('jobRequirements').value = job.requirements || '';
+        const urgentCheck = document.getElementById('jobIsUrgent');
+        if (urgentCheck) urgentCheck.checked = Boolean(job.isUrgent);
+        editingJobId = job.id;
+        jobsEditOrigin = 'urgent-notifications';
+        document.getElementById('jobSubmitBtn').textContent = 'Update Job Opportunity';
+        navigateTo('jobs');
+        showJobsFormView(true);
+      });
     });
   }
 
@@ -1373,35 +1480,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await renderUrgentRecipients(result.suggestedRecipientEmails);
 
-    document.getElementById('urgentDraftPlaceholder')?.classList.add('d-none');
-    document.getElementById('urgentDraftForm')?.classList.remove('d-none');
+    showUrgentDraftView();
   }
 
   async function renderUrgentDispatchHistory() {
     const container = document.getElementById('urgentDispatchHistory');
     if (!container) return;
-    const history = await Auth.getUrgentNotificationHistory();
+    const [history, users] = await Promise.all([Auth.getUrgentNotificationHistory(), Auth.getUsers()]);
     if (!history.length) {
       container.innerHTML = '<div class="p-3 text-muted small text-center">No alerts sent yet.</div>';
       return;
     }
-    container.innerHTML = history.slice(0, 10).map((entry) => `
+    const emailToName = Object.fromEntries(users.map((u) => [u.email.toLowerCase(), u.name]));
+    container.innerHTML = history.slice(0, 10).map((entry) => {
+      const recipientList = Array.isArray(entry.recipients) && entry.recipients.length
+        ? entry.recipients.map((email) => {
+            const name = emailToName[email.toLowerCase()];
+            return name
+              ? `<span title="${escapeHtml(email)}">${escapeHtml(name)}</span>`
+              : `<span class="text-muted">${escapeHtml(email)}</span>`;
+          }).join(', ')
+        : '<span class="text-muted">—</span>';
+
+      return `
       <div class="p-3 border-bottom">
         <div class="d-flex align-items-start gap-2 mb-1">
-          <i class="bi bi-send-fill text-danger mt-1" style="font-size: 0.8rem;"></i>
+          <i class="bi bi-send-fill text-danger mt-1 flex-shrink-0" style="font-size: 0.8rem;"></i>
           <div>
             <div class="fw-semibold" style="font-size:0.82rem; line-height:1.3;">${escapeHtml(entry.subject)}</div>
-            <div class="text-muted" style="font-size:0.73rem;">
-              ${escapeHtml(entry.opportunityTitle || entry.opportunityType || '')}
-            </div>
+            <div class="text-muted" style="font-size:0.73rem;">${escapeHtml(entry.opportunityTitle || entry.opportunityType || '')}</div>
           </div>
         </div>
-        <div class="text-muted" style="font-size:0.72rem;">
+        <div class="text-muted mb-1" style="font-size:0.72rem;">
           <i class="bi bi-person-check me-1"></i>${escapeHtml(entry.sentByName)} &bull;
-          <i class="bi bi-people me-1 ms-1"></i>${entry.recipientCount} recipient(s)<br>
-          <i class="bi bi-clock me-1"></i>${escapeHtml(entry.sentAtLabel)}
+          <i class="bi bi-clock me-1 ms-1"></i>${escapeHtml(entry.sentAtLabel)}
         </div>
-      </div>`).join('');
+        <div style="font-size:0.72rem;">
+          <span class="text-muted"><i class="bi bi-people me-1"></i>Recipients:</span>
+          <span class="ms-1">${recipientList}</span>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   document.getElementById('urgentSendBtn')?.addEventListener('click', async () => {
@@ -1440,17 +1559,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    showUrgentSuccess(`✓ Urgent notification dispatched to ${result.recipientCount} recipient(s) at ${result.sentAtLabel}.`);
     showToast(`Urgent alert sent to ${result.recipientCount} recipient(s).`);
-
-    // Reset draft form
-    document.getElementById('urgentDraftForm')?.classList.add('d-none');
-    document.getElementById('urgentDraftPlaceholder')?.classList.remove('d-none');
-    const badge = document.getElementById('urgentDraftOpportunityBadge');
-    if (badge) badge.classList.add('d-none');
     urgentCurrentDraft = null;
 
     await renderUrgentDispatchHistory();
+    showUrgentListView();
   });
 
   document.getElementById('urgentSelectAllRecipientsBtn')?.addEventListener('click', () => {
@@ -1459,6 +1572,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('urgentClearRecipientsBtn')?.addEventListener('click', () => {
     document.querySelectorAll('input[name="urgentRecipients"]').forEach((cb) => { cb.checked = false; });
+  });
+
+  document.getElementById('backToUrgentListBtn')?.addEventListener('click', () => {
+    showUrgentListView();
   });
 
   document.getElementById('urgentRefreshBtn')?.addEventListener('click', async () => {

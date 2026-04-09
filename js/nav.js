@@ -65,20 +65,23 @@
 
                 const roleClass   = { ADMIN: 'badge-ADMIN', GUARDIAN: 'badge-GUARDIAN', PARTICIPANT: 'badge-PARTICIPANT', VOLUNTEER: 'badge-VOLUNTEER' }[session.role] || 'bg-secondary';
                 const displayName = (session.name || session.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const dashboardBtn = filename === 'dashboard'
-                    ? ''
-                    : `<a href="dashboard.html" class="btn-nav-dashboard">
-                        <i class="bi bi-speedometer2 me-1" aria-hidden="true"></i>Dashboard
-                    </a>`;
+                const nameEl      = filename === 'dashboard'
+                    ? `<span class="nav-user-name">${displayName}</span>`
+                    : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
+
+                const bellPlaceholder = session.role === 'PARTICIPANT'
+                    ? `<span id="nav-notifications-bell" class="position-relative me-1"></span>`
+                    : '';
 
                 navRight.innerHTML = `
-                    <span class="nav-user-name">${displayName}</span>
+                    ${nameEl}
                     <span class="badge ${roleClass}">${session.role}</span>
-                    ${dashboardBtn}
+                    ${bellPlaceholder}
                     <button class="btn-nav-logout js-logout-btn" type="button">
                         <i class="bi bi-box-arrow-right me-1"></i>Logout
                     </button>`;
                 navRight.querySelector('.js-logout-btn').addEventListener('click', function () { Auth.logout(); });
+                document.dispatchEvent(new CustomEvent('kindred:nav-ready', { detail: { session: session } }));
             });
         }
 
