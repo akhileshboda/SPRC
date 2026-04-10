@@ -1416,6 +1416,64 @@
     </div>
   </div>
 
+  <!-- ── Update Background Check Status Modal ── -->
+  <div class="modal fade" id="updateBgCheckModal" tabindex="-1" aria-labelledby="updateBgCheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold" id="updateBgCheckModalLabel">Update Background Check Status</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="updateBgCheckError" class="alert alert-danger d-none" role="alert"></div>
+          <div class="mb-3">
+            <label for="bgCheckVolunteerName" class="form-label fw-semibold">Volunteer</label>
+            <div id="bgCheckVolunteerName" class="form-control-plaintext"></div>
+          </div>
+          <div class="mb-3">
+            <label for="bgCheckStatusSelect" class="form-label">Status</label>
+            <select class="form-select" id="bgCheckStatusSelect">
+              <option value="Not Started">Not Started</option>
+              <option value="Pending">Pending</option>
+              <option value="Cleared">Cleared</option>
+              <option value="Denied">Denied</option>
+              <option value="Expired">Expired</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="bgCheckNotes" class="form-label">Notes (optional)</label>
+            <textarea class="form-control" id="bgCheckNotes" rows="3" placeholder="Add notes about this status update..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" id="saveBgCheckBtn">Save Status</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Background Check Details Modal ── -->
+  <div class="modal fade" id="bgCheckDetailsModal" tabindex="-1" aria-labelledby="bgCheckDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-semibold" id="bgCheckDetailsModalLabel">Background Check Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="bgCheckDetailsContent">
+            <!-- Content will be populated by JS -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="editBgCheckBtn">Update Status</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap Toast — success notification -->
   <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
     <div id="adminToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
