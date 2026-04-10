@@ -543,7 +543,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Pending':     'bg-warning text-dark',
     'Cleared':     'bg-success',
     'Denied':      'bg-danger',
-    'Expired':     'bg-dark'
+    'Expired':     'bg-dark',
+    'Revoked':     'bg-secondary'
   };
 
   function bgCheckBadge(status) {
@@ -571,7 +572,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const bgRecord = allBgRecords.find((r) => String(r.volunteerUserId) === String(profile.userId));
       const isLocked = bgStatus === 'Cleared' && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
       const approved = bgStatus === 'Cleared';
-      const denied = bgStatus === 'Denied' || bgStatus === 'Expired';
+      const denied = bgStatus === 'Denied' || bgStatus === 'Expired' || bgStatus === 'Revoked';
       const approvalBadge = approved
         ? '<span class="badge bg-success ms-2"><i class="bi bi-check-circle-fill me-1"></i>Approved</span>'
         : (denied
@@ -714,7 +715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         document.getElementById('bgCheckDetailsContent').innerHTML = content;
-        document.getElementById('bgCheckDetailsModalLabel').textContent = `Background Check Details - ${escapeHtml(profile.fullName)}`;
+        document.getElementById('bgCheckDetailsModalLabel').textContent = `Background Check Details ${escapeHtml(profile.fullName)}`;
         const detailsModal = new bootstrap.Modal(document.getElementById('bgCheckDetailsModal'));
         detailsModal.show();
 

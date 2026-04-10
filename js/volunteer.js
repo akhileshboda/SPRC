@@ -299,13 +299,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Pending':     { cls: 'bg-warning text-dark',   icon: 'bi-hourglass-split' },
     'Cleared':     { cls: 'bg-success',             icon: 'bi-check-circle-fill' },
     'Denied':      { cls: 'bg-danger',              icon: 'bi-x-circle-fill' },
-    'Expired':     { cls: 'bg-dark',                icon: 'bi-exclamation-triangle-fill' }
+    'Expired':     { cls: 'bg-dark',                icon: 'bi-exclamation-triangle-fill' },
+    'Revoked':     { cls: 'bg-secondary',           icon: 'bi-arrow-counterclockwise' }
   };
 
   async function renderBgCheckPanel() {
     const statusDisplay = document.getElementById('bgCheckStatusDisplay');
     const consentArea = document.getElementById('bgCheckConsentArea');
     const historyContainer = document.getElementById('bgCheckVolunteerHistory');
+    const revokeWrap = document.getElementById('bgCheckRevokeWrap');
+    const revokeBtn = document.getElementById('bgCheckRevokeBtn');
     if (!statusDisplay) return;
 
     Auth.checkAndExpireBgRecords();
@@ -342,6 +345,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${status === 'Expired'
         ? '<div class="alert alert-warning small mb-0 mt-2"><i class="bi bi-shield-fill-exclamation me-1"></i>Your background check has expired. Please resubmit consent or contact your administrator.</div>'
         : ''
+      }
+      ${status === 'Revoked'
+        ? '<div class="alert alert-secondary small mb-0 mt-2"><i class="bi bi-arrow-counterclockwise me-1"></i>Your background check authorization has been withdrawn. Resubmit consent if you want administrator review to resume.</div>'
+        : ''
       }`;
 
     if (consentArea) {
@@ -350,6 +357,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         consentArea.classList.remove('d-none');
       }
+    }
+
+    if (revokeWrap && revokeBtn) {
+      const canRevoke = consentSubmitted && status === 'Pending';
+      revokeWrap.classList.toggle('d-none', !canRevoke);
+      revokeBtn.disabled = !canRevoke;
     }
 
     if (historyContainer && record?.statusHistory?.length) {
@@ -379,6 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const consentSubmitBtn = document.getElementById('bgCheckSubmitConsentBtn');
   const consentErrorEl = document.getElementById('bgCheckConsentError');
   const consentSuccessEl = document.getElementById('bgCheckConsentSuccess');
+  const revokeBtn = document.getElementById('bgCheckRevokeBtn');
 
   if (consentCheckbox && consentSubmitBtn) {
     consentCheckbox.addEventListener('change', () => {
@@ -411,6 +425,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (consentSuccessEl) {
         consentSuccessEl.textContent = 'Consent submitted successfully! Your background check is now pending administrator review.';
+        consentSuccessEl.classList.remove('d-none');
+      }
+
+      await renderBgCheckPanel();
+    });
+  }
+
+  if (revokeBtn) {
+    revokeBtn.addEventListener('click', async () => {
+      consentErrorEl?.classList.add('d-none');
+      consentSuccessEl?.classList.add('d-none');
+      revokeBtn.disabled = true;
+
+      const result = await Auth.revokeBgCheckConsent();
+      if (!result.success) {
+        if (consentErrorEl) {
+          consentErrorEl.textContent = result.message || 'Unable to revoke consent.';
+          consentErrorEl.classList.remove('d-none');
+        }
+        await renderBgCheckPanel();
+        return;
+      }
+
+      if (consentCheckbox) consentCheckbox.checked = false;
+      if (consentSubmitBtn) consentSubmitBtn.disabled = true;
+      if (consentSuccessEl) {
+        consentSuccessEl.textContent = 'Background check authorization withdrawn. You may resubmit consent whenever you are ready.';
         consentSuccessEl.classList.remove('d-none');
       }
 

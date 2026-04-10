@@ -20,7 +20,7 @@ const Auth = (() => {
   const URGENT_NOTIFICATIONS_KEY = 'kindred_urgent_notifications';
   const AUDIT_LOG_KEY = 'kindred_audit_log';
 
-  const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired'];
+  const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
   const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals'];
@@ -1898,6 +1898,54 @@ const Auth = (() => {
     return { success: true };
   }
 
+  async function revokeBgCheckConsent() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can revoke background check consent.' };
+    }
+
+    const records = getRawBgChecks();
+    const record = records.find((entry) => String(entry.volunteerUserId) === String(session.userId));
+
+    if (!record || !record.consentSubmitted) {
+      return { success: false, message: 'No active background check consent was found to revoke.' };
+    }
+
+    if (record.status !== 'Pending') {
+      return { success: false, message: 'You can only revoke consent while your background check is pending review.' };
+    }
+
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+
+    record.consentSubmitted = false;
+    record.consentSubmittedAtMs = null;
+    record.consentSubmittedAtLabel = '';
+    record.status = 'Revoked';
+    record.expiresAtMs = null;
+    record.expiresAtLabel = '';
+    record.statusHistory.push({
+      status: 'Revoked',
+      changedByUserId: session.userId,
+      changedByName: session.name,
+      changedByRole: 'VOLUNTEER',
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      note: 'Volunteer revoked consent'
+    });
+
+    setJson(BG_CHECK_KEY, records);
+
+    const profiles = getRawVolunteerProfiles();
+    const profileIdx = profiles.findIndex((p) => String(p.userId) === String(session.userId));
+    if (profileIdx >= 0) {
+      profiles[profileIdx].backgroundCheckStatus = 'Revoked';
+      setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    }
+
+    return { success: true };
+  }
+
   const BG_EXPIRY_OPTIONS = {
     '6months': { label: '6 Months', ms: 6 * 30 * 24 * 60 * 60 * 1000 },
     '1year':   { label: '1 Year',   ms: 365 * 24 * 60 * 60 * 1000 }
@@ -2373,6 +2421,7 @@ const Auth = (() => {
     getBgCheckRecord,
     getMyBgCheckRecord,
     submitBgCheckConsent,
+    revokeBgCheckConsent,
     updateBgCheckStatus,
     getAllBgCheckRecords,
     getUrgentOpportunities,
