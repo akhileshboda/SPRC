@@ -19,6 +19,8 @@ const Auth = (() => {
   const BG_CHECK_KEY = 'kindred_bg_checks';
   const URGENT_NOTIFICATIONS_KEY = 'kindred_urgent_notifications';
   const AUDIT_LOG_KEY = 'kindred_audit_log';
+  const INQUIRIES_KEY = 'kindred_inquiries';
+  const TASKS_KEY = 'kindred_tasks';
 
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
@@ -310,6 +312,14 @@ const Auth = (() => {
     return parseJson(AUDIT_LOG_KEY, []);
   }
 
+  function getRawInquiries() {
+    return parseJson(INQUIRIES_KEY, []);
+  }
+
+  function getRawTasks() {
+    return parseJson(TASKS_KEY, []);
+  }
+
   function normalizeRole(role, fallback = 'PARTICIPANT') {
     const upper = String(role || '').trim().toUpperCase();
     if (upper === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
@@ -577,6 +587,8 @@ const Auth = (() => {
     if (!localStorage.getItem(BG_CHECK_KEY)) setJson(BG_CHECK_KEY, []);
     if (!localStorage.getItem(URGENT_NOTIFICATIONS_KEY)) setJson(URGENT_NOTIFICATIONS_KEY, []);
     if (!localStorage.getItem(AUDIT_LOG_KEY)) setJson(AUDIT_LOG_KEY, []);
+    if (!localStorage.getItem(INQUIRIES_KEY)) setJson(INQUIRIES_KEY, []);
+    if (!localStorage.getItem(TASKS_KEY)) setJson(TASKS_KEY, []);
   }
 
   function getUserByIdInternal(userId) {
@@ -696,7 +708,9 @@ const Auth = (() => {
       NEWSLETTER_LOG_KEY,
       BG_CHECK_KEY,
       URGENT_NOTIFICATIONS_KEY,
-      AUDIT_LOG_KEY
+      AUDIT_LOG_KEY,
+      INQUIRIES_KEY,
+      TASKS_KEY
     ].forEach((key) => localStorage.removeItem(key));
     if (reseed) initStores();
     return { success: true };
@@ -2363,6 +2377,228 @@ const Auth = (() => {
       .sort((a, b) => (b.sentAtMs || 0) - (a.sentAtMs || 0));
   }
 
+  // ─── Task Assignment & Delegation (Story 1001) ────────────────────────────
+
+  async function getClearedVolunteers() {
+    await checkAndExpireBgRecords();
+    const profiles = getRawVolunteerProfiles().filter((p) => p.backgroundCheckStatus === 'Cleared');
+    const users = getRawUsers();
+    return profiles.map((p) => {
+      const user = users.find((u) => String(u.id) === String(p.userId));
+      return { userId: p.userId, name: user ? user.name : p.firstName + ' ' + p.lastName, email: p.email };
+    });
+  }
+
+  async function submitInquiry(payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'PARTICIPANT') return { success: false, message: 'Only participants can submit inquiries.' };
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    const inquiry = {
+      id: makeId('inq'),
+      subject: String(payload.subject || '').trim() || 'No subject',
+      description: String(payload.description || '').trim(),
+      submittedByUserId: session.userId,
+      submittedByName: session.name,
+      status: 'PENDING_REVIEW',
+      taskIds: [],
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    };
+    const inquiries = getRawInquiries();
+    inquiries.push(inquiry);
+    setJson(INQUIRIES_KEY, inquiries);
+    return { success: true };
+  }
+
+  async function getAllInquiries() {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return [];
+    return getRawInquiries().slice().sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }
+
+  async function getMyInquiries() {
+    const session = await getSession();
+    if (!session || session.role !== 'PARTICIPANT') return [];
+    const inquiries = getRawInquiries().filter((i) => String(i.submittedByUserId) === String(session.userId));
+    const tasks = getRawTasks();
+    return inquiries
+      .slice()
+      .sort((a, b) => b.createdAtMs - a.createdAtMs)
+      .map((inq) => ({
+        ...inq,
+        tasks: tasks.filter((t) => String(t.inquiryId) === String(inq.id))
+      }));
+  }
+
+  async function createTaskFromInquiry(inquiryId, payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can create tasks.' };
+    const inquiries = getRawInquiries();
+    const inqIdx = inquiries.findIndex((i) => String(i.id) === String(inquiryId));
+    if (inqIdx < 0) return { success: false, message: 'Inquiry not found.' };
+    const inquiry = inquiries[inqIdx];
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    const task = {
+      id: makeId('task'),
+      inquiryId: String(inquiryId),
+      inquirySubject: inquiry.subject,
+      title: String(payload.title || '').trim(),
+      description: String(payload.description || '').trim(),
+      createdByAdminId: session.userId,
+      createdByAdminName: session.name,
+      status: 'UNASSIGNED',
+      assignedToUserId: null,
+      assignedToName: null,
+      assignedAtMs: null,
+      assignedAtLabel: null,
+      assignedByUserId: null,
+      assignedByName: null,
+      volunteerNote: null,
+      completedAtMs: null,
+      completedAtLabel: null,
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    };
+    const tasks = getRawTasks();
+    tasks.push(task);
+    setJson(TASKS_KEY, tasks);
+    inquiry.taskIds.push(task.id);
+    if (inquiry.status === 'PENDING_REVIEW') inquiry.status = 'IN_PROGRESS';
+    setJson(INQUIRIES_KEY, inquiries);
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'TASK_CREATED',
+      adminUserId: session.userId,
+      adminName: session.name,
+      taskId: task.id,
+      taskTitle: task.title,
+      inquiryId: String(inquiryId),
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    return { success: true, taskId: task.id };
+  }
+
+  async function getAllTasks() {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return [];
+    return getRawTasks().slice().sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }
+
+  async function getMyAssignedTasks() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return [];
+    return getRawTasks()
+      .filter((t) => String(t.assignedToUserId) === String(session.userId) && !['COMPLETED', 'REJECTED'].includes(t.status))
+      .slice()
+      .sort((a, b) => a.createdAtMs - b.createdAtMs);
+  }
+
+  async function assignTask(taskId, assignedToUserId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can assign tasks.' };
+    const tasks = getRawTasks();
+    const taskIdx = tasks.findIndex((t) => String(t.id) === String(taskId));
+    if (taskIdx < 0) return { success: false, message: 'Task not found.' };
+    const task = tasks[taskIdx];
+    if (task.status === 'COMPLETED' || task.status === 'REJECTED') return { success: false, message: 'Cannot reassign a resolved task.' };
+    const cleared = await getClearedVolunteers();
+    const assignee = cleared.find((v) => String(v.userId) === String(assignedToUserId));
+    if (!assignee) return { success: false, message: 'Volunteer does not have a Cleared background check status.' };
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    task.status = 'ASSIGNED';
+    task.assignedToUserId = String(assignedToUserId);
+    task.assignedToName = assignee.name;
+    task.assignedAtMs = now;
+    task.assignedAtLabel = dateLabel;
+    task.assignedByUserId = session.userId;
+    task.assignedByName = session.name;
+    setJson(TASKS_KEY, tasks);
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'TASK_ASSIGNED',
+      adminUserId: session.userId,
+      adminName: session.name,
+      taskId: String(taskId),
+      taskTitle: task.title,
+      assignedToUserId: String(assignedToUserId),
+      assignedToName: assignee.name,
+      assignedAtMs: now,
+      assignedAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    return { success: true };
+  }
+
+  async function updateTaskStatus(taskId, newStatus) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return { success: false, message: 'Only volunteers can update task status.' };
+    const tasks = getRawTasks();
+    const taskIdx = tasks.findIndex((t) => String(t.id) === String(taskId));
+    if (taskIdx < 0) return { success: false, message: 'Task not found.' };
+    const task = tasks[taskIdx];
+    if (String(task.assignedToUserId) !== String(session.userId)) return { success: false, message: 'You can only update your own tasks.' };
+    if (newStatus === 'IN_PROGRESS' && task.status !== 'ASSIGNED') return { success: false, message: 'Task must be in Assigned status to start.' };
+    task.status = newStatus;
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
+  async function resolveTask(taskId, resolution, volunteerNote) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return { success: false, message: 'Only volunteers can resolve tasks.' };
+    if (!['COMPLETED', 'REJECTED'].includes(resolution)) return { success: false, message: 'Invalid resolution.' };
+    const tasks = getRawTasks();
+    const taskIdx = tasks.findIndex((t) => String(t.id) === String(taskId));
+    if (taskIdx < 0) return { success: false, message: 'Task not found.' };
+    const task = tasks[taskIdx];
+    if (String(task.assignedToUserId) !== String(session.userId)) return { success: false, message: 'You can only resolve your own tasks.' };
+    if (!['ASSIGNED', 'IN_PROGRESS'].includes(task.status)) return { success: false, message: 'Task cannot be resolved from its current status.' };
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    task.status = resolution;
+    task.volunteerNote = String(volunteerNote || '').trim() || null;
+    task.completedAtMs = now;
+    task.completedAtLabel = dateLabel;
+    setJson(TASKS_KEY, tasks);
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'TASK_RESOLVED',
+      volunteerUserId: session.userId,
+      volunteerName: session.name,
+      taskId: String(taskId),
+      taskTitle: task.title,
+      resolution,
+      volunteerNote: task.volunteerNote,
+      resolvedAtMs: now,
+      resolvedAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    // Auto-resolve parent inquiry if all linked tasks are done
+    const allTasks = getRawTasks();
+    const inquiries = getRawInquiries();
+    const inqIdx = inquiries.findIndex((i) => String(i.id) === String(task.inquiryId));
+    if (inqIdx >= 0) {
+      const inquiry = inquiries[inqIdx];
+      const siblingTasks = allTasks.filter((t) => String(t.inquiryId) === String(inquiry.id));
+      const allResolved = siblingTasks.length > 0 && siblingTasks.every((t) => ['COMPLETED', 'REJECTED'].includes(t.status));
+      if (allResolved) {
+        inquiry.status = 'RESOLVED';
+        setJson(INQUIRIES_KEY, inquiries);
+      }
+    }
+    return { success: true };
+  }
+
+  // ─── End Task Assignment ───────────────────────────────────────────────────
+
   initStores();
 
   return {
@@ -2432,6 +2668,16 @@ const Auth = (() => {
     getReadNotificationIds,
     markNotificationsRead,
     toggleNotificationRead,
-    deleteMyNotification
+    deleteMyNotification,
+    getClearedVolunteers,
+    submitInquiry,
+    getAllInquiries,
+    getMyInquiries,
+    createTaskFromInquiry,
+    getAllTasks,
+    getMyAssignedTasks,
+    assignTask,
+    updateTaskStatus,
+    resolveTask
   };
 })();

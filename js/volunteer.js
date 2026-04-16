@@ -460,4 +460,129 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await renderBgCheckPanel();
+
+  // ─── My Tasks (Story 1001) ────────────────────────────────────────────────
+
+  const VOL_TASK_STATUS_BADGE = {
+    ASSIGNED:    'bg-primary',
+    IN_PROGRESS: 'bg-warning text-dark',
+    COMPLETED:   'bg-success',
+    REJECTED:    'bg-danger'
+  };
+  const VOL_TASK_STATUS_LABEL = {
+    ASSIGNED:    'Assigned',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED:   'Completed',
+    REJECTED:    'Rejected'
+  };
+
+  let currentResolveTaskId = null;
+
+  async function renderVolunteerTasks() {
+    const container = document.getElementById('volTasksList');
+    if (!container) return;
+    const tasks = await Auth.getMyAssignedTasks();
+    if (!tasks.length) {
+      container.innerHTML = emptyState('bi-clipboard', 'No tasks have been assigned to you yet.');
+      return;
+    }
+    container.innerHTML = tasks.map((task) => {
+      const badge = VOL_TASK_STATUS_BADGE[task.status] || 'bg-secondary';
+      const label = VOL_TASK_STATUS_LABEL[task.status] || task.status;
+      const canStart = task.status === 'ASSIGNED';
+      const canResolve = task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS';
+      return `<div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-1">
+            <span class="fw-semibold">${escHtml(task.title)}</span>
+            <span class="badge ${badge} ms-2">${escHtml(label)}</span>
+          </div>
+          <p class="text-muted small mb-1"><i class="bi bi-inbox me-1"></i>${escHtml(task.inquirySubject || '—')}</p>
+          <p class="text-muted small mb-2">Assigned ${escHtml(task.assignedAtLabel || '')}</p>
+          ${task.description ? `<p class="small mb-3" style="white-space:pre-wrap;">${escHtml(task.description)}</p>` : ''}
+          <div class="d-flex gap-2">
+            ${canStart ? `<button class="btn btn-warning btn-sm js-task-start" data-task-id="${escHtml(task.id)}"><i class="bi bi-play-circle me-1"></i>Start Working</button>` : ''}
+            ${canResolve ? `<button class="btn btn-outline-primary btn-sm js-task-resolve" data-task-id="${escHtml(task.id)}" data-task-title="${escHtml(task.title)}" data-task-inq="${escHtml(task.inquirySubject || '—')}"><i class="bi bi-check-circle me-1"></i>Resolve</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.js-task-start').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await Auth.updateTaskStatus(btn.dataset.taskId, 'IN_PROGRESS');
+        if (result.success) await renderVolunteerTasks();
+        else btn.disabled = false;
+      });
+    });
+
+    container.querySelectorAll('.js-task-resolve').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentResolveTaskId = btn.dataset.taskId;
+        const titleEl = document.getElementById('modalResolveTaskTitle');
+        const inqEl = document.getElementById('modalResolveInquiryRef');
+        if (titleEl) titleEl.textContent = btn.dataset.taskTitle;
+        if (inqEl) inqEl.textContent = btn.dataset.taskInq;
+        // Reset form state
+        const completedRadio = document.getElementById('resolveCompleted');
+        if (completedRadio) completedRadio.checked = true;
+        const noteEl = document.getElementById('taskResolveNote');
+        if (noteEl) { noteEl.value = ''; noteEl.classList.remove('is-invalid'); }
+        const hintEl = document.getElementById('taskResolveNoteHint');
+        if (hintEl) hintEl.textContent = '(optional)';
+        const errEl = document.getElementById('taskResolveError');
+        if (errEl) errEl.classList.add('d-none');
+        const confirmBtn = document.getElementById('taskResolveConfirmBtn');
+        if (confirmBtn) { confirmBtn.className = 'btn btn-success'; confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm'; }
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('taskResolveModal')).show();
+      });
+    });
+  }
+
+  // Wire radio buttons for resolution type
+  document.querySelectorAll('input[name="taskResolution"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      const noteEl = document.getElementById('taskResolveNote');
+      const hintEl = document.getElementById('taskResolveNoteHint');
+      const confirmBtn = document.getElementById('taskResolveConfirmBtn');
+      if (radio.value === 'REJECTED') {
+        if (hintEl) hintEl.textContent = '(required — please explain why)';
+        if (confirmBtn) { confirmBtn.className = 'btn btn-danger'; confirmBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Reject Task'; }
+      } else {
+        if (hintEl) hintEl.textContent = '(optional)';
+        if (noteEl) noteEl.classList.remove('is-invalid');
+        if (confirmBtn) { confirmBtn.className = 'btn btn-success'; confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm'; }
+      }
+    });
+  });
+
+  document.getElementById('taskResolveConfirmBtn')?.addEventListener('click', async () => {
+    const resolution = document.querySelector('input[name="taskResolution"]:checked')?.value || 'COMPLETED';
+    const noteEl = document.getElementById('taskResolveNote');
+    const errEl = document.getElementById('taskResolveError');
+    if (errEl) errEl.classList.add('d-none');
+    if (noteEl) noteEl.classList.remove('is-invalid');
+    const note = noteEl?.value.trim() || '';
+    if (resolution === 'REJECTED' && !note) {
+      if (noteEl) noteEl.classList.add('is-invalid');
+      return;
+    }
+    const result = await Auth.resolveTask(currentResolveTaskId, resolution, note);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Failed to resolve task.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('taskResolveModal'))?.hide();
+    await renderVolunteerTasks();
+  });
+
+  const vTasksSection = document.getElementById('section-v-tasks');
+  if (vTasksSection) {
+    new MutationObserver(() => {
+      if (!vTasksSection.classList.contains('d-none')) renderVolunteerTasks();
+    }).observe(vTasksSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  await renderVolunteerTasks();
 });

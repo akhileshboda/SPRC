@@ -1813,6 +1813,262 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderNewsletterPreview();
   });
 
+  // ─── Task Assignment & Delegation (Story 1001) ────────────────────────────
+
+  const INQ_STATUS_BADGE = {
+    PENDING_REVIEW: 'bg-secondary',
+    IN_PROGRESS: 'bg-primary',
+    RESOLVED: 'bg-success'
+  };
+  const INQ_STATUS_LABEL = {
+    PENDING_REVIEW: 'Pending Review',
+    IN_PROGRESS: 'In Progress',
+    RESOLVED: 'Resolved'
+  };
+  const TASK_STATUS_BADGE = {
+    UNASSIGNED: 'bg-light text-dark border',
+    ASSIGNED: 'bg-primary',
+    IN_PROGRESS: 'bg-warning text-dark',
+    COMPLETED: 'bg-success',
+    REJECTED: 'bg-danger'
+  };
+  const TASK_STATUS_LABEL = {
+    UNASSIGNED: 'Unassigned',
+    ASSIGNED: 'Assigned',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    REJECTED: 'Rejected'
+  };
+
+  let currentInquiryId = null;
+  let currentAssignTaskId = null;
+  let currentInquiryFilter = 'ALL';
+  let currentTaskFilter = 'ALL';
+
+  async function renderInquiriesTable(filter) {
+    if (filter === undefined) filter = 'ALL';
+    const tbody = document.getElementById('inquiriesTableBody');
+    if (!tbody) return;
+    let inquiries = await Auth.getAllInquiries();
+    if (filter !== 'ALL') inquiries = inquiries.filter((i) => i.status === filter);
+    if (!inquiries.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No inquiries found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = inquiries.map((inq) => {
+      const badge = INQ_STATUS_BADGE[inq.status] || 'bg-secondary';
+      const label = INQ_STATUS_LABEL[inq.status] || inq.status;
+      const taskCount = (inq.taskIds || []).length;
+      const isResolved = inq.status === 'RESOLVED';
+      return `<tr>
+        <td class="ps-3"><span class="badge ${badge}">${escapeHtml(label)}</span></td>
+        <td class="small">${escapeHtml(inq.submittedByName)}</td>
+        <td class="fw-semibold small">${escapeHtml(inq.subject)}</td>
+        <td class="text-muted small">${escapeHtml(inq.createdAtLabel)}</td>
+        <td><span class="badge bg-secondary">${taskCount}</span></td>
+        <td class="pe-3 text-end">
+          <button class="btn btn-sm ${isResolved ? 'btn-outline-secondary' : 'btn-outline-primary'} js-inq-review"
+                  data-inq-id="${escapeHtml(inq.id)}">
+            ${isResolved ? 'View' : 'Review'}
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('.js-inq-review').forEach((btn) => {
+      btn.addEventListener('click', () => openInquiryReviewModal(btn.dataset.inqId));
+    });
+  }
+
+  async function renderModalInqTasksList(inquiryId) {
+    const container = document.getElementById('modalInqTasksList');
+    if (!container) return;
+    const tasks = await Auth.getAllTasks();
+    const linked = tasks.filter((t) => String(t.inquiryId) === String(inquiryId));
+    if (!linked.length) {
+      container.innerHTML = `<p class="text-muted small mb-0">No tasks yet. Create one below.</p>`;
+      return;
+    }
+    container.innerHTML = `<ul class="list-group list-group-flush border rounded">
+      ${linked.map((t) => {
+        const badge = TASK_STATUS_BADGE[t.status] || 'bg-secondary';
+        const label = TASK_STATUS_LABEL[t.status] || t.status;
+        return `<li class="list-group-item d-flex justify-content-between align-items-center small py-2">
+          <span>${escapeHtml(t.title)}</span>
+          <span class="badge ${badge}">${escapeHtml(label)}</span>
+        </li>`;
+      }).join('')}
+    </ul>`;
+  }
+
+  async function openInquiryReviewModal(inquiryId) {
+    currentInquiryId = inquiryId;
+    const inquiries = await Auth.getAllInquiries();
+    const inq = inquiries.find((i) => String(i.id) === String(inquiryId));
+    if (!inq) return;
+    document.getElementById('modalInqSubject').textContent = inq.subject;
+    document.getElementById('modalInqSubmitter').textContent = inq.submittedByName;
+    document.getElementById('modalInqDate').textContent = inq.createdAtLabel;
+    document.getElementById('modalInqDescription').textContent = inq.description;
+    const errEl = document.getElementById('inquiryReviewError');
+    if (errEl) errEl.classList.add('d-none');
+    const titleInput = document.getElementById('modalNewTaskTitle');
+    const descInput = document.getElementById('modalNewTaskDescription');
+    if (titleInput) { titleInput.value = ''; titleInput.classList.remove('is-invalid'); }
+    if (descInput) descInput.value = '';
+    await renderModalInqTasksList(inquiryId);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('inquiryReviewModal')).show();
+  }
+
+  document.getElementById('inquiryCreateTaskBtn')?.addEventListener('click', async () => {
+    const titleInput = document.getElementById('modalNewTaskTitle');
+    const descInput = document.getElementById('modalNewTaskDescription');
+    const errEl = document.getElementById('inquiryReviewError');
+    if (errEl) errEl.classList.add('d-none');
+    if (titleInput) titleInput.classList.remove('is-invalid');
+    const title = titleInput?.value.trim();
+    if (!title) {
+      if (titleInput) titleInput.classList.add('is-invalid');
+      return;
+    }
+    const description = descInput?.value.trim() || '';
+    const result = await Auth.createTaskFromInquiry(currentInquiryId, { title, description });
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Failed to create task.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    if (titleInput) titleInput.value = '';
+    if (descInput) descInput.value = '';
+    showToast('Task created successfully.');
+    await renderModalInqTasksList(currentInquiryId);
+    await renderInquiriesTable(currentInquiryFilter);
+    await renderTasksTable(currentTaskFilter);
+  });
+
+  document.querySelectorAll('[data-inq-filter]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('[data-inq-filter]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentInquiryFilter = btn.dataset.inqFilter;
+      await renderInquiriesTable(currentInquiryFilter);
+    });
+  });
+
+  const inqSection = document.getElementById('section-inquiries');
+  if (inqSection) {
+    new MutationObserver(() => {
+      if (!inqSection.classList.contains('d-none')) renderInquiriesTable(currentInquiryFilter);
+    }).observe(inqSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  async function renderTasksTable(filter) {
+    if (filter === undefined) filter = 'ALL';
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody) return;
+    let tasks = await Auth.getAllTasks();
+    if (filter !== 'ALL') tasks = tasks.filter((t) => t.status === filter);
+    if (!tasks.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">No tasks found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = tasks.map((task) => {
+      const badge = TASK_STATUS_BADGE[task.status] || 'bg-secondary';
+      const label = TASK_STATUS_LABEL[task.status] || task.status;
+      const isResolved = task.status === 'COMPLETED' || task.status === 'REJECTED';
+      const canAssign = task.status === 'UNASSIGNED';
+      const noteDisplay = task.volunteerNote
+        ? `<span class="text-muted small" title="${escapeHtml(task.volunteerNote)}">${escapeHtml(task.volunteerNote.substring(0, 40))}${task.volunteerNote.length > 40 ? '…' : ''}</span>`
+        : '<span class="text-muted small">—</span>';
+      const actionBtn = isResolved
+        ? `<button class="btn btn-sm btn-outline-secondary" disabled>—</button>`
+        : `<button class="btn btn-sm ${canAssign ? 'btn-outline-primary' : 'btn-outline-secondary'} js-task-assign"
+                  data-task-id="${escapeHtml(task.id)}">
+            ${canAssign ? 'Assign' : 'Reassign'}
+           </button>`;
+      return `<tr>
+        <td class="ps-3"><span class="badge ${badge}">${escapeHtml(label)}</span></td>
+        <td class="text-muted small">${escapeHtml(task.inquirySubject || '—')}</td>
+        <td class="fw-semibold small">${escapeHtml(task.title)}</td>
+        <td class="small">${escapeHtml(task.assignedToName || '—')}</td>
+        <td class="small">${noteDisplay}</td>
+        <td class="pe-3 text-end">${actionBtn}</td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('.js-task-assign').forEach((btn) => {
+      btn.addEventListener('click', () => openTaskAssignModal(btn.dataset.taskId));
+    });
+  }
+
+  async function openTaskAssignModal(taskId) {
+    currentAssignTaskId = taskId;
+    const tasks = await Auth.getAllTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return;
+    document.getElementById('modalTaskTitle').textContent = task.title;
+    document.getElementById('modalTaskInquiryRef').textContent = task.inquirySubject || '—';
+    document.getElementById('modalTaskDescription').textContent = task.description || '—';
+    const errEl = document.getElementById('taskAssignError');
+    if (errEl) errEl.classList.add('d-none');
+    const select = document.getElementById('taskAssignVolunteerSelect');
+    const noVolEl = document.getElementById('taskAssignNoVolunteers');
+    const confirmBtn = document.getElementById('taskAssignConfirmBtn');
+    if (select) {
+      select.innerHTML = `<option value="" disabled selected>Select a cleared volunteer…</option>`;
+      const cleared = await Auth.getClearedVolunteers();
+      if (!cleared.length) {
+        if (noVolEl) noVolEl.classList.remove('d-none');
+        if (confirmBtn) confirmBtn.disabled = true;
+      } else {
+        if (noVolEl) noVolEl.classList.add('d-none');
+        if (confirmBtn) confirmBtn.disabled = false;
+        cleared.forEach((v) => {
+          const opt = document.createElement('option');
+          opt.value = v.userId;
+          opt.textContent = `${v.name} (${v.email})`;
+          if (task.assignedToUserId && String(task.assignedToUserId) === String(v.userId)) opt.selected = true;
+          select.appendChild(opt);
+        });
+      }
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('taskAssignModal')).show();
+  }
+
+  document.getElementById('taskAssignConfirmBtn')?.addEventListener('click', async () => {
+    const select = document.getElementById('taskAssignVolunteerSelect');
+    const errEl = document.getElementById('taskAssignError');
+    if (errEl) errEl.classList.add('d-none');
+    const volunteerUserId = select?.value;
+    if (!volunteerUserId) {
+      if (errEl) { errEl.textContent = 'Please select a volunteer.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    const result = await Auth.assignTask(currentAssignTaskId, volunteerUserId);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Assignment failed.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('taskAssignModal'))?.hide();
+    showToast('Task assigned successfully.');
+    await renderTasksTable(currentTaskFilter);
+  });
+
+  document.querySelectorAll('[data-task-filter]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('[data-task-filter]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTaskFilter = btn.dataset.taskFilter;
+      await renderTasksTable(currentTaskFilter);
+    });
+  });
+
+  const tasksSection = document.getElementById('section-tasks');
+  if (tasksSection) {
+    new MutationObserver(() => {
+      if (!tasksSection.classList.contains('d-none')) renderTasksTable(currentTaskFilter);
+    }).observe(tasksSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // ─── End Task Assignment ───────────────────────────────────────────────────
+
   await populateLinkedUserOptions();
   await renderUsersTable();
   await renderParticipantsTable();
