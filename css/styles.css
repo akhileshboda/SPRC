@@ -149,6 +149,11 @@ body {
   white-space: nowrap;
 }
 
+.volunteer-bgcheck-details-btn {
+  display: block;
+  width: 100%;
+}
+
 .volunteer-list-text {
   max-width: 19rem;
   white-space: normal;

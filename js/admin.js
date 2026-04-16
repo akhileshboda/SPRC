@@ -567,6 +567,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const allBgRecords = await Auth.getAllBgCheckRecords();
 
+    const openBgCheckUpdateModal = async (userId) => {
+      const profile = await Auth.getVolunteerProfile(userId);
+      if (!profile) return;
+
+      document.getElementById('bgCheckVolunteerName').textContent = profile.fullName;
+      document.getElementById('bgCheckStatusSelect').value = profile.backgroundCheckStatus || 'Not Started';
+      document.getElementById('bgCheckNotes').value = '';
+      document.getElementById('updateBgCheckError').classList.add('d-none');
+
+      const modal = new bootstrap.Modal(document.getElementById('updateBgCheckModal'));
+      modal.show();
+
+      const saveBtn = document.getElementById('saveBgCheckBtn');
+      const handleSave = async () => {
+        saveBtn.disabled = true;
+        const newStatus = document.getElementById('bgCheckStatusSelect').value;
+        const notes = document.getElementById('bgCheckNotes').value.trim();
+        const result = await Auth.updateBgCheckStatus(userId, newStatus, notes);
+        if (!result.success) {
+          document.getElementById('updateBgCheckError').textContent = result.message || 'Unable to update background check status.';
+          document.getElementById('updateBgCheckError').classList.remove('d-none');
+          saveBtn.disabled = false;
+          return;
+        }
+        showToast(`Background check status updated to "${newStatus}".`);
+        modal.hide();
+        await renderVolunteersTable();
+      };
+
+      saveBtn.onclick = handleSave;
+      modal._element.addEventListener('hidden.bs.modal', () => {
+        saveBtn.onclick = null;
+      }, { once: true });
+    };
+
     tbody.innerHTML = profiles.map((profile) => {
       const bgStatus = profile.backgroundCheckStatus || 'Not Started';
       const bgRecord = allBgRecords.find((r) => String(r.volunteerUserId) === String(profile.userId));
@@ -595,12 +630,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${bgCheckBadge(bgStatus)}${approvalBadge}
           </div>
           ${expiryMarkup}
-          <div class="mt-2 d-flex gap-1">
-            <button class="btn btn-outline-info btn-sm" data-bgcheck-details-user-id="${escapeHtml(profile.userId)}" ${isLocked ? 'disabled' : ''}>
+          <div class="mt-2">
+            <button class="btn btn-outline-info btn-sm volunteer-bgcheck-details-btn" data-bgcheck-details-user-id="${escapeHtml(profile.userId)}" ${isLocked ? 'disabled' : ''}>
               <i class="bi bi-eye"></i> Details
-            </button>
-            <button class="btn btn-outline-success btn-sm" data-bgcheck-update-user-id="${escapeHtml(profile.userId)}" ${isLocked ? 'disabled' : ''}>
-              <i class="bi bi-pencil"></i> Update
             </button>
           </div>
         </td>
@@ -723,49 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const editBtn = document.getElementById('editBgCheckBtn');
         editBtn.onclick = () => {
           detailsModal.hide();
-          // Trigger the update modal
-          const updateBtn = tbody.querySelector(`[data-bgcheck-update-user-id="${userId}"]`);
-          if (updateBtn) updateBtn.click();
+          openBgCheckUpdateModal(userId);
         };
-      });
-    });
-
-    tbody.querySelectorAll('[data-bgcheck-update-user-id]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const userId = btn.dataset.bgcheckUpdateUserId;
-        const profile = await Auth.getVolunteerProfile(userId);
-        if (!profile) return;
-
-        document.getElementById('bgCheckVolunteerName').textContent = profile.fullName;
-        document.getElementById('bgCheckStatusSelect').value = profile.backgroundCheckStatus || 'Not Started';
-        document.getElementById('bgCheckNotes').value = '';
-        document.getElementById('updateBgCheckError').classList.add('d-none');
-
-        const modal = new bootstrap.Modal(document.getElementById('updateBgCheckModal'));
-        modal.show();
-
-        // Handle save
-        const saveBtn = document.getElementById('saveBgCheckBtn');
-        const handleSave = async () => {
-          saveBtn.disabled = true;
-          const newStatus = document.getElementById('bgCheckStatusSelect').value;
-          const notes = document.getElementById('bgCheckNotes').value.trim();
-          const result = await Auth.updateBgCheckStatus(userId, newStatus, notes);
-          if (!result.success) {
-            document.getElementById('updateBgCheckError').textContent = result.message || 'Unable to update background check status.';
-            document.getElementById('updateBgCheckError').classList.remove('d-none');
-            saveBtn.disabled = false;
-            return;
-          }
-          showToast(`Background check status updated to "${newStatus}".`);
-          modal.hide();
-          await renderVolunteersTable();
-        };
-
-        saveBtn.onclick = handleSave;
-        modal._element.addEventListener('hidden.bs.modal', () => {
-          saveBtn.onclick = null;
-        }, { once: true });
       });
     });
   }
