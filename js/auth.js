@@ -1132,11 +1132,27 @@ const Auth = (() => {
       }));
   }
 
+  function parseNonNegativeNumber(val) {
+    if (val === '' || val === null || val === undefined) return null;
+    const n = Number(val);
+    return (!isNaN(n) && n >= 0) ? n : null;
+  }
+
+  function buildCostSummary(programFee, materialsCost) {
+    const fee = parseNonNegativeNumber(programFee);
+    const mat = parseNonNegativeNumber(materialsCost);
+    if (fee === null && mat === null) return 'Free';
+    const total = (fee || 0) + (mat || 0);
+    return total === 0 ? 'Free' : `$${total.toFixed(2)}`;
+  }
+
   async function addEvent(payload) {
     const events = getRawEvents();
     if (eventDuplicate(events, payload)) {
       return { success: false, message: 'An event with the same title, location, and date/time already exists.' };
     }
+    const programFee = parseNonNegativeNumber(payload.programFee);
+    const materialsCost = parseNonNegativeNumber(payload.materialsCost);
     events.push({
       id: makeId('o'),
       title: String(payload.title || '').trim(),
@@ -1144,7 +1160,9 @@ const Auth = (() => {
       dateTime: String(payload.dateTime || '').trim(),
       eventTimestamp: getEventTimestamp(payload.dateTime),
       location: String(payload.location || '').trim(),
-      cost: String(payload.cost || '').trim(),
+      programFee,
+      materialsCost,
+      cost: buildCostSummary(programFee, materialsCost),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent),
       createdAtMs: Date.now(),
@@ -1161,6 +1179,8 @@ const Auth = (() => {
     if (eventDuplicate(events, payload, id)) {
       return { success: false, message: 'An event with the same title, location, and date/time already exists.' };
     }
+    const programFee = parseNonNegativeNumber(payload.programFee);
+    const materialsCost = parseNonNegativeNumber(payload.materialsCost);
     events[idx] = {
       ...events[idx],
       title: String(payload.title || '').trim(),
@@ -1168,7 +1188,9 @@ const Auth = (() => {
       dateTime: String(payload.dateTime || '').trim(),
       eventTimestamp: getEventTimestamp(payload.dateTime),
       location: String(payload.location || '').trim(),
-      cost: String(payload.cost || '').trim(),
+      programFee,
+      materialsCost,
+      cost: buildCostSummary(programFee, materialsCost),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent)
     };
@@ -1297,6 +1319,7 @@ const Auth = (() => {
     if (jobDuplicate(jobs, payload)) {
       return { success: false, message: 'A job opportunity with the same title and employer already exists.' };
     }
+    const payRate = parseNonNegativeNumber(payload.payRate);
     jobs.push({
       id: makeId('j'),
       title: String(payload.title || '').trim(),
@@ -1304,6 +1327,9 @@ const Auth = (() => {
       location: String(payload.location || '').trim(),
       jobType: String(payload.jobType || '').trim(),
       salary: String(payload.salary || '').trim(),
+      payRate,
+      programFee: parseNonNegativeNumber(payload.programFee),
+      materialsCost: parseNonNegativeNumber(payload.materialsCost),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent),
@@ -1321,6 +1347,7 @@ const Auth = (() => {
     if (jobDuplicate(jobs, payload, id)) {
       return { success: false, message: 'A job opportunity with the same title and employer already exists.' };
     }
+    const payRate = parseNonNegativeNumber(payload.payRate);
     jobs[idx] = {
       ...jobs[idx],
       title: String(payload.title || '').trim(),
@@ -1328,6 +1355,9 @@ const Auth = (() => {
       location: String(payload.location || '').trim(),
       jobType: String(payload.jobType || '').trim(),
       salary: String(payload.salary || '').trim(),
+      payRate,
+      programFee: parseNonNegativeNumber(payload.programFee),
+      materialsCost: parseNonNegativeNumber(payload.materialsCost),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent)

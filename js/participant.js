@@ -43,6 +43,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `<span class="badge ${JOB_TYPE_BADGE[type] || 'bg-secondary'}">${escHtml(type)}</span>`;
   }
 
+  function buildCostBreakdown(event) {
+    const fee = event.programFee != null ? Number(event.programFee) : null;
+    const mat = event.materialsCost != null ? Number(event.materialsCost) : null;
+    const hasFee = fee !== null && fee > 0;
+    const hasMat = mat !== null && mat > 0;
+    const totalLabel = escHtml(event.cost || 'Free');
+    let details = '';
+    if (hasFee || hasMat) {
+      const parts = [];
+      if (hasFee) parts.push(`Program Fee: $${fee.toFixed(2)}`);
+      if (hasMat) parts.push(`Materials: $${mat.toFixed(2)}`);
+      details = `<span class="text-muted" style="font-size:0.75rem;"> (${parts.join(' + ')})</span>`;
+    }
+    return `<span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${totalLabel}${details}</span>`;
+  }
+
   function buildEventCard(event, options = {}) {
     const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
     const isPast = !isNaN(ts) && ts < Date.now();
@@ -62,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <p class="portal-card-accommodations">${escHtml(event.accommodations || '')}</p>
           </div>
           <div class="portal-card-footer">
-            <span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${escHtml(event.cost || '')}</span>
+            ${buildCostBreakdown(event)}
             ${allowUnsave
               ? `<button class="btn btn-outline-danger btn-sm js-participant-event-toggle" data-event-id="${escHtml(event.id)}" data-event-title="${escHtml(event.title)}">
                   <i class="bi bi-x-circle me-1"></i>Not interested
@@ -188,6 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div>
                 <div class="fw-semibold">${escHtml(job.title)}</div>
                 <div class="small text-muted">${escHtml(job.employer)}${job.location ? ` · ${escHtml(job.location)}` : ''}</div>
+                ${job.payRate != null && job.payRate > 0 ? `<div class="small text-success"><i class="bi bi-cash-coin me-1"></i>$${Number(job.payRate).toFixed(2)}/hr</div>` : ''}
+                ${job.programFee != null && job.programFee > 0 ? `<div class="small text-muted"><i class="bi bi-tag me-1"></i>Program Fee: $${Number(job.programFee).toFixed(2)}</div>` : ''}
+                ${job.materialsCost != null && job.materialsCost > 0 ? `<div class="small text-muted"><i class="bi bi-tools me-1"></i>Materials: $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
                 <div class="mt-2"><span class="badge ${badgeClass}">${escHtml(status)}</span></div>
               </div>
               <div class="text-end">

@@ -770,21 +770,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    tbody.innerHTML = events.map((event) => `
+    tbody.innerHTML = events.map((event) => {
+      const fee = event.programFee != null ? `$${Number(event.programFee).toFixed(2)}` : '—';
+      const mat = event.materialsCost != null ? `$${Number(event.materialsCost).toFixed(2)}` : '—';
+      const totalCost = escapeHtml(event.cost || 'Free');
+      return `
       <tr>
         <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(event.title)}</div></td>
         <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
         <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
         <td class="small">${escapeHtml(event.location)}</td>
-        <td class="small fw-semibold">${escapeHtml(event.cost)}</td>
+        <td class="small">
+          <div class="fw-semibold">${totalCost}</div>
+          <div class="text-muted" style="font-size:0.75rem;">Fee: ${fee} · Materials: ${mat}</div>
+        </td>
         <td class="small text-muted"><div class="event-accommodations">${escapeHtml(event.accommodations)}</div></td>
         <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
           <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">View</button>
           <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
         </td>
-      </tr>
-    `).join('');
+      </tr>`;
+    }).join('');
 
     tbody.querySelectorAll('[data-event-edit-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -795,7 +802,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('eventCategory').value = event.category || '';
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
-        document.getElementById('eventCost').value = event.cost || '';
+        document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
+        document.getElementById('eventMaterialsCost').value = event.materialsCost != null ? event.materialsCost : '';
         document.getElementById('eventAccommodations').value = event.accommodations || '';
         const urgentCheck = document.getElementById('eventIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
@@ -855,7 +863,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="small">${escapeHtml(job.location || '—')}</td>
           <td>${job.jobType ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>` : '<span class="text-muted small">—</span>'}</td>
           <td><span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span></td>
-          <td class="small">${job.salary ? `<span class="fw-semibold">${escapeHtml(job.salary)}</span>` : '<span class="text-muted small">—</span>'}</td>
+          <td class="small">
+            ${job.payRate != null && job.payRate > 0 ? `<div class="fw-semibold text-success">$${Number(job.payRate).toFixed(2)}/hr</div>` : `<div class="fw-semibold">${escapeHtml(job.salary || 'Unpaid')}</div>`}
+            ${job.programFee != null && job.programFee > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Fee: $${Number(job.programFee).toFixed(2)}</div>` : ''}
+            ${job.materialsCost != null && job.materialsCost > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Materials: $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
+          </td>
           <td class="small text-muted"><div class="event-accommodations">${escapeHtml(job.requirements)}</div></td>
           <td class="small">
             <div class="fw-semibold text-success mb-1">Approved</div>
@@ -881,7 +893,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || 'Open';
-        document.getElementById('jobSalary').value = job.salary || '';
+        document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
+        document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
+        document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
         document.getElementById('jobRequirements').value = job.requirements || '';
         const urgentCheck = document.getElementById('jobIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(job.isUrgent);
@@ -1154,12 +1168,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     event.preventDefault();
     eventForm.classList.add('was-validated');
     if (!eventForm.checkValidity()) return;
+    const programFeeInput = document.getElementById('eventProgramFee');
+    const materialsCostInput = document.getElementById('eventMaterialsCost');
+    if (programFeeInput.value && Number(programFeeInput.value) < 0) {
+      eventError.textContent = 'Program fee must be a non-negative number.';
+      eventError.classList.remove('d-none');
+      return;
+    }
+    if (materialsCostInput.value && Number(materialsCostInput.value) < 0) {
+      eventError.textContent = 'Materials cost must be a non-negative number.';
+      eventError.classList.remove('d-none');
+      return;
+    }
     const payload = {
       title: document.getElementById('eventTitle').value,
       category: document.getElementById('eventCategory').value,
       dateTime: document.getElementById('eventDateTime').value,
       location: document.getElementById('eventLocation').value,
-      cost: document.getElementById('eventCost').value,
+      programFee: programFeeInput.value,
+      materialsCost: materialsCostInput.value,
       accommodations: document.getElementById('eventAccommodations').value,
       isUrgent: Boolean(document.getElementById('eventIsUrgent')?.checked)
     };
@@ -1182,13 +1209,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     event.preventDefault();
     jobForm.classList.add('was-validated');
     if (!jobForm.checkValidity()) return;
+    const jobPayRateInput = document.getElementById('jobPayRate');
+    const jobProgramFeeInput = document.getElementById('jobProgramFee');
+    const jobMaterialsCostInput = document.getElementById('jobMaterialsCost');
+    if (jobPayRateInput.value && Number(jobPayRateInput.value) < 0) {
+      jobError.textContent = 'Pay rate must be a non-negative number.';
+      jobError.classList.remove('d-none');
+      return;
+    }
+    if (jobProgramFeeInput.value && Number(jobProgramFeeInput.value) < 0) {
+      jobError.textContent = 'Program fee must be a non-negative number.';
+      jobError.classList.remove('d-none');
+      return;
+    }
+    if (jobMaterialsCostInput.value && Number(jobMaterialsCostInput.value) < 0) {
+      jobError.textContent = 'Materials cost must be a non-negative number.';
+      jobError.classList.remove('d-none');
+      return;
+    }
+    const payRateNum = Number(jobPayRateInput.value || 0);
+    const salary = payRateNum > 0 ? `$${payRateNum.toFixed(2)}/hr` : 'Unpaid';
     const payload = {
       title: document.getElementById('jobTitle').value,
       employer: document.getElementById('jobEmployer').value,
       location: document.getElementById('jobLocation').value,
       jobType: document.getElementById('jobType').value,
       status: document.getElementById('jobStatus').value,
-      salary: document.getElementById('jobSalary').value,
+      salary,
+      payRate: jobPayRateInput.value,
+      programFee: jobProgramFeeInput.value,
+      materialsCost: jobMaterialsCostInput.value,
       requirements: document.getElementById('jobRequirements').value,
       isUrgent: Boolean(document.getElementById('jobIsUrgent')?.checked)
     };
@@ -1544,7 +1594,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('eventCategory').value = event.category || '';
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
-        document.getElementById('eventCost').value = event.cost || '';
+        document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
+        document.getElementById('eventMaterialsCost').value = event.materialsCost != null ? event.materialsCost : '';
         document.getElementById('eventAccommodations').value = event.accommodations || '';
         const urgentCheck = document.getElementById('eventIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
@@ -1567,7 +1618,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || '';
-        document.getElementById('jobSalary').value = job.salary || '';
+        document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
+        document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
+        document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
         document.getElementById('jobRequirements').value = job.requirements || '';
         const urgentCheck = document.getElementById('jobIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(job.isUrgent);

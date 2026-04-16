@@ -55,6 +55,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     Vocational:  { cls: 'badge-event-vocational',  icon: 'bi-briefcase-fill' }
   };
 
+  function buildCostBreakdown(event) {
+    const fee = event.programFee != null ? Number(event.programFee) : null;
+    const mat = event.materialsCost != null ? Number(event.materialsCost) : null;
+    const hasFee = fee !== null && fee > 0;
+    const hasMat = mat !== null && mat > 0;
+    const totalLabel = escHtml(event.cost || 'Free');
+    let details = '';
+    if (hasFee || hasMat) {
+      const parts = [];
+      if (hasFee) parts.push(`Fee: $${fee.toFixed(2)}`);
+      if (hasMat) parts.push(`Materials: $${mat.toFixed(2)}`);
+      details = `<span class="text-muted" style="font-size:0.75rem;"> (${parts.join(' + ')})</span>`;
+    }
+    return `<span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${totalLabel}${details}</span>`;
+  }
+
   function buildEventCard(event) {
     const now = Date.now();
     const ts  = event.eventTimestamp ?? new Date(event.dateTime).getTime();
@@ -75,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <p class="portal-card-accommodations">${escHtml(event.accommodations)}</p>
           </div>
           <div class="portal-card-footer">
-            <span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${escHtml(event.cost)}</span>
+            ${buildCostBreakdown(event)}
             ${isPast ? '<span class="portal-past-label">Past event</span>' : ''}
           </div>
         </div>
