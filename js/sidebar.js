@@ -24,6 +24,11 @@ const NAV_ITEMS = [
   // VOLUNTEER sections
   { id: 'v-bgcheck',    label: 'Background Check', icon: 'bi-shield-lock', roles: ['VOLUNTEER'] },
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
+  { id: 'v-tasks',      label: 'My Tasks',     icon: 'bi-clipboard-check', roles: ['VOLUNTEER'] },
+  // ADMIN task management
+  { id: 'work-queue',   label: 'Work Queue',   icon: 'bi-kanban',          roles: ['ADMIN'] },
+  // PARTICIPANT inquiry
+  { id: 'p-inquiries',  label: 'My Inquiries', icon: 'bi-chat-left-text',  roles: ['PARTICIPANT'] },
 ];
 
 function _escHtml(str) {

@@ -1857,6 +1857,591 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderNewsletterPreview();
   });
 
+  // ─── Task Assignment & Delegation (Story 1001) ────────────────────────────
+
+  const INQ_STATUS_BADGE = {
+    PENDING_REVIEW: 'bg-secondary',
+    IN_PROGRESS: 'bg-primary',
+    RESOLVED: 'bg-success',
+    REJECTED: 'bg-danger'
+  };
+  const INQ_STATUS_LABEL = {
+    PENDING_REVIEW: 'Pending Review',
+    IN_PROGRESS: 'In Progress',
+    RESOLVED: 'Resolved',
+    REJECTED: 'Rejected'
+  };
+  const TASK_STATUS_BADGE = {
+    UNASSIGNED: 'bg-light text-dark border',
+    ASSIGNED: 'bg-primary',
+    IN_PROGRESS: 'bg-warning text-dark',
+    COMPLETED: 'bg-success',
+    REJECTED: 'bg-danger'
+  };
+  const TASK_STATUS_LABEL = {
+    UNASSIGNED: 'Unassigned',
+    ASSIGNED: 'Assigned',
+    IN_PROGRESS: 'In Progress',
+    COMPLETED: 'Completed',
+    REJECTED: 'Rejected'
+  };
+
+  let currentInquiryId = null;
+  let currentAssignTaskId = null;
+  let currentDeleteTaskId = null;
+  let currentChecklistTaskId = null;
+  let currentInquiryFilter = 'ALL';
+  let currentTaskFilter = 'ALL';
+  let currentVolunteerFilter = '';
+  let currentWqTab = 'inquiries';
+
+  // ── Unified Work Queue rendering ─────────────────────────────────────────
+
+  async function renderWqInquiriesList(filter, volunteerFilter) {
+    if (filter === undefined) filter = currentInquiryFilter;
+    if (volunteerFilter === undefined) volunteerFilter = currentVolunteerFilter;
+    const container = document.getElementById('wqInquiriesList');
+    if (!container) return;
+    const { inquiries } = await Auth.getWorkQueueData();
+    let filtered = filter === 'ALL' ? inquiries : inquiries.filter((i) => i.status === filter);
+    if (volunteerFilter) {
+      filtered = filtered.filter((inq) =>
+        inq.tasks.some((t) => String(t.assignedToUserId) === String(volunteerFilter))
+      );
+    }
+    if (!filtered.length) {
+      container.innerHTML = `<div class="text-center text-muted py-4 small">No inquiries found.</div>`;
+      return;
+    }
+    container.innerHTML = filtered.map((inq) => {
+      const badge = INQ_STATUS_BADGE[inq.status] || 'bg-secondary';
+      const label = INQ_STATUS_LABEL[inq.status] || inq.status;
+      const taskCount = inq.tasks.length;
+      const isRejected = inq.status === 'REJECTED';
+      const isResolved = inq.status === 'RESOLVED';
+      const canAddTask = !isRejected && !isResolved;
+
+      const taskRows = inq.tasks.length
+        ? inq.tasks.map((t) => {
+            const isArchived = !!t.archived;
+            const tb = TASK_STATUS_BADGE[t.status] || 'bg-secondary';
+            const tl = TASK_STATUS_LABEL[t.status] || t.status;
+            const canAssign = !['COMPLETED', 'REJECTED'].includes(t.status) && !isArchived;
+            const canChecklist = !isArchived && !['COMPLETED', 'REJECTED'].includes(t.status);
+            const checkCount = (t.checklistItems || []).length;
+            return `<div class="d-flex align-items-center gap-2 py-2 border-bottom flex-wrap${isArchived ? ' opacity-50' : ''}">
+              <i class="bi bi-arrow-return-right text-muted small"></i>
+              <span class="small fw-semibold flex-grow-1">${escapeHtml(t.title)}</span>
+              ${isArchived
+                ? `<span class="badge bg-secondary me-1">Archived</span>`
+                : `<span class="badge ${tb} me-1">${escapeHtml(tl)}</span>`
+              }
+              ${checkCount ? `<span class="badge bg-light text-dark border me-1"><i class="bi bi-list-check me-1"></i>${checkCount}</span>` : ''}
+              <span class="small text-muted me-1">${escapeHtml(t.assignedToName || 'Unassigned')}</span>
+              ${isArchived
+                ? `<button class="btn btn-sm btn-outline-secondary js-task-unarchive" data-task-id="${escapeHtml(t.id)}">Unarchive</button>`
+                : canAssign
+                  ? `<button class="btn btn-sm btn-outline-primary js-task-assign" data-task-id="${escapeHtml(t.id)}">Assign</button>`
+                  : ''
+              }
+              ${canChecklist ? `<button class="btn btn-sm btn-outline-secondary js-task-checklist" data-task-id="${escapeHtml(t.id)}" title="Manage Checklist"><i class="bi bi-list-check"></i></button>` : ''}
+              ${!isArchived ? `<button class="btn btn-sm btn-outline-secondary js-task-archive-toggle" data-task-id="${escapeHtml(t.id)}" title="Archive"><i class="bi bi-archive"></i></button>` : ''}
+              <button class="btn btn-sm btn-outline-danger js-task-delete" data-task-id="${escapeHtml(t.id)}" data-task-title="${escapeHtml(t.title)}" title="Delete"><i class="bi bi-trash"></i></button>
+            </div>`;
+          }).join('')
+        : `<p class="text-muted small mb-0">No tasks created yet.</p>`;
+
+      const rejectionInfo = isRejected && inq.rejectionNote
+        ? `<p class="text-danger small mb-2"><i class="bi bi-x-circle me-1"></i>${escapeHtml(inq.rejectionNote)}</p>`
+        : '';
+
+      return `
+      <div class="card shadow-sm mb-2">
+        <div class="card-header d-flex align-items-center gap-2 py-2 flex-wrap" style="cursor:pointer;"
+             data-bs-toggle="collapse" data-bs-target="#inqCollapse${escapeHtml(inq.id)}" aria-expanded="false">
+          <span class="badge ${badge}">${escapeHtml(label)}</span>
+          <span class="fw-semibold small flex-grow-1">${escapeHtml(inq.subject)}</span>
+          <span class="text-muted small me-1">${escapeHtml(inq.submittedByName)}</span>
+          <span class="badge bg-secondary me-1">${taskCount} task${taskCount !== 1 ? 's' : ''}</span>
+          <span class="text-muted small me-2">${escapeHtml(inq.createdAtLabel)}</span>
+          ${!isRejected
+            ? `<button class="btn btn-sm ${isResolved ? 'btn-outline-secondary' : 'btn-outline-primary'} js-inq-review me-1"
+                       data-inq-id="${escapeHtml(inq.id)}"
+                       onclick="event.stopPropagation()">
+                 ${isResolved ? 'View' : 'Review'}
+               </button>`
+            : ''
+          }
+          <i class="bi bi-chevron-down small text-muted"></i>
+        </div>
+        <div class="collapse" id="inqCollapse${escapeHtml(inq.id)}">
+          <div class="card-body py-2 px-3">
+            <p class="text-muted small mb-2" style="white-space:pre-wrap;">${escapeHtml(inq.description)}</p>
+            ${rejectionInfo}
+            ${taskRows}
+            ${canAddTask
+              ? `<button class="btn btn-sm btn-outline-primary mt-2 js-inq-review"
+                         data-inq-id="${escapeHtml(inq.id)}">
+                   <i class="bi bi-plus me-1"></i>Add Task
+                 </button>`
+              : ''
+            }
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.js-inq-review').forEach((btn) => {
+      btn.addEventListener('click', () => openInquiryReviewModal(btn.dataset.inqId));
+    });
+    container.querySelectorAll('.js-task-assign').forEach((btn) => {
+      btn.addEventListener('click', () => openTaskAssignModal(btn.dataset.taskId));
+    });
+    _wireTaskCrudButtons(container);
+  }
+
+  async function renderWqStandaloneList(statusFilter, volunteerFilter) {
+    if (statusFilter === undefined) statusFilter = currentTaskFilter;
+    if (volunteerFilter === undefined) volunteerFilter = currentVolunteerFilter;
+    const container = document.getElementById('wqStandaloneList');
+    if (!container) return;
+    const { standaloneTasks } = await Auth.getWorkQueueData();
+    let tasks = standaloneTasks;
+    if (statusFilter !== 'ALL') tasks = tasks.filter((t) => t.status === statusFilter);
+    if (volunteerFilter) tasks = tasks.filter((t) => String(t.assignedToUserId) === String(volunteerFilter));
+    if (!tasks.length) {
+      container.innerHTML = `<div class="text-center text-muted py-4 small">No standalone tasks found.</div>`;
+      return;
+    }
+    container.innerHTML = tasks.map((task) => {
+      const badge = TASK_STATUS_BADGE[task.status] || 'bg-secondary';
+      const label = TASK_STATUS_LABEL[task.status] || task.status;
+      const isResolved = ['COMPLETED', 'REJECTED'].includes(task.status);
+      const canAssign = task.status === 'UNASSIGNED';
+      const eventChip = task.eventTitle
+        ? `<span class="badge bg-info text-dark me-1"><i class="bi bi-calendar-event me-1"></i>${escapeHtml(task.eventTitle)}</span>`
+        : '';
+      const noteDisplay = task.volunteerNote
+        ? `<p class="text-muted small mb-0 mt-1" title="${escapeHtml(task.volunteerNote)}">${escapeHtml(task.volunteerNote.substring(0, 80))}${task.volunteerNote.length > 80 ? '…' : ''}</p>`
+        : '';
+      const isArchived = !!task.archived;
+      const checkCount = (task.checklistItems || []).length;
+      const canChecklist = !isArchived && !isResolved;
+      return `
+      <div class="card shadow-sm mb-2${isArchived ? ' opacity-50' : ''}">
+        <div class="card-body py-2 px-3 d-flex align-items-start gap-2">
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+              <span class="badge bg-secondary"><i class="bi bi-clipboard me-1"></i>Standalone</span>
+              ${eventChip}
+              ${isArchived ? `<span class="badge bg-secondary">Archived</span>` : `<span class="badge ${badge}">${escapeHtml(label)}</span>`}
+              ${checkCount ? `<span class="badge bg-light text-dark border"><i class="bi bi-list-check me-1"></i>${checkCount}</span>` : ''}
+            </div>
+            <div class="fw-semibold small">${escapeHtml(task.title)}</div>
+            ${task.description ? `<p class="text-muted small mb-0 mt-1">${escapeHtml(task.description)}</p>` : ''}
+            ${noteDisplay}
+            <p class="text-muted small mb-0 mt-1">
+              ${task.assignedToName ? `<i class="bi bi-person me-1"></i>${escapeHtml(task.assignedToName)}` : 'Unassigned'}
+              &nbsp;·&nbsp; Created ${escapeHtml(task.createdAtLabel)}
+            </p>
+          </div>
+          <div class="d-flex flex-column gap-1 flex-shrink-0">
+            ${isArchived
+              ? `<button class="btn btn-sm btn-outline-secondary js-task-unarchive" data-task-id="${escapeHtml(task.id)}">Unarchive</button>`
+              : !isResolved
+                ? `<button class="btn btn-sm ${canAssign ? 'btn-outline-primary' : 'btn-outline-secondary'} js-task-assign" data-task-id="${escapeHtml(task.id)}">${canAssign ? 'Assign' : 'Reassign'}</button>`
+                : ''
+            }
+            ${canChecklist ? `<button class="btn btn-sm btn-outline-secondary js-task-checklist" data-task-id="${escapeHtml(task.id)}" title="Manage Checklist"><i class="bi bi-list-check"></i></button>` : ''}
+            ${!isArchived ? `<button class="btn btn-sm btn-outline-secondary js-task-archive-toggle" data-task-id="${escapeHtml(task.id)}" title="Archive"><i class="bi bi-archive"></i></button>` : ''}
+            <button class="btn btn-sm btn-outline-danger js-task-delete" data-task-id="${escapeHtml(task.id)}" data-task-title="${escapeHtml(task.title)}" title="Delete"><i class="bi bi-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('.js-task-assign').forEach((btn) => {
+      btn.addEventListener('click', () => openTaskAssignModal(btn.dataset.taskId));
+    });
+    _wireTaskCrudButtons(container);
+  }
+
+  // ── Shared task CRUD button wiring (used by both WQ render functions) ───────
+
+  function _wireTaskCrudButtons(container) {
+    container.querySelectorAll('.js-task-archive-toggle').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await Auth.archiveTask(btn.dataset.taskId);
+        await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+        await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+      });
+    });
+    container.querySelectorAll('.js-task-unarchive').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await Auth.unarchiveTask(btn.dataset.taskId);
+        await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+        await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+      });
+    });
+    container.querySelectorAll('.js-task-delete').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentDeleteTaskId = btn.dataset.taskId;
+        document.getElementById('deleteTaskTitle').textContent = btn.dataset.taskTitle;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('taskDeleteModal')).show();
+      });
+    });
+    container.querySelectorAll('.js-task-checklist').forEach((btn) => {
+      btn.addEventListener('click', () => openChecklistModal(btn.dataset.taskId));
+    });
+  }
+
+  document.getElementById('taskDeleteConfirmBtn')?.addEventListener('click', async () => {
+    const result = await Auth.deleteTask(currentDeleteTaskId);
+    bootstrap.Modal.getInstance(document.getElementById('taskDeleteModal'))?.hide();
+    if (result.success) {
+      showToast('Task deleted.');
+      await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+      await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+    }
+  });
+
+  async function openChecklistModal(taskId) {
+    currentChecklistTaskId = taskId;
+    await renderChecklistModalContent(taskId);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('taskChecklistModal')).show();
+  }
+
+  async function renderChecklistModalContent(taskId) {
+    const tasks = await Auth.getAllTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return;
+    document.getElementById('checklistModalTaskTitle').textContent = task.title;
+    const items = task.checklistItems || [];
+    const list = document.getElementById('checklistItemsList');
+    list.innerHTML = items.length
+      ? items.map((item) => `
+          <li class="list-group-item d-flex align-items-center gap-2 py-2 small">
+            <i class="bi bi-grip-vertical text-muted"></i>
+            <span class="flex-grow-1">${escapeHtml(item.text)}</span>
+            ${item.done ? `<span class="badge bg-success me-1 text-nowrap"><i class="bi bi-check me-1"></i>Done</span>` : ''}
+            <button class="btn btn-sm btn-outline-danger js-cli-remove" data-item-id="${escapeHtml(item.id)}" style="padding:.1rem .35rem;">
+              <i class="bi bi-x"></i>
+            </button>
+          </li>`).join('')
+      : `<li class="list-group-item text-muted small py-2">No checklist items yet.</li>`;
+    list.querySelectorAll('.js-cli-remove').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await Auth.removeChecklistItem(taskId, btn.dataset.itemId);
+        await renderChecklistModalContent(taskId);
+      });
+    });
+    const input = document.getElementById('checklistNewItemText');
+    if (input) input.value = '';
+  }
+
+  document.getElementById('checklistAddItemBtn')?.addEventListener('click', async () => {
+    const input = document.getElementById('checklistNewItemText');
+    const text = input?.value.trim();
+    if (!text) { if (input) input.focus(); return; }
+    await Auth.addChecklistItem(currentChecklistTaskId, text);
+    await renderChecklistModalContent(currentChecklistTaskId);
+  });
+
+  document.getElementById('checklistNewItemText')?.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.getElementById('checklistAddItemBtn')?.click();
+    }
+  });
+
+  // ── End task CRUD helpers ────────────────────────────────────────────────────
+
+  async function renderModalInqTasksList(inquiryId) {
+    const container = document.getElementById('modalInqTasksList');
+    if (!container) return;
+    const tasks = await Auth.getAllTasks();
+    const linked = tasks.filter((t) => String(t.inquiryId) === String(inquiryId));
+    if (!linked.length) {
+      container.innerHTML = `<p class="text-muted small mb-0">No tasks yet. Create one below.</p>`;
+      return;
+    }
+    container.innerHTML = `<ul class="list-group list-group-flush border rounded">
+      ${linked.map((t) => {
+        const badge = TASK_STATUS_BADGE[t.status] || 'bg-secondary';
+        const label = TASK_STATUS_LABEL[t.status] || t.status;
+        const canAssign = t.status === 'UNASSIGNED' || t.status === 'ASSIGNED';
+        return `<li class="list-group-item d-flex align-items-center gap-2 small py-2">
+          <span class="flex-grow-1">${escapeHtml(t.title)}</span>
+          <span class="badge ${badge}">${escapeHtml(label)}</span>
+          ${canAssign ? `<button class="btn btn-sm btn-outline-primary js-modal-task-assign" data-task-id="${escapeHtml(t.id)}">${t.assignedToName ? 'Reassign' : 'Assign'}</button>` : ''}
+        </li>`;
+      }).join('')}
+    </ul>`;
+    container.querySelectorAll('.js-modal-task-assign').forEach((btn) => {
+      btn.addEventListener('click', () => openTaskAssignModal(btn.dataset.taskId));
+    });
+  }
+
+  async function openInquiryReviewModal(inquiryId) {
+    currentInquiryId = inquiryId;
+    const inquiries = await Auth.getAllInquiries();
+    const inq = inquiries.find((i) => String(i.id) === String(inquiryId));
+    if (!inq) return;
+    document.getElementById('modalInqSubject').textContent = inq.subject;
+    document.getElementById('modalInqSubmitter').textContent = inq.submittedByName;
+    document.getElementById('modalInqDate').textContent = inq.createdAtLabel;
+    document.getElementById('modalInqDescription').textContent = inq.description;
+    const errEl = document.getElementById('inquiryReviewError');
+    if (errEl) errEl.classList.add('d-none');
+    // Reset reject panel
+    const rejectPanel = document.getElementById('inquiryRejectPanel');
+    if (rejectPanel) rejectPanel.classList.add('d-none');
+    const rejectNote = document.getElementById('inquiryRejectNote');
+    if (rejectNote) rejectNote.value = '';
+    // Show/hide reject button and create-task form based on status
+    const isRejected = inq.status === 'REJECTED';
+    const isResolved = inq.status === 'RESOLVED';
+    const rejectBtn = document.getElementById('inquiryRejectBtn');
+    if (rejectBtn) rejectBtn.classList.toggle('d-none', isRejected || isResolved);
+    const createTaskForm = document.getElementById('inquiryCreateTaskForm');
+    if (createTaskForm) createTaskForm.classList.toggle('d-none', isRejected || isResolved);
+    const titleInput = document.getElementById('modalNewTaskTitle');
+    const descInput = document.getElementById('modalNewTaskDescription');
+    if (titleInput) { titleInput.value = ''; titleInput.classList.remove('is-invalid'); }
+    if (descInput) descInput.value = '';
+    await renderModalInqTasksList(inquiryId);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('inquiryReviewModal')).show();
+  }
+
+  // Reject inquiry flow
+  document.getElementById('inquiryRejectBtn')?.addEventListener('click', () => {
+    document.getElementById('inquiryRejectPanel')?.classList.toggle('d-none');
+  });
+  document.getElementById('inquiryRejectCancelBtn')?.addEventListener('click', () => {
+    document.getElementById('inquiryRejectPanel')?.classList.add('d-none');
+    const rejectNote = document.getElementById('inquiryRejectNote');
+    if (rejectNote) rejectNote.value = '';
+  });
+  document.getElementById('inquiryRejectConfirmBtn')?.addEventListener('click', async () => {
+    const note = document.getElementById('inquiryRejectNote')?.value.trim() || '';
+    const errEl = document.getElementById('inquiryReviewError');
+    if (errEl) errEl.classList.add('d-none');
+    const result = await Auth.rejectInquiry(currentInquiryId, note);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Failed to reject inquiry.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('inquiryReviewModal'))?.hide();
+    showToast('Inquiry rejected.');
+    await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+  });
+
+  document.getElementById('inquiryCreateTaskBtn')?.addEventListener('click', async () => {
+    const titleInput = document.getElementById('modalNewTaskTitle');
+    const descInput = document.getElementById('modalNewTaskDescription');
+    const errEl = document.getElementById('inquiryReviewError');
+    if (errEl) errEl.classList.add('d-none');
+    if (titleInput) titleInput.classList.remove('is-invalid');
+    const title = titleInput?.value.trim();
+    if (!title) {
+      if (titleInput) titleInput.classList.add('is-invalid');
+      return;
+    }
+    const description = descInput?.value.trim() || '';
+    const result = await Auth.createTaskFromInquiry(currentInquiryId, { title, description });
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Failed to create task.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    if (titleInput) titleInput.value = '';
+    if (descInput) descInput.value = '';
+    await renderModalInqTasksList(currentInquiryId);
+    await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+    // Immediately offer assignment for the new task
+    openTaskAssignModal(result.taskId);
+  });
+
+  // Inquiry status filter pills
+  document.querySelectorAll('[data-inq-filter]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('[data-inq-filter]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentInquiryFilter = btn.dataset.inqFilter;
+      await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+    });
+  });
+
+  // Task status filter pills (standalone pane)
+  document.querySelectorAll('[data-task-filter]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('[data-task-filter]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentTaskFilter = btn.dataset.taskFilter;
+      await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+    });
+  });
+
+  // Volunteer filter selects
+  async function populateVolunteerFilters() {
+    const cleared = await Auth.getClearedVolunteers();
+    ['standaloneVolunteerFilter', 'inquiryVolunteerFilter'].forEach((id) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const current = sel.value;
+      sel.innerHTML = `<option value="">All Volunteers</option>`;
+      cleared.forEach((v) => {
+        const opt = document.createElement('option');
+        opt.value = v.userId;
+        opt.textContent = v.name;
+        if (String(v.userId) === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  document.getElementById('inquiryVolunteerFilter')?.addEventListener('change', async (e) => {
+    currentVolunteerFilter = e.target.value;
+    await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+  });
+  document.getElementById('standaloneVolunteerFilter')?.addEventListener('change', async (e) => {
+    currentVolunteerFilter = e.target.value;
+    await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+  });
+
+  // Work Queue sub-tab wiring
+  document.querySelectorAll('[data-wq-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-wq-tab]').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentWqTab = btn.dataset.wqTab;
+      document.getElementById('wq-inquiries-pane')?.classList.toggle('d-none', currentWqTab !== 'inquiries');
+      document.getElementById('wq-standalone-pane')?.classList.toggle('d-none', currentWqTab !== 'standalone');
+    });
+  });
+
+  // Standalone task creation modal
+  document.getElementById('newStandaloneTaskBtn')?.addEventListener('click', async () => {
+    const select = document.getElementById('stTaskEventSelect');
+    if (select) {
+      select.innerHTML = `<option value="">— No event link —</option>`;
+      const events = await Auth.getEvents();
+      events.forEach((ev) => {
+        const opt = document.createElement('option');
+        opt.value = ev.id;
+        opt.textContent = ev.title;
+        select.appendChild(opt);
+      });
+    }
+    const titleInput = document.getElementById('stTaskTitle');
+    const descInput = document.getElementById('stTaskDescription');
+    if (titleInput) { titleInput.value = ''; titleInput.classList.remove('is-invalid'); }
+    if (descInput) descInput.value = '';
+    document.getElementById('standaloneTaskError')?.classList.add('d-none');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('standaloneTaskModal')).show();
+  });
+
+  document.getElementById('stTaskCreateBtn')?.addEventListener('click', async () => {
+    const titleInput = document.getElementById('stTaskTitle');
+    const title = titleInput?.value.trim();
+    const errEl = document.getElementById('standaloneTaskError');
+    if (errEl) errEl.classList.add('d-none');
+    if (titleInput) titleInput.classList.remove('is-invalid');
+    if (!title) {
+      if (titleInput) titleInput.classList.add('is-invalid');
+      return;
+    }
+    const description = document.getElementById('stTaskDescription')?.value.trim() || '';
+    const eventId = document.getElementById('stTaskEventSelect')?.value || null;
+    const result = await Auth.createStandaloneTask({ title, description, eventId });
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Failed to create task.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('standaloneTaskModal'))?.hide();
+    showToast('Standalone task created.');
+    await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+  });
+
+  async function openTaskAssignModal(taskId) {
+    currentAssignTaskId = taskId;
+    const tasks = await Auth.getAllTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return;
+    document.getElementById('modalTaskTitle').textContent = task.title;
+    const contextLabel = document.getElementById('modalTaskInquiryLabel');
+    const contextRef = document.getElementById('modalTaskInquiryRef');
+    if (task.inquirySubject) {
+      if (contextLabel) contextLabel.textContent = 'Inquiry';
+      if (contextRef) contextRef.textContent = task.inquirySubject;
+    } else if (task.eventTitle) {
+      if (contextLabel) contextLabel.textContent = 'Event';
+      if (contextRef) contextRef.textContent = task.eventTitle;
+    } else {
+      if (contextLabel) contextLabel.textContent = 'Context';
+      if (contextRef) contextRef.textContent = 'Standalone task';
+    }
+    document.getElementById('modalTaskDescription').textContent = task.description || '—';
+    const errEl = document.getElementById('taskAssignError');
+    if (errEl) errEl.classList.add('d-none');
+    const select = document.getElementById('taskAssignVolunteerSelect');
+    const noVolEl = document.getElementById('taskAssignNoVolunteers');
+    const confirmBtn = document.getElementById('taskAssignConfirmBtn');
+    if (select) {
+      select.innerHTML = `<option value="" disabled selected>Select a cleared volunteer…</option>`;
+      const cleared = await Auth.getClearedVolunteers();
+      if (!cleared.length) {
+        if (noVolEl) noVolEl.classList.remove('d-none');
+        if (confirmBtn) confirmBtn.disabled = true;
+      } else {
+        if (noVolEl) noVolEl.classList.add('d-none');
+        if (confirmBtn) confirmBtn.disabled = false;
+        cleared.forEach((v) => {
+          const opt = document.createElement('option');
+          opt.value = v.userId;
+          opt.textContent = `${v.name} (${v.email})`;
+          if (task.assignedToUserId && String(task.assignedToUserId) === String(v.userId)) opt.selected = true;
+          select.appendChild(opt);
+        });
+      }
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('taskAssignModal')).show();
+  }
+
+  document.getElementById('taskAssignConfirmBtn')?.addEventListener('click', async () => {
+    const select = document.getElementById('taskAssignVolunteerSelect');
+    const errEl = document.getElementById('taskAssignError');
+    if (errEl) errEl.classList.add('d-none');
+    const volunteerUserId = select?.value;
+    if (!volunteerUserId) {
+      if (errEl) { errEl.textContent = 'Please select a volunteer.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    const result = await Auth.assignTask(currentAssignTaskId, volunteerUserId);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Assignment failed.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('taskAssignModal'))?.hide();
+    showToast('Task assigned successfully.');
+    await renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+    await renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+    if (currentInquiryId) await renderModalInqTasksList(currentInquiryId);
+  });
+
+  // Work Queue section MutationObserver
+  const wqSection = document.getElementById('section-work-queue');
+  if (wqSection) {
+    new MutationObserver(() => {
+      if (!wqSection.classList.contains('d-none')) {
+        populateVolunteerFilters();
+        renderWqInquiriesList(currentInquiryFilter, currentVolunteerFilter);
+        renderWqStandaloneList(currentTaskFilter, currentVolunteerFilter);
+      }
+    }).observe(wqSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // ─── End Task Assignment ───────────────────────────────────────────────────
+
   await populateLinkedUserOptions();
   await renderUsersTable();
   await renderParticipantsTable();

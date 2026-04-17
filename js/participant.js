@@ -658,6 +658,80 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }).observe(alertsSection, { attributes: true, attributeFilter: ['class'] });
     }
+
+    // ─── My Inquiries ────────────────────────────────────────────────────────
+    const INQ_STATUS_BADGE = {
+      PENDING_REVIEW: 'bg-secondary',
+      IN_PROGRESS: 'bg-primary',
+      RESOLVED: 'bg-success',
+      REJECTED: 'bg-danger'
+    };
+    const INQ_STATUS_LABEL = {
+      PENDING_REVIEW: 'Pending Review',
+      IN_PROGRESS: 'In Progress',
+      RESOLVED: 'Resolved',
+      REJECTED: 'Rejected'
+    };
+
+    async function renderMyInquiries() {
+      const container = document.getElementById('myInquiriesList');
+      if (!container) return;
+      const inquiries = await Auth.getMyInquiries();
+      if (!inquiries.length) {
+        container.innerHTML = emptyState('bi-chat-left', 'You have not submitted any inquiries yet.');
+        return;
+      }
+      container.innerHTML = inquiries.map((inq) => {
+        const badge = INQ_STATUS_BADGE[inq.status] || 'bg-secondary';
+        const label = INQ_STATUS_LABEL[inq.status] || inq.status;
+        const rejectionNote = inq.status === 'REJECTED' && inq.rejectionNote
+          ? `<p class="text-danger small mb-0 mt-1"><i class="bi bi-x-circle me-1"></i>${escHtml(inq.rejectionNote)}</p>`
+          : '';
+        return `<div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-1">
+              <span class="fw-semibold">${escHtml(inq.subject)}</span>
+              <span class="badge ${badge} ms-2">${escHtml(label)}</span>
+            </div>
+            <p class="text-muted small mb-2">${escHtml(inq.createdAtLabel)}</p>
+            <p class="small mb-0" style="white-space:pre-wrap;">${escHtml(inq.description)}</p>
+            ${rejectionNote}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    const inquiryForm = document.getElementById('inquiryForm');
+    const inquirySuccessEl = document.getElementById('inquirySuccess');
+    const inquiryErrorEl = document.getElementById('inquiryError');
+
+    inquiryForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      inquiryForm.classList.add('was-validated');
+      if (inquirySuccessEl) inquirySuccessEl.classList.add('d-none');
+      if (inquiryErrorEl) inquiryErrorEl.classList.add('d-none');
+      if (!inquiryForm.checkValidity()) return;
+      const subject = document.getElementById('inquirySubject')?.value.trim();
+      const description = document.getElementById('inquiryDescription')?.value.trim();
+      const result = await Auth.submitInquiry({ subject, description });
+      if (!result.success) {
+        if (inquiryErrorEl) { inquiryErrorEl.textContent = result.message || 'Submission failed. Please try again.'; inquiryErrorEl.classList.remove('d-none'); }
+        return;
+      }
+      if (inquirySuccessEl) { inquirySuccessEl.textContent = 'Your inquiry has been submitted. The Kindred team will follow up with you.'; inquirySuccessEl.classList.remove('d-none'); }
+      inquiryForm.reset();
+      inquiryForm.classList.remove('was-validated');
+      await renderMyInquiries();
+    });
+
+    const inquiriesSection = document.getElementById('section-p-inquiries');
+    if (inquiriesSection) {
+      new MutationObserver(() => {
+        if (!inquiriesSection.classList.contains('d-none')) renderMyInquiries();
+      }).observe(inquiriesSection, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    await renderMyInquiries();
   }
 
   if (session.role === 'GUARDIAN') {
