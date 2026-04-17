@@ -644,25 +644,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const INQ_STATUS_BADGE = {
       PENDING_REVIEW: 'bg-secondary',
       IN_PROGRESS: 'bg-primary',
-      RESOLVED: 'bg-success'
+      RESOLVED: 'bg-success',
+      REJECTED: 'bg-danger'
     };
     const INQ_STATUS_LABEL = {
       PENDING_REVIEW: 'Pending Review',
       IN_PROGRESS: 'In Progress',
-      RESOLVED: 'Resolved'
-    };
-    const TASK_STATUS_BADGE_P = {
-      UNASSIGNED: 'bg-light text-dark border',
-      ASSIGNED: 'bg-primary',
-      IN_PROGRESS: 'bg-warning text-dark',
-      COMPLETED: 'bg-success',
-      REJECTED: 'bg-danger'
-    };
-    const TASK_STATUS_LABEL_P = {
-      UNASSIGNED: 'Unassigned',
-      ASSIGNED: 'Assigned',
-      IN_PROGRESS: 'In Progress',
-      COMPLETED: 'Completed',
+      RESOLVED: 'Resolved',
       REJECTED: 'Rejected'
     };
 
@@ -677,19 +665,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       container.innerHTML = inquiries.map((inq) => {
         const badge = INQ_STATUS_BADGE[inq.status] || 'bg-secondary';
         const label = INQ_STATUS_LABEL[inq.status] || inq.status;
-        const taskList = inq.tasks && inq.tasks.length
-          ? `<ul class="list-unstyled mb-0 mt-2 ps-1">
-              ${inq.tasks.map((t) => {
-                const tb = TASK_STATUS_BADGE_P[t.status] || 'bg-secondary';
-                const tl = TASK_STATUS_LABEL_P[t.status] || t.status;
-                return `<li class="d-flex align-items-center gap-2 small text-muted mb-1">
-                  <i class="bi bi-chevron-right"></i>
-                  <span>${escHtml(t.title)}</span>
-                  <span class="badge ${tb} ms-auto">${escHtml(tl)}</span>
-                </li>`;
-              }).join('')}
-            </ul>`
-          : '<p class="text-muted small mb-0 mt-1">Pending admin review — no tasks created yet.</p>';
+        const rejectionNote = inq.status === 'REJECTED' && inq.rejectionNote
+          ? `<p class="text-danger small mb-0 mt-1"><i class="bi bi-x-circle me-1"></i>${escHtml(inq.rejectionNote)}</p>`
+          : '';
         return `<div class="card shadow-sm mb-3">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-1">
@@ -697,8 +675,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="badge ${badge} ms-2">${escHtml(label)}</span>
             </div>
             <p class="text-muted small mb-2">${escHtml(inq.createdAtLabel)}</p>
-            <p class="small mb-2" style="white-space:pre-wrap;">${escHtml(inq.description)}</p>
-            ${taskList}
+            <p class="small mb-0" style="white-space:pre-wrap;">${escHtml(inq.description)}</p>
+            ${rejectionNote}
           </div>
         </div>`;
       }).join('');

@@ -497,12 +497,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="fw-semibold">${escHtml(task.title)}</span>
             <span class="badge ${badge} ms-2">${escHtml(label)}</span>
           </div>
-          <p class="text-muted small mb-1"><i class="bi bi-inbox me-1"></i>${escHtml(task.inquirySubject || '—')}</p>
           <p class="text-muted small mb-2">Assigned ${escHtml(task.assignedAtLabel || '')}</p>
-          ${task.description ? `<p class="small mb-3" style="white-space:pre-wrap;">${escHtml(task.description)}</p>` : ''}
+          ${task.description ? `<p class="small mb-2" style="white-space:pre-wrap;">${escHtml(task.description)}</p>` : ''}
+          ${(() => {
+            const items = task.checklistItems || [];
+            if (!items.length) return '';
+            return `<ul class="list-unstyled mb-3 mt-1">
+              ${items.map((item) => `
+                <li class="d-flex align-items-start gap-2 mb-1">
+                  <input class="form-check-input mt-1 js-cli-toggle flex-shrink-0" type="checkbox"
+                         ${item.done ? 'checked' : ''}
+                         data-task-id="${escHtml(task.id)}" data-item-id="${escHtml(item.id)}">
+                  <span class="small ${item.done ? 'text-decoration-line-through text-muted' : ''}">${escHtml(item.text)}</span>
+                </li>`).join('')}
+            </ul>`;
+          })()}
           <div class="d-flex gap-2">
             ${canStart ? `<button class="btn btn-warning btn-sm js-task-start" data-task-id="${escHtml(task.id)}"><i class="bi bi-play-circle me-1"></i>Start Working</button>` : ''}
-            ${canResolve ? `<button class="btn btn-outline-primary btn-sm js-task-resolve" data-task-id="${escHtml(task.id)}" data-task-title="${escHtml(task.title)}" data-task-inq="${escHtml(task.inquirySubject || '—')}"><i class="bi bi-check-circle me-1"></i>Resolve</button>` : ''}
+            ${canResolve ? `<button class="btn btn-outline-primary btn-sm js-task-resolve" data-task-id="${escHtml(task.id)}" data-task-title="${escHtml(task.title)}" data-task-context="${escHtml(task.inquirySubject || task.eventTitle || 'Standalone task')}"><i class="bi bi-check-circle me-1"></i>Resolve</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -517,13 +529,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
+    container.querySelectorAll('.js-cli-toggle').forEach((cb) => {
+      cb.addEventListener('change', async () => {
+        cb.disabled = true;
+        await Auth.toggleChecklistItem(cb.dataset.taskId, cb.dataset.itemId);
+        await renderVolunteerTasks();
+      });
+    });
+
     container.querySelectorAll('.js-task-resolve').forEach((btn) => {
       btn.addEventListener('click', () => {
         currentResolveTaskId = btn.dataset.taskId;
         const titleEl = document.getElementById('modalResolveTaskTitle');
         const inqEl = document.getElementById('modalResolveInquiryRef');
         if (titleEl) titleEl.textContent = btn.dataset.taskTitle;
-        if (inqEl) inqEl.textContent = btn.dataset.taskInq;
+        if (inqEl) inqEl.textContent = btn.dataset.taskContext;
         // Reset form state
         const completedRadio = document.getElementById('resolveCompleted');
         if (completedRadio) completedRadio.checked = true;

@@ -2458,6 +2458,8 @@ const Auth = (() => {
       volunteerNote: null,
       completedAtMs: null,
       completedAtLabel: null,
+      archived: false,
+      checklistItems: [],
       createdAtMs: now,
       createdAtLabel: dateLabel
     };
@@ -2493,7 +2495,7 @@ const Auth = (() => {
     const session = await getSession();
     if (!session || session.role !== 'VOLUNTEER') return [];
     return getRawTasks()
-      .filter((t) => String(t.assignedToUserId) === String(session.userId) && !['COMPLETED', 'REJECTED'].includes(t.status))
+      .filter((t) => String(t.assignedToUserId) === String(session.userId) && !['COMPLETED', 'REJECTED'].includes(t.status) && !t.archived)
       .slice()
       .sort((a, b) => a.createdAtMs - b.createdAtMs);
   }
@@ -2597,6 +2599,200 @@ const Auth = (() => {
     return { success: true };
   }
 
+  async function rejectInquiry(inquiryId, rejectionNote) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can reject inquiries.' };
+    const inquiries = getRawInquiries();
+    const inqIdx = inquiries.findIndex((i) => String(i.id) === String(inquiryId));
+    if (inqIdx < 0) return { success: false, message: 'Inquiry not found.' };
+    const inquiry = inquiries[inqIdx];
+    if (inquiry.status === 'REJECTED') return { success: false, message: 'Inquiry is already rejected.' };
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    inquiry.status = 'REJECTED';
+    inquiry.rejectionNote = String(rejectionNote || '').trim() || null;
+    inquiry.rejectedAtMs = now;
+    inquiry.rejectedAtLabel = dateLabel;
+    inquiry.rejectedByAdminId = session.userId;
+    inquiry.rejectedByAdminName = session.name;
+    setJson(INQUIRIES_KEY, inquiries);
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'INQUIRY_REJECTED',
+      adminUserId: session.userId,
+      adminName: session.name,
+      inquiryId: String(inquiryId),
+      rejectionNote: inquiry.rejectionNote,
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    return { success: true };
+  }
+
+  async function createStandaloneTask(payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can create tasks.' };
+    const now = Date.now();
+    const dateLabel = formatDateLabel(new Date(now));
+    let eventTitle = null;
+    if (payload.eventId) {
+      const ev = getRawEvents().find((e) => String(e.id) === String(payload.eventId));
+      eventTitle = ev ? ev.title : null;
+    }
+    const task = {
+      id: makeId('task'),
+      inquiryId: null,
+      inquirySubject: null,
+      eventId: payload.eventId || null,
+      eventTitle,
+      title: String(payload.title || '').trim(),
+      description: String(payload.description || '').trim(),
+      createdByAdminId: session.userId,
+      createdByAdminName: session.name,
+      status: 'UNASSIGNED',
+      assignedToUserId: null,
+      assignedToName: null,
+      assignedAtMs: null,
+      assignedAtLabel: null,
+      assignedByUserId: null,
+      assignedByName: null,
+      volunteerNote: null,
+      completedAtMs: null,
+      completedAtLabel: null,
+      archived: false,
+      checklistItems: [],
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    };
+    const tasks = getRawTasks();
+    tasks.push(task);
+    setJson(TASKS_KEY, tasks);
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'),
+      action: 'TASK_CREATED',
+      adminUserId: session.userId,
+      adminName: session.name,
+      taskId: task.id,
+      taskTitle: task.title,
+      inquiryId: null,
+      eventId: task.eventId,
+      createdAtMs: now,
+      createdAtLabel: dateLabel
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    return { success: true, taskId: task.id };
+  }
+
+  async function getWorkQueueData() {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { inquiries: [], standaloneTasks: [] };
+    const allTasks = getRawTasks().slice().sort((a, b) => a.createdAtMs - b.createdAtMs);
+    const inquiries = getRawInquiries()
+      .slice()
+      .sort((a, b) => a.createdAtMs - b.createdAtMs)
+      .map((inq) => ({
+        ...inq,
+        tasks: allTasks.filter((t) => t.inquiryId && String(t.inquiryId) === String(inq.id))
+      }));
+    const standaloneTasks = allTasks.filter((t) => !t.inquiryId);
+    return { inquiries, standaloneTasks };
+  }
+
+  async function deleteTask(taskId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can delete tasks.' };
+    let tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    tasks = tasks.filter((t) => String(t.id) !== String(taskId));
+    setJson(TASKS_KEY, tasks);
+    // Remove from parent inquiry's taskIds if linked
+    if (task.inquiryId) {
+      const inquiries = getRawInquiries();
+      const inq = inquiries.find((i) => String(i.id) === String(task.inquiryId));
+      if (inq) {
+        inq.taskIds = (inq.taskIds || []).filter((id) => String(id) !== String(taskId));
+        setJson(INQUIRIES_KEY, inquiries);
+      }
+    }
+    const now = Date.now();
+    const auditLog = getRawAuditLog();
+    auditLog.push({
+      id: makeId('al'), action: 'TASK_DELETED',
+      adminUserId: session.userId, adminName: session.name,
+      taskId: String(taskId), taskTitle: task.title,
+      createdAtMs: now, createdAtLabel: formatDateLabel(new Date(now))
+    });
+    setJson(AUDIT_LOG_KEY, auditLog);
+    return { success: true };
+  }
+
+  async function archiveTask(taskId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can archive tasks.' };
+    const tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    if (task.archived) return { success: false, message: 'Task is already archived.' };
+    task.archived = true;
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
+  async function unarchiveTask(taskId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can unarchive tasks.' };
+    const tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    task.archived = false;
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
+  async function addChecklistItem(taskId, text) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can edit task checklists.' };
+    const tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    if (!task.checklistItems) task.checklistItems = [];
+    task.checklistItems.push({ id: makeId('cli'), text: String(text).trim(), done: false, doneAtMs: null, doneAtLabel: null });
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
+  async function removeChecklistItem(taskId, itemId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can edit task checklists.' };
+    const tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    task.checklistItems = (task.checklistItems || []).filter((i) => String(i.id) !== String(itemId));
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
+  async function toggleChecklistItem(taskId, itemId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return { success: false, message: 'Only volunteers can check off task items.' };
+    const tasks = getRawTasks();
+    const task = tasks.find((t) => String(t.id) === String(taskId));
+    if (!task) return { success: false, message: 'Task not found.' };
+    if (String(task.assignedToUserId) !== String(session.userId)) return { success: false, message: 'You can only update your own tasks.' };
+    const item = (task.checklistItems || []).find((i) => String(i.id) === String(itemId));
+    if (!item) return { success: false, message: 'Checklist item not found.' };
+    const now = Date.now();
+    item.done = !item.done;
+    item.doneAtMs = item.done ? now : null;
+    item.doneAtLabel = item.done ? formatDateLabel(new Date(now)) : null;
+    setJson(TASKS_KEY, tasks);
+    return { success: true };
+  }
+
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
   initStores();
@@ -2678,6 +2874,15 @@ const Auth = (() => {
     getMyAssignedTasks,
     assignTask,
     updateTaskStatus,
-    resolveTask
+    resolveTask,
+    rejectInquiry,
+    createStandaloneTask,
+    getWorkQueueData,
+    deleteTask,
+    archiveTask,
+    unarchiveTask,
+    addChecklistItem,
+    removeChecklistItem,
+    toggleChecklistItem
   };
 })();
