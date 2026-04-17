@@ -59,6 +59,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `<span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${totalLabel}${details}</span>`;
   }
 
+  function money(value) {
+    return `$${Number(value).toFixed(2)}`;
+  }
+
+  function jobPayText(job) {
+    if (job.payRate != null && Number(job.payRate) > 0) return `${money(job.payRate)}/hr`;
+    if (job.salary) return job.salary;
+    return 'Unpaid';
+  }
+
+  function jobCostText(job) {
+    const programFee = job.programFee != null ? Number(job.programFee) : 0;
+    const materialsCost = job.materialsCost != null ? Number(job.materialsCost) : 0;
+    const total = programFee + materialsCost;
+    return total > 0 ? money(total) : 'No listed cost';
+  }
+
+  function buildJobExpectationLine(job) {
+    return `
+      <div class="small mt-1">
+        <span class="text-success fw-semibold"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
+        <span class="text-muted ms-2"><i class="bi bi-tag me-1"></i>Cost: ${escHtml(jobCostText(job))}</span>
+      </div>`;
+  }
+
   function buildEventCard(event, options = {}) {
     const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
     const isPast = !isNaN(ts) && ts < Date.now();
@@ -204,9 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div>
                 <div class="fw-semibold">${escHtml(job.title)}</div>
                 <div class="small text-muted">${escHtml(job.employer)}${job.location ? ` · ${escHtml(job.location)}` : ''}</div>
-                ${job.payRate != null && job.payRate > 0 ? `<div class="small text-success"><i class="bi bi-cash-coin me-1"></i>$${Number(job.payRate).toFixed(2)}/hr</div>` : ''}
-                ${job.programFee != null && job.programFee > 0 ? `<div class="small text-muted"><i class="bi bi-tag me-1"></i>Program Fee: $${Number(job.programFee).toFixed(2)}</div>` : ''}
-                ${job.materialsCost != null && job.materialsCost > 0 ? `<div class="small text-muted"><i class="bi bi-tools me-1"></i>Materials: $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
+                ${buildJobExpectationLine(job)}
                 <div class="mt-2"><span class="badge ${badgeClass}">${escHtml(status)}</span></div>
               </div>
               <div class="text-end">

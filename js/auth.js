@@ -32,73 +32,73 @@ const Auth = (() => {
       id: 'seed_e1',
       title: 'Community Art Night',
       category: 'Social',
-      dateTime: '2026-04-05T18:00',
-      eventTimestamp: new Date('2026-04-05T18:00').getTime(),
+      dateTime: '2026-04-24T18:00',
+      eventTimestamp: new Date('2026-04-24T18:00').getTime(),
       location: 'Riverside Community Center, 200 Main St',
       cost: 'Free',
       accommodations: 'Wheelchair accessible entrance. Quiet sensory room available on request. Staff on-site to assist participants throughout the evening.',
-      createdAtMs: 1740000000000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430800000,
+      dateAdded: 'Apr 17, 2026'
     },
     {
       id: 'seed_e2',
       title: 'Job Skills Workshop',
       category: 'Vocational',
-      dateTime: '2026-04-12T10:00',
-      eventTimestamp: new Date('2026-04-12T10:00').getTime(),
+      dateTime: '2026-05-01T10:00',
+      eventTimestamp: new Date('2026-05-01T10:00').getTime(),
       location: 'Downtown Career Center, 145 Elm St',
       cost: 'Free',
       accommodations: 'Ages 18+. Sign language interpreter available. Large-print materials provided. Participants should bring a government-issued ID.',
-      createdAtMs: 1740000001000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430801000,
+      dateAdded: 'Apr 17, 2026'
     },
     {
       id: 'seed_e3',
       title: 'Library Reading Program',
       category: 'Educational',
-      dateTime: '2026-04-19T14:00',
-      eventTimestamp: new Date('2026-04-19T14:00').getTime(),
+      dateTime: '2026-05-08T14:00',
+      eventTimestamp: new Date('2026-05-08T14:00').getTime(),
       location: 'Public Library — Main Branch, 300 Oak Ave',
       cost: 'Free',
       accommodations: 'All ages welcome. Screen reader-compatible materials and audio books available. Sensory-friendly lighting maintained throughout.',
-      createdAtMs: 1740000002000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430802000,
+      dateAdded: 'Apr 17, 2026'
     },
     {
       id: 'seed_e4',
       title: 'Adaptive Cooking Class',
       category: 'Vocational',
-      dateTime: '2026-04-26T11:00',
-      eventTimestamp: new Date('2026-04-26T11:00').getTime(),
+      dateTime: '2026-05-15T11:00',
+      eventTimestamp: new Date('2026-05-15T11:00').getTime(),
       location: 'Harvest Kitchen, 78 Birch Blvd',
       cost: '$10 per session',
       accommodations: 'Ages 16+. One-on-one aide support available. Kitchen fully accessible. Participants with food allergies should notify the coordinator 48 hours in advance.',
-      createdAtMs: 1740000003000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430803000,
+      dateAdded: 'Apr 17, 2026'
     },
     {
       id: 'seed_e5',
       title: 'Buddy Bowling Night',
       category: 'Social',
-      dateTime: '2026-05-03T17:00',
-      eventTimestamp: new Date('2026-05-03T17:00').getTime(),
+      dateTime: '2026-05-22T17:00',
+      eventTimestamp: new Date('2026-05-22T17:00').getTime(),
       location: 'Kingpin Lanes, 555 Fairway Dr',
       cost: 'Free',
       accommodations: 'Open to all ages and abilities. Ramp bowling available. Noise-reducing headphones on loan. Volunteer buddies paired with each participant.',
-      createdAtMs: 1740000004000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430804000,
+      dateAdded: 'Apr 17, 2026'
     },
     {
       id: 'seed_e6',
       title: 'Digital Literacy Seminar',
       category: 'Educational',
-      dateTime: '2026-05-10T13:00',
-      eventTimestamp: new Date('2026-05-10T13:00').getTime(),
+      dateTime: '2026-05-29T13:00',
+      eventTimestamp: new Date('2026-05-29T13:00').getTime(),
       location: 'Eastside Tech Hub, 900 Maple Ct',
       cost: 'Free',
       accommodations: 'Ages 14+. Assistive technology stations available. Step-by-step printed guides provided. Caregiver or guardian welcome to attend alongside participant.',
-      createdAtMs: 1740000005000,
-      dateAdded: 'Mar 3, 2026'
+      createdAtMs: 1776430805000,
+      dateAdded: 'Apr 17, 2026'
     }
   ];
 
@@ -562,6 +562,33 @@ const Auth = (() => {
       .filter((approval) => approval && approval.jobId);
   }
 
+  function refreshSeedEventDates(events) {
+    const seedEventsById = new Map(SEED_EVENTS.map((event) => [event.id, event]));
+    const staleSeedDateTimesById = new Map([
+      ['seed_e1', '2026-04-05T18:00'],
+      ['seed_e2', '2026-04-12T10:00'],
+      ['seed_e3', '2026-04-19T14:00'],
+      ['seed_e4', '2026-04-26T11:00'],
+      ['seed_e5', '2026-05-03T17:00'],
+      ['seed_e6', '2026-05-10T13:00']
+    ]);
+    let changed = false;
+    const refreshedEvents = events.map((event) => {
+      const seedEvent = seedEventsById.get(event.id);
+      const staleDateTime = staleSeedDateTimesById.get(event.id);
+      if (!seedEvent || event.dateTime !== staleDateTime) return event;
+      changed = true;
+      return {
+        ...event,
+        dateTime: seedEvent.dateTime,
+        eventTimestamp: seedEvent.eventTimestamp,
+        createdAtMs: seedEvent.createdAtMs,
+        dateAdded: seedEvent.dateAdded
+      };
+    });
+    return changed ? refreshedEvents : events;
+  }
+
   function initStores() {
     const normalizedUsers = normalizeUsers(getRawUsers());
     setJson(USERS_KEY, normalizedUsers);
@@ -573,7 +600,12 @@ const Auth = (() => {
     setJson(VOLUNTEER_PROFILES_KEY, normalizedVolunteerProfiles);
 
     const events = getRawEvents();
-    if (!events.length) setJson(EVENTS_KEY, SEED_EVENTS);
+    if (!events.length) {
+      setJson(EVENTS_KEY, SEED_EVENTS);
+    } else {
+      const refreshedEvents = refreshSeedEventDates(events);
+      if (refreshedEvents !== events) setJson(EVENTS_KEY, refreshedEvents);
+    }
 
     const jobs = getRawJobs();
     if (!jobs.length) setJson(JOBS_KEY, SEED_JOBS);
