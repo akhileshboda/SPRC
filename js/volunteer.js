@@ -494,12 +494,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentResolveTaskId = null;
 
+  async function renderVolunteerTaskHistory() {
+    const container = document.getElementById('volTasksList');
+    if (!container) return;
+    const raw = JSON.parse(localStorage.getItem('kindred_tasks') || '[]');
+    const resolved = raw.filter(t =>
+      String(t.assignedToUserId) === String(session.userId) &&
+      ['COMPLETED', 'REJECTED'].includes(t.status)
+    );
+    if (!resolved.length) return;
+    const historyHtml = resolved.map((task) => {
+      const isCompleted = task.status === 'COMPLETED';
+      return `
+        <div class="card shadow-sm mb-2 opacity-75">
+          <div class="card-body py-2 px-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <span class="small fw-semibold text-muted">${escHtml(task.title)}</span>
+              <span class="badge ${isCompleted ? 'bg-success' : 'bg-danger'} ms-2">
+                ${isCompleted ? 'Completed' : 'Rejected'}
+              </span>
+            </div>
+            ${task.description ? `<p class="text-muted small mb-1" style="white-space:pre-wrap;">${escHtml(task.description)}</p>` : ''}
+            ${task.volunteerNote ? `<p class="small mb-0"><i class="bi bi-chat-left-text me-1 text-muted"></i>${escHtml(task.volunteerNote)}</p>` : ''}
+            <p class="text-muted small mb-0 mt-1">
+              ${isCompleted ? 'Completed' : 'Rejected'} ${escHtml(task.completedAtLabel || '')}
+            </p>
+          </div>
+        </div>`;
+    }).join('');
+    container.insertAdjacentHTML('beforeend', `
+      <div class="mt-4">
+        <h6 class="text-muted fw-semibold mb-2">
+          <i class="bi bi-clock-history me-1"></i>Resolved Tasks
+        </h6>
+        ${historyHtml}
+      </div>
+    `);
+  }
+
   async function renderVolunteerTasks() {
     const container = document.getElementById('volTasksList');
     if (!container) return;
     const tasks = await Auth.getMyAssignedTasks();
     if (!tasks.length) {
       container.innerHTML = emptyState('bi-clipboard', 'No tasks have been assigned to you yet.');
+      await renderVolunteerTaskHistory();
       return;
     }
     container.innerHTML = tasks.map((task) => {
@@ -560,7 +599,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const inqEl = document.getElementById('modalResolveInquiryRef');
         if (titleEl) titleEl.textContent = btn.dataset.taskTitle;
         if (inqEl) inqEl.textContent = btn.dataset.taskContext;
-        // Reset form state
         const completedRadio = document.getElementById('resolveCompleted');
         if (completedRadio) completedRadio.checked = true;
         const noteEl = document.getElementById('taskResolveNote');
@@ -574,6 +612,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('taskResolveModal')).show();
       });
     });
+
+    await renderVolunteerTaskHistory();
   }
 
   // Wire radio buttons for resolution type
