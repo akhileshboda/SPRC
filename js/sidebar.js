@@ -8,7 +8,8 @@ const NAV_ITEMS = [
   { id: 'participants', label: 'Participants', icon: 'bi-people',         roles: ['ADMIN'] },
   { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',          roles: ['ADMIN'] },
   { id: 'events',       label: 'Events',       icon: 'bi-calendar-event', roles: ['ADMIN'] },
-  { id: 'jobs',         label: 'Jobs',         icon: 'bi-briefcase',      roles: ['ADMIN'] },
+  { id: 'jobs',             label: 'Jobs',             icon: 'bi-briefcase',      roles: ['ADMIN'] },
+  { id: 'job-applications', label: 'Job Applications', icon: 'bi-send-check',     roles: ['ADMIN'] },
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
   { id: 'urgent-notifications', label: 'Urgent Alerts', icon: 'bi-bell-fill', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { id: 'work-queue',   label: 'Work Queue',   icon: 'bi-kanban',          roles: ['ADMIN'] },
   // PARTICIPANT inquiry
   { id: 'p-inquiries',  label: 'My Inquiries', icon: 'bi-chat-left-text',  roles: ['PARTICIPANT'] },
+  { id: 'p-jobs',       label: 'My Job Applications', icon: 'bi-briefcase', roles: ['PARTICIPANT'] },
 ];
 
 function _escHtml(str) {
