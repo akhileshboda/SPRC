@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderJobsTable() {
     const tbody = document.getElementById('jobsTableBody');
     if (!tbody) return;
-    const [jobs, interestSummary] = await Promise.all([Auth.getJobs(), Auth.getJobInterestSummary()]);
+    const [jobs, appSummary] = await Promise.all([Auth.getJobs(), Auth.getJobApplicationSummary()]);
     if (!jobs.length) {
       tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
       return;
@@ -849,13 +849,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     tbody.innerHTML = jobs.map((job) => {
-      const summary = interestSummary[job.id] || { approved: [], pending: [] };
-      const approvedMarkup = summary.approved.length
-        ? summary.approved.map((entry) => `<div class="text-success">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
-        : '<div class="text-muted">No approved interest yet</div>';
+      const summary = appSummary[job.id] || { pending: [], applied: [], interview: [], offer: [], started: [], rejected: [] };
       const pendingMarkup = summary.pending.length
-        ? summary.pending.map((entry) => `<div class="text-warning-emphasis">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
-        : '<div class="text-muted">No pending approvals</div>';
+        ? summary.pending.map((e) => `<div class="text-warning-emphasis">${escapeHtml(e.name)} <span class="text-muted small">(pending guardian approval)</span></div>`).join('')
+        : '';
+      const appliedMarkup = summary.applied.length
+        ? summary.applied.map((e) => `<div class="text-primary">${escapeHtml(e.name)} <span class="badge text-bg-primary ms-1" style="font-size:0.65rem;">Applied</span></div>`).join('')
+        : '';
+      const interviewMarkup = summary.interview.length
+        ? summary.interview.map((e) => `<div class="text-info-emphasis">${escapeHtml(e.name)} <span class="badge text-bg-info ms-1" style="font-size:0.65rem;">Interview</span></div>`).join('')
+        : '';
+      const offerMarkup = summary.offer.length
+        ? summary.offer.map((e) => `<div class="text-success">${escapeHtml(e.name)} <span class="badge text-bg-success ms-1" style="font-size:0.65rem;">Offer</span></div>`).join('')
+        : '';
+      const startedMarkup = summary.started.length
+        ? summary.started.map((e) => `<div class="text-success fw-semibold">${escapeHtml(e.name)} <span class="badge bg-success ms-1" style="font-size:0.65rem;">Started</span></div>`).join('')
+        : '';
+      const pipelineMarkup = [pendingMarkup, appliedMarkup, interviewMarkup, offerMarkup, startedMarkup].filter(Boolean).join('') || '<div class="text-muted">No applications yet</div>';
       return `
         <tr>
           <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(job.title)}</div></td>
@@ -869,12 +879,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${job.materialsCost != null && job.materialsCost > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Materials: $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
           </td>
           <td class="small text-muted"><div class="event-accommodations">${escapeHtml(job.requirements)}</div></td>
-          <td class="small">
-            <div class="fw-semibold text-success mb-1">Approved</div>
-            ${approvedMarkup}
-            <div class="fw-semibold text-warning-emphasis mt-2 mb-1">Pending</div>
-            ${pendingMarkup}
-          </td>
+          <td class="small">${pipelineMarkup}</td>
           <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
             <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">View</button>
@@ -918,6 +923,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
+
+  const ADMIN_APP_TRANSITIONS = {
+    APPLIED:   ['INTERVIEW', 'OFFER', 'REJECTED'],
+    INTERVIEW: ['OFFER', 'REJECTED'],
+    OFFER:     ['STARTED', 'REJECTED'],
+    STARTED:   ['REJECTED'],
+    REJECTED:  []
+  };
+
+  const APP_STATUS_BADGE = {
+    APPLIED:   'text-bg-primary',
+    INTERVIEW: 'text-bg-info',
+    OFFER:     'text-bg-success',
+    STARTED:   'text-bg-success',
+    REJECTED:  'text-bg-danger'
+  };
+
+  let currentAppId = null;
+
+  async function renderJobApplicationsTable() {
+    const tbody = document.getElementById('jobApplicationsTableBody');
+    if (!tbody) return;
+
+    const result = await Auth.getJobApplications();
+    if (!Array.isArray(result)) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger px-3">${escapeHtml(result?.message || 'Error loading applications.')}</td></tr>`;
+      return;
+    }
+    if (!result.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No applications yet. Applications appear here after a guardian approves a participant\'s job interest.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = result.map((app) => {
+      const transitions = ADMIN_APP_TRANSITIONS[app.status] || [];
+      return `
+        <tr>
+          <td class="ps-3 fw-semibold">${escapeHtml(app.participantName)}</td>
+          <td class="small text-muted">${escapeHtml(app.participantEmail)}</td>
+          <td>
+            <div class="fw-semibold">${escapeHtml(app.job?.title || '—')}</div>
+            <div class="small text-muted">${escapeHtml(app.job?.employer || '')}</div>
+          </td>
+          <td><span class="badge ${APP_STATUS_BADGE[app.status] || 'text-bg-secondary'}">${escapeHtml(app.status)}</span></td>
+          <td class="small text-muted">${escapeHtml(app.appliedAtLabel || '')}</td>
+          <td class="small text-muted">${escapeHtml(app.updatedAtLabel || '')}</td>
+          <td class="small">${app.notes ? escapeHtml(app.notes) : '<span class="text-muted">—</span>'}</td>
+          <td class="text-end pe-3">
+            ${transitions.length ? `<button class="btn btn-outline-primary btn-sm js-update-app-status-btn"
+              data-app-id="${escapeHtml(app.id)}"
+              data-current-status="${escapeHtml(app.status)}"
+              data-participant-name="${escapeHtml(app.participantName)}"
+              data-job-title="${escapeHtml(app.job?.title || '')}">
+              Update
+            </button>` : '<span class="text-muted small">—</span>'}
+          </td>
+        </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('.js-update-app-status-btn').forEach((btn) => {
+      btn.addEventListener('click', () => openUpdateAppStatusModal(btn.dataset));
+    });
+  }
+
+  function openUpdateAppStatusModal({ appId, currentStatus, participantName, jobTitle }) {
+    currentAppId = appId;
+    const modalEl = document.getElementById('updateAppStatusModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    document.getElementById('updateAppStatusContext').textContent =
+      `${participantName} — ${jobTitle} (currently: ${currentStatus})`;
+    document.getElementById('updateAppStatusNotes').value = '';
+    const errEl = document.getElementById('updateAppStatusError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const transitions = ADMIN_APP_TRANSITIONS[currentStatus] || [];
+    const STATUS_LABEL = { INTERVIEW: 'Interview', OFFER: 'Offer', STARTED: 'Started', REJECTED: 'Rejected' };
+    document.getElementById('updateAppStatusOptions').innerHTML = transitions.map((status) => `
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="appStatusOption"
+               id="appStatus_${escapeHtml(status)}" value="${escapeHtml(status)}">
+        <label class="form-check-label" for="appStatus_${escapeHtml(status)}">${escapeHtml(STATUS_LABEL[status] || status)}</label>
+      </div>`).join('');
+
+    const confirmBtn = document.getElementById('updateAppStatusConfirmBtn');
+    if (confirmBtn) confirmBtn.disabled = true;
+    document.getElementById('updateAppStatusOptions').querySelectorAll('input[type="radio"]').forEach((radio) => {
+      radio.addEventListener('change', () => { if (confirmBtn) confirmBtn.disabled = false; });
+    });
+
+    modal.show();
+  }
+
+  document.getElementById('updateAppStatusConfirmBtn')?.addEventListener('click', async () => {
+    const selected = document.querySelector('input[name="appStatusOption"]:checked')?.value;
+    const notes = document.getElementById('updateAppStatusNotes')?.value || '';
+    const errEl = document.getElementById('updateAppStatusError');
+    if (!selected) {
+      if (errEl) { errEl.textContent = 'Please select a status.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    const result = await Auth.updateApplicationStatus(currentAppId, selected, notes);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Update failed.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('updateAppStatusModal'))?.hide();
+    showToast('Application status updated.');
+    await renderJobApplicationsTable();
+    await renderJobsTable();
+  });
 
   function getSelectedNewsletterRecipients() {
     return Array.from(document.querySelectorAll('input[name="newsletterRecipients"]:checked')).map((checkbox) => checkbox.value);
@@ -2442,12 +2559,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
+  const jobAppsSection = document.getElementById('section-job-applications');
+  if (jobAppsSection) {
+    new MutationObserver(() => {
+      if (!jobAppsSection.classList.contains('d-none')) renderJobApplicationsTable();
+    }).observe(jobAppsSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
   await populateLinkedUserOptions();
   await renderUsersTable();
   await renderParticipantsTable();
   await renderVolunteersTable();
   await renderEventsTable();
   await renderJobsTable();
+  await renderJobApplicationsTable();
   await renderNewsletterRecipients();
   await hydrateNewsletterDraft();
   await renderNewsletterHistory();
