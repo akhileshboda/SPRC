@@ -4,8 +4,8 @@
  * and renders their matched events on the dashboard and a full event
  * discovery grid in the Events section.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || session.role !== 'VOLUNTEER') return;
 
   // ── Matched-events scoring ─────────────────────────────────────────────────

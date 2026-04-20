@@ -1,0 +1,68 @@
+<!-- ══ SECTION: Work Queue (ADMIN only) ══ -->
+<section id="section-work-queue" class="content-section d-none">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h5 class="fw-semibold mb-0"><i class="bi bi-kanban me-2 text-primary"></i>Work Queue</h5>
+      <p class="text-muted small mb-0">Manage participant inquiries, linked tasks, and standalone tasks.</p>
+    </div>
+    <button class="btn btn-primary btn-sm" id="newStandaloneTaskBtn" type="button">
+      <i class="bi bi-plus-circle me-1"></i>New Task
+    </button>
+  </div>
+
+  <!-- Sub-view tabs -->
+  <ul class="nav nav-tabs mb-3" id="workQueueTabs" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active" data-wq-tab="inquiries" type="button">
+        <i class="bi bi-inbox me-1"></i>Inquiries
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" data-wq-tab="standalone" type="button">
+        <i class="bi bi-clipboard me-1"></i>Standalone Tasks
+      </button>
+    </li>
+  </ul>
+
+  <!-- ── Inquiries pane ── -->
+  <div id="wq-inquiries-pane">
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary active" data-inq-filter="ALL"            type="button">All</button>
+        <button class="btn btn-outline-secondary"        data-inq-filter="PENDING_REVIEW" type="button">Pending</button>
+        <button class="btn btn-outline-secondary"        data-inq-filter="IN_PROGRESS"    type="button">In Progress</button>
+        <button class="btn btn-outline-secondary"        data-inq-filter="RESOLVED"       type="button">Resolved</button>
+        <button class="btn btn-outline-secondary"        data-inq-filter="REJECTED"       type="button">Rejected</button>
+      </div>
+      <select class="form-select form-select-sm" id="inquiryVolunteerFilter" style="max-width:220px;">
+        <option value="">All Volunteers</option>
+      </select>
+    </div>
+    <div id="wqInquiriesList">
+      <p class="text-muted small">Loading…</p>
+    </div>
+  </div>
+
+  <!-- ── Standalone tasks pane ── -->
+  <div id="wq-standalone-pane" class="d-none">
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
+      <div class="btn-group btn-group-sm" role="group">
+        <button class="btn btn-outline-secondary active" data-task-filter="ALL"         type="button">All</button>
+        <button class="btn btn-outline-secondary"        data-task-filter="UNASSIGNED"  type="button">Unassigned</button>
+        <button class="btn btn-outline-secondary"        data-task-filter="ASSIGNED"    type="button">Assigned</button>
+        <button class="btn btn-outline-secondary"        data-task-filter="IN_PROGRESS" type="button">In Progress</button>
+        <button class="btn btn-outline-secondary"        data-task-filter="COMPLETED"   type="button">Completed</button>
+        <button class="btn btn-outline-secondary"        data-task-filter="REJECTED"    type="button">Rejected</button>
+      </div>
+      <select class="form-select form-select-sm" id="standaloneVolunteerFilter" style="max-width:220px;">
+        <option value="">All Volunteers</option>
+      </select>
+    </div>
+    <div id="wqStandaloneList">
+      <p class="text-muted small">Loading…</p>
+    </div>
+  </div>
+
+</section>

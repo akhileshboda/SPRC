@@ -3,8 +3,8 @@
  * Handles participant self-service profile updates, participant saved content,
  * guardian linked-participant views, and guardian approvals.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || !['PARTICIPANT', 'GUARDIAN'].includes(session.role)) return;
 
   function escHtml(str) {

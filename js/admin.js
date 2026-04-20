@@ -3,8 +3,8 @@
  * Handles administrator workflows for users, participants, volunteers,
  * events, jobs, and communications.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || session.role !== 'ADMIN') return;
 
   const ROLE_BADGE = {

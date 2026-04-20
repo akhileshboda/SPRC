@@ -81,10 +81,17 @@ function initSidebar(session) {
   document.querySelectorAll('.js-logout-btn').forEach(btn => {
     btn.addEventListener('click', () => Auth.logout());
   });
+
+  // Honour a deep-link hash on initial load (only if valid for this role)
+  const hashId = location.hash.slice(1);
+  const validIds = NAV_ITEMS.filter(i => i.roles.includes(session.role)).map(i => i.id);
+  navigateTo(validIds.includes(hashId) ? hashId : 'dashboard');
 }
 
 
 function navigateTo(sectionId) {
+  if (!sectionId) return;
+
   // Hide all content sections
   document.querySelectorAll('.content-section').forEach(s => s.classList.add('d-none'));
 
@@ -100,4 +107,16 @@ function navigateTo(sectionId) {
 
   // Scroll the main content area back to the top
   document.getElementById('mainContent').scrollTop = 0;
+
+  // Keep URL hash in sync (only push if it changed to avoid duplicate history entries)
+  const newHash = `#${sectionId}`;
+  if (location.hash !== newHash) {
+    location.hash = newHash;
+  }
 }
+
+// Handle browser back/forward navigation
+window.addEventListener('hashchange', () => {
+  const sectionId = location.hash.slice(1);
+  if (sectionId) navigateTo(sectionId);
+});

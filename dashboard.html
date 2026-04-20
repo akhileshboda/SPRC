@@ -44,7 +44,6 @@
       min-height: 100vh;
     }
 
-    /* App shell: nav on top, then sidebar + content side-by-side */
     #appShell {
       display: flex;
       flex: 1;
@@ -76,7 +75,6 @@
     <nav id="desktopSidebar"
          class="d-none d-md-flex flex-column"
          aria-label="Dashboard navigation">
-      <!-- Nav links + user block are injected here by sidebar.js initSidebar() -->
     </nav>
 
     <!-- ─── MOBILE OFFCANVAS SIDEBAR ─── -->
@@ -92,1507 +90,25 @@
                 data-bs-dismiss="offcanvas"
                 aria-label="Close navigation"></button>
       </div>
-      <div class="offcanvas-body d-flex flex-column p-0">
-        <!-- Nav links + user block are injected here by sidebar.js initSidebar() -->
-      </div>
+      <div class="offcanvas-body d-flex flex-column p-0"></div>
     </div>
 
-    <!-- ─── MAIN CONTENT AREA ─── -->
-    <main id="mainContent" class="flex-grow-1">
+    <!-- ─── MAIN CONTENT AREA (sections injected here by sections.js) ─── -->
+    <main id="mainContent" class="flex-grow-1"></main>
 
-      <!-- ══ SECTION: Dashboard (shown by default) ══ -->
-      <section id="section-dashboard" class="content-section">
-
-        <h4 id="welcomeHeading" class="mb-4 text-secondary"></h4>
-
-        <!-- ADMIN: welcome card directing to sidebar sections -->
-        <div id="panel-ADMIN" class="d-none">
-          <div id="adminDashboardStats" class="row g-3 mb-4"></div>
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
-            <div class="card-body text-muted">
-              Select <strong>Participants</strong>, <strong>Volunteers</strong>, <strong>Events</strong>, <strong>Jobs</strong>, <strong>Newsletters</strong>, or <strong>Users</strong> from the
-              sidebar to manage records.
-            </div>
-          </div>
-          <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(79,98,176,0.08), rgba(43,181,160,0.10));">
-            <div class="card-body p-4">
-              <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
-                <div>
-                  <div class="text-uppercase fw-bold small mb-2" style="letter-spacing: 0.08em; color: #4F62B0;">Weekly Communication</div>
-                  <h5 class="mb-2">Generate weekly newsletters for participants and families</h5>
-                  <p class="text-muted mb-0">
-                    Kindred can compile current opportunities into a ready-to-send update for families each week.
-                  </p>
-                </div>
-                <button id="adminGenerateNewsletterQuickBtn" class="btn btn-primary align-self-start align-self-lg-center" type="button">
-                  <i class="bi bi-envelope-paper me-2"></i>Generate This Week's Newsletter
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="card shadow-sm border-0 mt-3" style="background: linear-gradient(135deg, rgba(220,53,69,0.07), rgba(245,166,35,0.09));">
-            <div class="card-body p-4">
-              <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
-                <div>
-                  <div class="text-uppercase fw-bold small mb-2" style="letter-spacing: 0.08em; color: #dc3545;">Urgent Opportunity Dispatcher</div>
-                  <h5 class="mb-2">Send targeted alerts for time-sensitive events &amp; jobs</h5>
-                  <p class="text-muted mb-0">
-                    The system monitors for urgent opportunities and drafts targeted notifications for relevant participants and families.
-                  </p>
-                </div>
-                <button id="adminUrgentAlertsQuickBtn" class="btn btn-danger align-self-start align-self-lg-center" type="button">
-                  <i class="bi bi-bell-fill me-2"></i>Review Urgent Alerts
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- GUARDIAN: dashboard -->
-        <div id="panel-GUARDIAN" class="d-none">
-          <div class="card shadow-sm mb-4">
-            <div class="card-header text-white fw-semibold" style="background-color:#4F62B0;">Guardian Dashboard</div>
-            <div class="card-body">
-              <p class="text-muted mb-3">
-                Review your linked participants, manage profile details, and approve vocational interest requests.
-              </p>
-              <div id="guardianDashboardSummary"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PARTICIPANT: Portal home —— upcoming events + job opportunities preview -->
-        <div id="panel-PARTICIPANT" class="d-none">
-          <div id="p-dashboard-snapshot" class="mb-4"></div>
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-success text-white fw-semibold">
-              <i class="bi bi-person-vcard me-2"></i>My Profile
-            </div>
-            <div class="card-body">
-              <p class="text-muted mb-3">Update your interests and job goals. Guardian-managed support notes stay visible as read-only context.</p>
-              <div id="participantProfileStatus" class="alert alert-success d-none" role="alert"></div>
-              <div id="participantProfileError" class="alert alert-danger d-none" role="alert"></div>
-              <form id="participantSelfProfileForm" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label for="participantInterestsInput" class="form-label">Personal Interests</label>
-                    <textarea class="form-control" id="participantInterestsInput" rows="3" placeholder="Art, sports, cooking, technology"></textarea>
-                  </div>
-                  <div class="col-md-6">
-                    <label for="participantJobGoalsInput" class="form-label">Job Goals</label>
-                    <textarea class="form-control" id="participantJobGoalsInput" rows="3" placeholder="What kind of work environment or goals matter to you?"></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantSpecialNeedsReadonly" class="form-label">Support Needs</label>
-                    <textarea class="form-control" id="participantSpecialNeedsReadonly" rows="4" readonly></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantMedicalReadonly" class="form-label">Medical Notes</label>
-                    <textarea class="form-control" id="participantMedicalReadonly" rows="4" readonly></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantSensoryReadonly" class="form-label">Sensory Notes</label>
-                    <textarea class="form-control" id="participantSensoryReadonly" rows="4" readonly></textarea>
-                  </div>
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-success" id="participantSelfProfileSubmitBtn">Save My Updates</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- Urgent Notifications banner (hidden until populated by participant.js) -->
-          <div id="p-notifications-banner" class="d-none mb-4"></div>
-
-          <!-- Upcoming Events preview -->
-          <div class="portal-section mb-5">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div>
-                <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-success"></i>Upcoming Events</h5>
-                <p class="text-muted small mb-0">Community programs and activities selected for you</p>
-              </div>
-              <button class="btn btn-outline-success btn-sm" type="button"
-                      onclick="navigateTo('p-events')">
-                View all <i class="bi bi-arrow-right ms-1"></i>
-              </button>
-            </div>
-            <div id="p-dashboard-events"></div>
-          </div>
-
-          <!-- Job Opportunities (public browse + saved interests) -->
-          <div class="portal-section">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div>
-                <h5 class="portal-section-title mb-0"><i class="bi bi-briefcase me-2" style="color:#6f42c1"></i>Job Opportunities</h5>
-                <p class="text-muted small mb-0">Browse all jobs on the public Jobs page and save interests while signed in.</p>
-              </div>
-              <a href="jobs.html" class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;">
-                Browse jobs <i class="bi bi-box-arrow-up-right ms-1"></i>
-              </a>
-            </div>
-            <div id="p-saved-jobs"></div>
-          </div>
-
-        </div>
-
-        <!-- VOLUNTEER: My Saved Events -->
-        <div id="panel-VOLUNTEER-saved" class="d-none">
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white fw-semibold">
-              <i class="bi bi-bookmark-heart me-2"></i>My Saved Events
-            </div>
-            <div class="card-body" id="volunteerSavedEvents">
-              <p class="text-muted mb-0">You haven't saved any events yet. <a href="events.html">Browse events</a> and click "I'm Interested" to save them here.</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- VOLUNTEER: Volunteer Portal card -->
-        <div id="panel-VOLUNTEER" class="d-none">
-
-          <div id="volunteerDashboardSnapshot"></div>
-
-          <!-- Matched Events row (populated by volunteer.js after profile load) -->
-          <div class="card shadow-sm mb-4" id="volMatchedEventsCard">
-            <div class="card-header bg-info bg-opacity-10 border-info border-opacity-25 d-flex align-items-center gap-2">
-              <i class="bi bi-stars text-info fs-5"></i>
-              <span class="text-info fw-semibold">Your Matched Events</span>
-            </div>
-            <div class="card-body">
-              <p class="text-muted small mb-2">Based on your interests, these events may be a great fit for you:</p>
-              <div id="volMatchedEvents">
-                <p class="text-muted small">Complete your interests below to see your matched events.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Volunteer registration form -->
-          <div class="card shadow-sm">
-            <div class="card-header bg-info text-white fw-semibold">
-              <i class="bi bi-person-check me-2"></i>Volunteer Profile
-            </div>
-            <div class="card-body">
-              <p class="text-muted mb-3">
-                Register your profile so administrators can contact you for relevant opportunities.
-              </p>
-
-              <div id="volunteerProfileStatus" class="alert alert-success d-none" role="alert"></div>
-              <div id="volunteerProfileError" class="alert alert-danger d-none" role="alert"></div>
-
-              <form id="volunteerProfileForm" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-3">
-                    <label for="volFirstName" class="form-label">First Name</label>
-                    <input type="text" class="form-control" id="volFirstName" required>
-                    <div class="invalid-feedback">First name is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="volLastName" class="form-label">Last Name</label>
-                    <input type="text" class="form-control" id="volLastName" required>
-                    <div class="invalid-feedback">Last name is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="volPhone" class="form-label">Phone Number</label>
-                    <input type="tel" class="form-control" id="volPhone" placeholder="e.g. (555) 555-0101" required>
-                    <div class="invalid-feedback">Phone number is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="volEmail" class="form-label">Email</label>
-                    <input type="email" class="form-control" id="volEmail" readonly>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label class="form-label d-block mb-2">Interests</label>
-                    <div class="dropdown">
-                      <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
-                        id="volInterestsDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                        <span id="volInterestsSummary">Select interests</span>
-                      </button>
-                      <div id="volInterestsGroup" class="dropdown-menu p-3 w-100" aria-labelledby="volInterestsDropdownBtn" style="max-height: 260px; overflow-y: auto;">
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Mentoring" id="volInterestMentoring" name="volInterests">
-                          <label class="form-check-label" for="volInterestMentoring">Mentoring</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Educational Programs" id="volInterestEducational" name="volInterests">
-                          <label class="form-check-label" for="volInterestEducational">Educational Programs</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Community Events" id="volInterestCommunityEvents" name="volInterests">
-                          <label class="form-check-label" for="volInterestCommunityEvents">Community Events</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="volInterestSports" name="volInterests">
-                          <label class="form-check-label" for="volInterestSports">Sports &amp; Recreation</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Administrative Support" id="volInterestAdminSupport" name="volInterests">
-                          <label class="form-check-label" for="volInterestAdminSupport">Administrative Support</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Job Coaching" id="volInterestJobCoaching" name="volInterests">
-                          <label class="form-check-label" for="volInterestJobCoaching">Job Coaching</label>
-                        </div>
-                        <div class="form-check">
-                          <input class="form-check-input" type="checkbox" value="Other" id="volInterestOther" name="volInterests">
-                          <label class="form-check-label" for="volInterestOther">Other</label>
-                        </div>
-                        <div class="mt-2">
-                          <input type="text" class="form-control form-control-sm" id="volInterestOtherText"
-                            placeholder="If other, specify your interest" disabled>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="invalid-feedback d-none" id="volInterestsFeedback">Select at least one interest.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="volAvailability" class="form-label">Availability</label>
-                    <textarea class="form-control" id="volAvailability" rows="3"
-                      placeholder="e.g. Weeknights after 6PM, Saturdays mornings"></textarea>
-                  </div>
-
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-info text-white fw-semibold" id="volunteerProfileSubmitBtn">
-                      Save My Volunteer Profile
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Guardian — Participants ══ -->
-      <section id="section-g-participants" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0"><i class="bi bi-people-fill me-2" style="color:#4F62B0;"></i>My Participants</h5>
-          <p class="text-muted small mb-0">Profiles you are authorized to manage.</p>
-        </div>
-        <div id="guardianParticipantsList"></div>
-      </section>
-
-      <!-- ══ SECTION: Guardian — Approvals ══ -->
-      <section id="section-g-approvals" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0"><i class="bi bi-shield-check me-2" style="color:#4F62B0;"></i>Pending Approvals</h5>
-          <p class="text-muted small mb-0">Review participant job interests that require guardian confirmation.</p>
-        </div>
-        <div id="guardianApprovalsList"></div>
-      </section>
-
-      <!-- ══ SECTION: Guardian — Newsletter ══ -->
-      <section id="section-g-newsletter" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0">
-            <i class="bi bi-envelope-open-text me-2" style="color:#4F62B0;"></i>Family Newsletter
-          </h5>
-          <p class="text-muted small mb-0">Your latest Kindred update for linked participants and families.</p>
-        </div>
-        <div id="g-newsletter-content">
-          <div class="text-muted small">Loading...</div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Participant — Profile ══ -->
-      <section id="section-p-profile" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0"><i class="bi bi-person-vcard me-2 text-success"></i>My Profile</h5>
-          <p class="text-muted small mb-0">Review your linked profile and update self-service details.</p>
-        </div>
-        <div id="participantProfileSection"></div>
-      </section>
-
-      <!-- ══ SECTION: Participant — Events Discovery ══ -->
-      <section id="section-p-events" class="content-section d-none">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <div>
-            <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-check me-2 text-success"></i>Subscribed Events</h5>
-            <p class="text-muted small mb-0">Events you have registered interest in</p>
-          </div>
-        </div>
-        <div id="p-events-grid"></div>
-      </section>
-      
-      <!-- ══ SECTION: Participant — Newsletter ══ -->
-      <section id="section-p-newsletter" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0">
-            <i class="bi bi-envelope-paper me-2" style="color:#4F62B0;"></i>Weekly Newsletter
-          </h5>
-          <p class="text-muted small mb-0">Your latest update from Whispering Hills Connections</p>
-        </div>
-        <div id="p-newsletter-content">
-          <div class="text-muted small">Loading...</div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Participant — Urgent Notifications ══ -->
-      <section id="section-p-notifications" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0">
-            <i class="bi bi-bell-fill me-2 text-danger"></i>Alerts &amp; Urgent Opportunities
-          </h5>
-          <p class="text-muted small mb-0">Time-sensitive events and job openings personally selected for you by Kindred Administration</p>
-        </div>
-        <div id="p-notifications-list"></div>
-      </section>
-
-      <!-- ══ SECTION: Volunteer — Background Check ══ -->
-      <section id="section-v-bgcheck" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0">
-            <i class="bi bi-shield-lock me-2 text-info"></i>Background Check
-          </h5>
-          <p class="text-muted small mb-0">Submit consent, review your current status, and track administrator decisions and expiry details for your volunteer eligibility.</p>
-        </div>
-
-        <div id="bgCheckVolunteerPanel">
-          <div class="card shadow-sm mb-4">
-            <div class="card-header bg-info bg-opacity-10 border-info border-opacity-25 fw-semibold">
-              <i class="bi bi-shield-check me-2 text-info"></i>My Background Check Status
-            </div>
-            <div class="card-body">
-              <div id="bgCheckStatusDisplay" class="mb-3">
-                <div class="text-muted small">Loading status...</div>
-              </div>
-
-              <div id="bgCheckConsentArea">
-                <div class="alert alert-light border mb-3">
-                  <h6 class="fw-semibold mb-2"><i class="bi bi-info-circle me-1"></i>Background Check Consent</h6>
-                  <p class="mb-2 small">
-                    To participate in events involving participants with special needs, all volunteers are required to
-                    complete a background check. By submitting your consent below, you authorize Kindred to initiate
-                    a background check through our approved third-party provider.
-                  </p>
-                  <ul class="small mb-0">
-                    <li>Your information will be handled according to our privacy policy.</li>
-                    <li>Results are reviewed by an administrator and used solely for eligibility decisions.</li>
-                    <li>You may withdraw consent at any time by contacting your Kindred coordinator.</li>
-                  </ul>
-                </div>
-
-                <div class="form-check mb-3">
-                  <input class="form-check-input" type="checkbox" id="bgCheckConsentCheckbox">
-                  <label class="form-check-label" for="bgCheckConsentCheckbox">
-                    I understand and consent to a background check being performed for my volunteer eligibility.
-                  </label>
-                </div>
-
-                <div id="bgCheckConsentError" class="alert alert-danger d-none small" role="alert"></div>
-                <div id="bgCheckConsentSuccess" class="alert alert-success d-none small" role="alert"></div>
-
-                <button type="button" class="btn btn-info text-white fw-semibold" id="bgCheckSubmitConsentBtn" disabled>
-                  <i class="bi bi-send-check me-2"></i>Submit Consent
-                </button>
-              </div>
-
-              <div id="bgCheckRevokeWrap" class="d-none mt-3">
-                <div class="alert alert-warning small mb-2" role="alert">
-                  <i class="bi bi-exclamation-triangle me-1"></i>You may revoke your authorization while your background check is pending administrator review.
-                </div>
-                <button type="button" class="btn btn-outline-danger fw-semibold" id="bgCheckRevokeBtn">
-                  <i class="bi bi-arrow-counterclockwise me-2"></i>Revoke Consent
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="card-header bg-light fw-semibold">
-              <i class="bi bi-clock-history me-2"></i>Status History
-            </div>
-            <div class="card-body" id="bgCheckVolunteerHistory">
-              <p class="text-muted small mb-0">No history yet.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Volunteer — Events Discovery ══ -->
-      <section id="section-v-events" class="content-section d-none">
-        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-          <div>
-            <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-info"></i>Events</h5>
-            <p class="text-muted small mb-0">Browse published events, filter by what fits you, and prioritize matches to your interests.</p>
-          </div>
-        </div>
-        <div id="v-events-toolbar" class="mb-3"></div>
-        <div id="v-events-grid"></div>
-      </section>
-
-      <!-- ══ SECTION: Participants (ADMIN only) ══ -->
-      <section id="section-participants" class="content-section d-none">
-
-        <!-- LIST sub-view (default) -->
-        <div id="view-participants-list">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="text-success fw-semibold mb-0">Participant Records</h5>
-            <button id="newParticipantBtn" class="btn btn-success btn-sm" type="button">
-              <i class="bi bi-plus-lg me-1"></i>New Participant
-            </button>
-          </div>
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Participant</th>
-                    <th scope="col">Participant Login</th>
-                    <th scope="col">Guardian Logins</th>
-                    <th scope="col">Profile Summary</th>
-                    <th scope="col">Date Added</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="participantsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- FORM sub-view (hidden by default) -->
-        <div id="view-participants-form" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backToParticipantsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <h5 class="text-success fw-semibold mb-0" id="participantFormTitle">New Participant</h5>
-            <button id="participantFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
-              <i class="bi bi-pencil me-1"></i>Edit
-            </button>
-          </div>
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div id="participantError" class="alert alert-danger d-none" role="alert"></div>
-              <form id="participantForm" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-3">
-                    <label for="participantFirstName" class="form-label">Participant First Name</label>
-                    <input type="text" class="form-control" id="participantFirstName" placeholder="e.g. Jordan" required>
-                    <div class="invalid-feedback">Participant first name is required.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="participantLastName" class="form-label">Participant Last Name</label>
-                    <input type="text" class="form-control" id="participantLastName" placeholder="e.g. Lee" required>
-                    <div class="invalid-feedback">Participant last name is required.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="participantAge" class="form-label">Age</label>
-                    <input type="number" class="form-control" id="participantAge" min="1" max="120" placeholder="e.g. 12" required>
-                    <div class="invalid-feedback">Please provide a valid age.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="participantUserId" class="form-label">Participant Login</label>
-                    <select class="form-select" id="participantUserId" required></select>
-                    <div class="invalid-feedback">Choose a participant login.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="form-check mt-4 pt-2">
-                      <input class="form-check-input" type="checkbox" id="participantCreateUserToggle">
-                      <label class="form-check-label" for="participantCreateUserToggle">
-                        Create new participant login
-                      </label>
-                    </div>
-                  </div>
-                  <div class="col-md-3 d-none" id="participantNewUserEmailWrap">
-                    <label for="participantNewUserEmail" class="form-label">New Login Email</label>
-                    <input type="email" class="form-control" id="participantNewUserEmail" placeholder="participant@email.com">
-                  </div>
-                  <div class="col-md-3 d-none" id="participantNewUserPasswordWrap">
-                    <label for="participantNewUserPassword" class="form-label">Temporary Password</label>
-                    <input type="password" class="form-control" id="participantNewUserPassword" placeholder="Temporary password">
-                  </div>
-                  <div class="col-md-6">
-                    <label for="participantGuardianIds" class="form-label">Linked Guardians</label>
-                    <select class="form-select" id="participantGuardianIds" multiple size="4" required></select>
-                    <div class="form-text">Hold Command on Mac to select multiple guardians.</div>
-                    <div class="invalid-feedback">Choose at least one guardian login.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="participantEmail" class="form-label">Primary Contact Email</label>
-                    <input type="email" class="form-control" id="participantEmail" placeholder="guardian@email.com" required>
-                    <div class="invalid-feedback">A valid contact email is required.</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantPhone" class="form-label">Contact Phone</label>
-                    <input type="tel" class="form-control" id="participantPhone" placeholder="e.g. (555) 555-0101" required>
-                    <div class="invalid-feedback">Contact phone is required.</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantInterests" class="form-label">Participant Interests</label>
-                    <textarea class="form-control" id="participantInterests" rows="3"
-                      placeholder="Art, community events, cooking, technology"></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantJobGoals" class="form-label">Job Goals</label>
-                    <textarea class="form-control" id="participantJobGoals" rows="3"
-                      placeholder="Structured tasks, customer support, library work"></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantSpecialNeeds" class="form-label">Support Needs</label>
-                    <textarea class="form-control" id="participantSpecialNeeds" rows="3"
-                      placeholder="Describe accommodations, support requirements, and needs..." required></textarea>
-                    <div class="invalid-feedback">Special needs details are required.</div>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantMedicalNotes" class="form-label">Medical Notes</label>
-                    <textarea class="form-control" id="participantMedicalNotes" rows="3"
-                      placeholder="Medication, allergies, health considerations"></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantSensoryNotes" class="form-label">Sensory Notes</label>
-                    <textarea class="form-control" id="participantSensoryNotes" rows="3"
-                      placeholder="Noise sensitivity, lighting preferences, transition needs"></textarea>
-                  </div>
-                  <div class="col-md-4">
-                    <label for="participantGuardianNotes" class="form-label">Guardian / Admin Notes</label>
-                    <textarea class="form-control" id="participantGuardianNotes" rows="3"
-                      placeholder="Safety notes, communication preferences, scheduling details"></textarea>
-                  </div>
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-success" id="participantSubmitBtn">Save Participant Record</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Volunteers (ADMIN only) ══ -->
-      <section id="section-volunteers" class="content-section d-none">
-
-        <!-- LIST sub-view (default) -->
-        <div id="view-volunteers-list">
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <div>
-              <h5 class="text-info fw-semibold mb-1">Volunteer Opportunities</h5>
-              <p class="text-muted mb-0">
-                Store volunteer personal information and interests, then review matched opportunities.
-              </p>
-            </div>
-            <button id="newVolunteerBtn" class="btn btn-info btn-sm text-white text-nowrap align-self-start align-self-lg-center" type="button">
-              <i class="bi bi-plus-lg me-1"></i>New Volunteer Profile
-            </button>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 volunteer-table">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Volunteer</th>
-                    <th scope="col">Contact</th>
-                    <th scope="col">Interests</th>
-                    <th scope="col">Availability</th>
-                    <th scope="col">Background Check</th>
-                    <th scope="col">Last Updated</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="volunteerProfilesTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- FORM sub-view (hidden by default) -->
-        <div id="view-volunteers-form" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backToVolunteersBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <h5 class="text-info fw-semibold mb-0" id="volunteerFormTitle">New Volunteer Profile</h5>
-            <button id="volunteerFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
-              <i class="bi bi-pencil me-1"></i>Edit
-            </button>
-          </div>
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div id="volunteerAdminError" class="alert alert-danger d-none" role="alert"></div>
-              <form id="volunteerAdminForm" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-3">
-                    <label for="adminVolFirstName" class="form-label">First Name</label>
-                    <input type="text" class="form-control" id="adminVolFirstName" required>
-                    <div class="invalid-feedback">First name is required.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="adminVolLastName" class="form-label">Last Name</label>
-                    <input type="text" class="form-control" id="adminVolLastName" required>
-                    <div class="invalid-feedback">Last name is required.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="adminVolPhone" class="form-label">Phone Number</label>
-                    <input type="tel" class="form-control" id="adminVolPhone" placeholder="e.g. (555) 555-0101" required>
-                    <div class="invalid-feedback">Phone number is required.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <label for="adminVolUserId" class="form-label">Volunteer Login</label>
-                    <select class="form-select" id="adminVolUserId" required></select>
-                    <div class="invalid-feedback">Choose a volunteer account.</div>
-                  </div>
-                  <div class="col-md-3">
-                    <div class="form-check mt-4 pt-2">
-                      <input class="form-check-input" type="checkbox" id="adminVolCreateUserToggle">
-                      <label class="form-check-label" for="adminVolCreateUserToggle">
-                        Create new volunteer login
-                      </label>
-                    </div>
-                  </div>
-                  <div class="col-md-3 d-none" id="adminVolNewUserEmailWrap">
-                    <label for="adminVolNewUserEmail" class="form-label">New Login Email</label>
-                    <input type="email" class="form-control" id="adminVolNewUserEmail" placeholder="volunteer@email.com">
-                  </div>
-                  <div class="col-md-3 d-none" id="adminVolNewUserPasswordWrap">
-                    <label for="adminVolNewUserPassword" class="form-label">Temporary Password</label>
-                    <input type="password" class="form-control" id="adminVolNewUserPassword" placeholder="Temporary password">
-                  </div>
-
-                  <div class="col-md-6">
-                    <label class="form-label d-block mb-2">Interests</label>
-                    <div id="adminVolInterestsGroup" class="border rounded p-3">
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Mentoring" id="adminVolInterestMentoring" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestMentoring">Mentoring</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Educational Programs" id="adminVolInterestEducational" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestEducational">Educational Programs</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Community Events" id="adminVolInterestCommunityEvents" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestCommunityEvents">Community Events</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="adminVolInterestSports" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestSports">Sports &amp; Recreation</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Administrative Support" id="adminVolInterestAdminSupport" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestAdminSupport">Administrative Support</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Job Coaching" id="adminVolInterestJobCoaching" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestJobCoaching">Job Coaching</label>
-                      </div>
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" value="Other" id="adminVolInterestOther" name="adminVolInterests">
-                        <label class="form-check-label" for="adminVolInterestOther">Other</label>
-                      </div>
-                      <div class="mt-2">
-                        <input type="text" class="form-control form-control-sm" id="adminVolInterestOtherText"
-                          placeholder="If other, specify the interest" disabled>
-                      </div>
-                    </div>
-                    <div class="invalid-feedback d-none" id="adminVolInterestsFeedback">Select at least one interest.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="adminVolAvailability" class="form-label">Availability</label>
-                    <textarea class="form-control" id="adminVolAvailability" rows="4"
-                      placeholder="e.g. Weeknights after 6PM, Saturday mornings"></textarea>
-                  </div>
-                    
-                  <div class="col-md-6">
-                    <label for="adminVolBackgroundCheck" class="form-label">Background Check Status</label>
-                    <select class="form-select" id="adminVolBackgroundCheck">
-                      <option value="Not Started">Not Started</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Cleared">Cleared</option>
-                      <option value="Revoked">Revoked</option>
-                    </select>
-                  </div>
-                  
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-info text-white" id="volunteerAdminSubmitBtn">Save Volunteer Profile</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Events (ADMIN only) ══ -->
-      <section id="section-events" class="content-section d-none">
-
-        <!-- LIST sub-view (default) -->
-        <div id="view-events-list">
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <div>
-              <h5 class="text-dark fw-semibold mb-1">Event Management</h5>
-              <p class="text-muted mb-0">
-                Publish and maintain community events for families. Family-facing discovery remains a separate
-                next-phase view.
-              </p>
-            </div>
-            <button id="newEventBtn" class="btn btn-primary btn-sm text-nowrap align-self-start align-self-lg-center" type="button">
-              <i class="bi bi-plus-lg me-1"></i>New Event
-            </button>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0 event-log-table">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Event Title</th>
-                    <th scope="col">Category</th>
-                    <th scope="col">Date / Time</th>
-                    <th scope="col">Location</th>
-                    <th scope="col">Cost</th>
-                    <th scope="col">Participant Requirements &amp; Accommodations</th>
-                    <th scope="col">Date Added</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="eventsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- FORM sub-view (hidden by default) -->
-        <div id="view-events-form" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backToEventsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <h5 class="text-dark fw-semibold mb-0" id="eventFormTitle">New Event</h5>
-            <button id="eventFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
-              <i class="bi bi-pencil me-1"></i>Edit
-            </button>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div id="eventError" class="alert alert-danger d-none" role="alert"></div>
-
-              <form id="eventForm" novalidate>
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label for="eventTitle" class="form-label">Event Title</label>
-                    <input type="text" class="form-control" id="eventTitle" placeholder="e.g. Community Art Night" required>
-                    <div class="invalid-feedback">Event title is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="eventCategory" class="form-label">Category</label>
-                    <select class="form-select" id="eventCategory" required>
-                      <option value="" selected disabled>Select a category&hellip;</option>
-                      <option value="Social">Social</option>
-                      <option value="Educational">Educational</option>
-                      <option value="Vocational">Vocational</option>
-                    </select>
-                    <div class="invalid-feedback">Please select a category.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="eventProgramFee" class="form-label">Program Fee ($)</label>
-                    <input type="number" class="form-control" id="eventProgramFee" min="0" step="0.01" placeholder="0.00">
-                    <div class="form-text">Leave blank or 0 if free.</div>
-                    <div class="invalid-feedback">Must be a non-negative number.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="eventMaterialsCost" class="form-label">Materials Cost ($)</label>
-                    <input type="number" class="form-control" id="eventMaterialsCost" min="0" step="0.01" placeholder="0.00">
-                    <div class="form-text">Leave blank or 0 if none.</div>
-                    <div class="invalid-feedback">Must be a non-negative number.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="eventDateTime" class="form-label">Date / Time</label>
-                    <input type="datetime-local" class="form-control" id="eventDateTime" required>
-                    <div class="invalid-feedback">Date and time are required.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="eventLocation" class="form-label">Location</label>
-                    <input type="text" class="form-control" id="eventLocation" placeholder="e.g. 145 Elm St, Indianapolis" required>
-                    <div class="invalid-feedback">Location is required.</div>
-                  </div>
-
-                  <div class="col-12">
-                    <label for="eventAccommodations" class="form-label">Participant Requirements &amp; Accommodations</label>
-                    <textarea class="form-control" id="eventAccommodations" rows="5"
-                      placeholder="Describe accessibility details, support needs, staff assistance, sensory considerations, age requirements, or participation expectations..."
-                      required></textarea>
-                    <div class="form-text">
-                      Include any information families need to decide whether this event matches participant needs.
-                    </div>
-                    <div class="invalid-feedback">Participant requirements and accommodations are required.</div>
-                  </div>
-
-                  <div class="col-12">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="eventIsUrgent">
-                      <label class="form-check-label" for="eventIsUrgent">
-                        <span class="fw-semibold text-danger">Mark as Urgent</span>
-                        <span class="text-muted small ms-1">— flags this event for the Urgent Alerts Dispatcher (in addition to automatic 48-hour detection)</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-primary" id="eventSubmitBtn">Publish Event</button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Jobs (ADMIN only) ══ -->
-      <section id="section-jobs" class="content-section d-none">
-
-        <!-- LIST sub-view (default) -->
-        <div id="view-jobs-list">
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
-            <div>
-              <h5 class="fw-semibold mb-1" style="color: #6f42c1;">Job Opportunities</h5>
-              <p class="text-muted mb-0">
-                Log vocational opportunities so participants can discover and prepare for employment.
-              </p>
-            </div>
-            <button id="newJobBtn" class="btn btn-sm text-white text-nowrap align-self-start align-self-lg-center"
-                    style="background-color: #6f42c1; border-color: #6f42c1;" type="button">
-              <i class="bi bi-plus-lg me-1"></i>New Job Opportunity
-            </button>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Job</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Pay</th>
-                    <th scope="col">Applications</th>
-                    <th scope="col">Added</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="jobsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- APPLICATIONS sub-view (hidden by default) -->
-        <div id="view-jobs-applications" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backFromAppsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back to Jobs
-            </button>
-            <div>
-              <h5 class="fw-semibold mb-0" id="jobAppsTitle" style="color: #6f42c1;"></h5>
-              <p class="text-muted small mb-0" id="jobAppsSubtitle"></p>
-            </div>
-          </div>
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Participant</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Applied</th>
-                    <th scope="col">Last Updated</th>
-                    <th scope="col">Notes</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="jobAppsTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- FORM sub-view (hidden by default) -->
-        <div id="view-jobs-form" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backToJobsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <h5 class="fw-semibold mb-0" id="jobFormTitle" style="color: #6f42c1;">New Job Opportunity</h5>
-            <button id="jobFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
-              <i class="bi bi-pencil me-1"></i>Edit
-            </button>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <div id="jobError" class="alert alert-danger d-none" role="alert"></div>
-
-              <form id="jobForm" novalidate>
-                <div class="row g-3">
-
-                  <!-- Job Header -->
-                  <div class="col-md-5">
-                    <label for="jobTitle" class="form-label">Job Title <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="jobTitle"
-                           placeholder="e.g. Café Assistant" required>
-                    <div class="invalid-feedback">Job title is required.</div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <label for="jobEmployer" class="form-label">Employer Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="jobEmployer"
-                           placeholder="e.g. Harvest Café" required>
-                    <div class="invalid-feedback">Employer name is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="jobLocation" class="form-label">Location</label>
-                    <input type="text" class="form-control" id="jobLocation"
-                           placeholder="e.g. Downtown, 120 Main St">
-                  </div>
-
-                  <!-- Employment Metadata -->
-                  <div class="col-md-3">
-                    <label for="jobType" class="form-label">Job Type</label>
-                    <select class="form-select" id="jobType">
-                      <option value="">Select type&hellip;</option>
-                      <option value="Full-time">Full-time</option>
-                      <option value="Part-time">Part-time</option>
-                      <option value="Casual">Casual</option>
-                      <option value="Gig">Gig</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="jobStatus" class="form-label">Status</label>
-                    <select class="form-select" id="jobStatus">
-                      <option value="Open">Open</option>
-                      <option value="Paused">Paused</option>
-                      <option value="Filled">Filled</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="jobPayRate" class="form-label">Pay Rate ($/hr)</label>
-                    <input type="number" class="form-control" id="jobPayRate" min="0" step="0.01" placeholder="0.00">
-                    <div class="form-text">Hourly rate; 0 or blank for unpaid.</div>
-                    <div class="invalid-feedback">Must be a non-negative number.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="jobProgramFee" class="form-label">Program Fee ($)</label>
-                    <input type="number" class="form-control" id="jobProgramFee" min="0" step="0.01" placeholder="0.00">
-                    <div class="form-text">Leave blank or 0 if none.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="jobMaterialsCost" class="form-label">Materials Cost ($)</label>
-                    <input type="number" class="form-control" id="jobMaterialsCost" min="0" step="0.01" placeholder="0.00">
-                    <div class="form-text">Leave blank or 0 if none.</div>
-                  </div>
-
-                  <!-- Accessibility Focus -->
-                  <div class="col-12">
-                    <label for="jobRequirements" class="form-label">
-                      Capabilities &amp; Requirements <span class="text-danger">*</span>
-                    </label>
-                    <textarea class="form-control" id="jobRequirements" rows="5"
-                      placeholder="Describe physical demands, certifications needed (e.g. Food Handlers Certificate), communication requirements, prior experience, or any accessibility considerations..."
-                      required></textarea>
-                    <div class="form-text">
-                      Include any prerequisites participants need to know before applying for this role.
-                    </div>
-                    <div class="invalid-feedback">Capabilities and requirements are required.</div>
-                  </div>
-
-                  <div class="col-12">
-                    <div class="form-check">
-                      <input class="form-check-input" type="checkbox" id="jobIsUrgent">
-                      <label class="form-check-label" for="jobIsUrgent">
-                        <span class="fw-semibold text-danger">Mark as Urgent</span>
-                        <span class="text-muted small ms-1">— flags this opening for the Urgent Alerts Dispatcher</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div class="col-12">
-                    <button type="submit" class="btn text-white fw-semibold" id="jobSubmitBtn"
-                            style="background-color: #6f42c1; border-color: #6f42c1;">
-                      Save Opportunity
-                    </button>
-                  </div>
-
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Communications (ADMIN only) ══ -->
-      <section id="section-communications" class="content-section d-none">
-        <div class="d-flex align-items-center justify-content-between mb-3">
-          <div>
-            <h5 class="text-primary fw-semibold mb-1">Generate Weekly Newsletter</h5>
-            <p class="text-muted mb-0">Compile event highlights and updates, preview, then distribute to selected registered users.</p>
-          </div>
-        </div>
-
-        <div class="row g-4">
-          <div class="col-lg-7">
-            <div class="card shadow-sm">
-              <div class="card-body">
-                <div id="newsletterError" class="alert alert-danger d-none" role="alert"></div>
-                <div id="newsletterSuccess" class="alert alert-success d-none" role="alert"></div>
-
-                <form id="newsletterForm" novalidate>
-                  <div class="mb-3">
-                    <label for="newsletterSubject" class="form-label">Newsletter Subject</label>
-                    <input type="text" class="form-control" id="newsletterSubject" placeholder="e.g. Kindred Weekly Update" required>
-                    <div class="invalid-feedback">Subject is required.</div>
-                  </div>
-
-                  <div class="mb-3">
-                    <label for="newsletterEvents" class="form-label">Event Highlights</label>
-                    <textarea class="form-control" id="newsletterEvents" rows="4" placeholder="Add key events and links for this week..." required></textarea>
-                    <div class="invalid-feedback">Add event highlights or updates.</div>
-                  </div>
-
-                  <div class="mb-3">
-                    <label for="newsletterUpdates" class="form-label">Updates / Resources</label>
-                    <textarea class="form-control" id="newsletterUpdates" rows="4" placeholder="Announcements, resources, reminders..."></textarea>
-                  </div>
-
-                  <div class="mb-3">
-                    <label class="form-label d-block">Recipients</label>
-                    <div id="newsletterRecipientsList" class="border rounded p-3" style="max-height: 220px; overflow-y: auto;"></div>
-                    <div class="form-text">Select recipients before distribution.</div>
-                  </div>
-
-                  <div class="d-flex flex-wrap gap-2">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="newsletterPreviewBtn">
-                      <i class="bi bi-eye me-1"></i>Preview Newsletter
-                    </button>
-                    <button type="button" class="btn btn-outline-primary btn-sm" id="newsletterSaveDraftBtn">
-                      <i class="bi bi-save me-1"></i>Save as Draft
-                    </button>
-                    <button type="submit" class="btn btn-primary btn-sm" id="newsletterDistributeBtn">
-                      <i class="bi bi-send me-1"></i>Distribute Newsletter
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-lg-5">
-            <div class="card shadow-sm mb-3" id="newsletterPreviewCard">
-              <div class="card-header bg-light fw-semibold">Newsletter Preview</div>
-              <div class="card-body">
-                <h6 id="newsletterPreviewSubject" class="fw-bold mb-2">No preview yet</h6>
-                <div class="small mb-3">
-                  <div class="fw-semibold">Event Highlights</div>
-                  <div id="newsletterPreviewEvents" class="text-muted">Add content and click Preview Newsletter.</div>
-                </div>
-                <div class="small">
-                  <div class="fw-semibold">Updates / Resources</div>
-                  <div id="newsletterPreviewUpdates" class="text-muted">Add content and click Preview Newsletter.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card shadow-sm">
-              <div class="card-header bg-light fw-semibold">Distribution History</div>
-              <div class="card-body" id="newsletterHistoryList">
-                <p class="text-muted small mb-0">No newsletters distributed yet.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Urgent Notifications (ADMIN only) ══ -->
-      <section id="section-urgent-notifications" class="content-section d-none">
-
-        <!-- ── SUB-VIEW 1: List (default) ── -->
-        <div id="view-urgent-list">
-
-          <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
-            <div>
-              <div class="d-flex align-items-center gap-2 mb-1">
-                <span class="badge bg-danger" style="font-size: 0.7rem; letter-spacing: 0.06em;">ADMIN ONLY</span>
-              </div>
-              <h5 class="fw-semibold mb-1" style="color: #dc3545;">
-                <i class="bi bi-bell-fill me-2"></i>Urgent Opportunity Dispatcher
-              </h5>
-              <p class="text-muted mb-0">Review time-sensitive events and job openings, then draft and dispatch a targeted notification to matched participants and families.</p>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm align-self-start align-self-lg-center" type="button" id="urgentRefreshBtn">
-              <i class="bi bi-arrow-clockwise me-1"></i>Refresh
-            </button>
-          </div>
-
-          <div class="row g-4">
-
-            <!-- Urgent Opportunities -->
-            <div class="col-lg-7">
-              <div class="card shadow-sm h-100">
-                <div class="card-header d-flex align-items-center gap-2" style="background: rgba(220,53,69,0.08); border-bottom: 1px solid rgba(220,53,69,0.15);">
-                  <i class="bi bi-exclamation-circle-fill text-danger"></i>
-                  <span class="fw-semibold text-danger">Urgent Opportunities</span>
-                  <span class="badge bg-danger ms-1" id="urgentOpportunityCount">0</span>
-                  <div class="ms-auto d-flex align-items-center gap-2 d-none" id="urgentSelectionActions">
-                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" id="urgentClearSelectionBtn" style="font-size:0.78rem;">Clear</button>
-                    <button type="button" class="btn btn-danger btn-sm py-0" id="urgentDeleteSelectedBtn" style="font-size:0.75rem;">
-                      <i class="bi bi-trash3 me-1"></i>Delete selected
-                    </button>
-                  </div>
-                </div>
-                <div class="card-body p-0">
-                  <div id="urgentOpportunitiesList" style="max-height: 520px; overflow-y: auto;">
-                    <div class="p-4 text-center text-muted">
-                      <i class="bi bi-clock-history fs-2 mb-2 d-block opacity-50"></i>
-                      <div class="small">Loading urgent opportunities…</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-3">
-                  <div class="alert alert-warning mb-0 small py-2" role="alert">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Events within 48 hours or flagged urgent, and jobs marked urgent.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Dispatch History -->
-            <div class="col-lg-5">
-              <div class="card shadow-sm h-100">
-                <div class="card-header bg-light fw-semibold d-flex align-items-center gap-2">
-                  <i class="bi bi-journal-check text-secondary"></i>
-                  <span>Dispatch History</span>
-                </div>
-                <div class="card-body p-0">
-                  <div id="urgentDispatchHistory" style="max-height: 480px; overflow-y: auto;">
-                    <div class="p-3 text-muted small text-center">No alerts sent yet.</div>
-                  </div>
-                </div>
-              </div>
-              <div class="alert alert-info mt-3 small" role="alert">
-                <i class="bi bi-shield-check me-1"></i>
-                Every dispatch is logged to the <strong>AuditLog</strong> with administrator identity, timestamp, and recipient list for full accountability.
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ── SUB-VIEW 2: Draft Composer ── -->
-        <div id="view-urgent-draft" class="d-none">
-
-          <div class="d-flex align-items-center gap-3 mb-4">
-            <button class="btn btn-outline-secondary btn-sm" type="button" id="backToUrgentListBtn">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <div>
-              <h5 class="fw-semibold mb-0" style="color: #dc3545;">
-                <i class="bi bi-pencil-square me-2"></i>Draft Notification
-              </h5>
-              <span id="urgentDraftOpportunityBadge" class="badge bg-secondary mt-1"></span>
-            </div>
-          </div>
-
-          <div class="card shadow-sm">
-            <div class="card-body">
-
-              <div id="urgentNotifError" class="alert alert-danger d-none" role="alert"></div>
-              <div id="urgentNotifSuccess" class="alert alert-success d-none" role="alert"></div>
-
-              <div id="urgentMatchBanner" class="alert mb-3 py-2 small" role="alert"></div>
-
-              <div class="row g-4">
-                <div class="col-lg-8">
-                  <div class="mb-3">
-                    <label for="urgentSubject" class="form-label fw-semibold">Subject Line</label>
-                    <input type="text" class="form-control" id="urgentSubject" placeholder="Notification subject…" required>
-                  </div>
-                  <div class="mb-3">
-                    <label for="urgentBody" class="form-label fw-semibold">Message Body</label>
-                    <textarea class="form-control" id="urgentBody" rows="14" placeholder="Compose your urgent notification…" required></textarea>
-                    <div class="form-text">You may edit this system-generated draft before sending.</div>
-                  </div>
-                </div>
-                <div class="col-lg-4">
-                  <label class="form-label fw-semibold d-flex align-items-center gap-2">
-                    Recipients
-                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" id="urgentSelectAllRecipientsBtn" style="font-size:0.78rem;">Select all</button>
-                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" id="urgentClearRecipientsBtn" style="font-size:0.78rem;">Clear</button>
-                  </label>
-                  <div id="urgentRecipientsList" class="border rounded p-3 mb-2" style="max-height: 340px; overflow-y: auto;"></div>
-                  <div class="form-text mb-4">Suggested recipients are pre-selected based on profile matching. Volunteers are excluded.</div>
-                  <button type="button" class="btn btn-danger fw-semibold w-100" id="urgentSendBtn">
-                    <i class="bi bi-send-fill me-2"></i>Send Urgent Notification
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <section id="section-users" class="content-section d-none">
-
-        <!-- LIST sub-view (default) -->
-        <div id="view-users-list">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="text-primary fw-semibold mb-0">System Users</h5>
-            <button id="newUserBtn" class="btn btn-primary btn-sm" type="button">
-              <i class="bi bi-plus-lg me-1"></i>New User
-            </button>
-          </div>
-          <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th scope="col" class="ps-3">Name</th>
-                    <th scope="col">Email</th>
-                    <th scope="col">Role</th>
-                    <th scope="col">Date Added</th>
-                    <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="usersTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- FORM sub-view (hidden by default) -->
-        <div id="view-users-form" class="d-none">
-          <div class="d-flex align-items-center mb-3">
-            <button id="backToUsersBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
-              <i class="bi bi-arrow-left me-1"></i>Back
-            </button>
-            <h5 class="text-primary fw-semibold mb-0" id="userFormTitle">New User</h5>
-          </div>
-          <div class="card shadow-sm">
-            <div class="card-body">
-
-              <div id="registerError" class="alert alert-danger d-none" role="alert"></div>
-
-              <form id="registerForm" novalidate>
-                <div class="row g-3">
-
-                  <div class="col-md-3">
-                    <label for="regFirstName" class="form-label">First Name</label>
-                    <input type="text" class="form-control" id="regFirstName" placeholder="e.g. Amy" required>
-                    <div class="invalid-feedback">First name is required.</div>
-                  </div>
-
-                  <div class="col-md-3">
-                    <label for="regLastName" class="form-label">Last Name</label>
-                    <input type="text" class="form-control" id="regLastName" placeholder="e.g. Martin" required>
-                    <div class="invalid-feedback">Last name is required.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="regEmail" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="regEmail" placeholder="email@example.com" required>
-                    <div class="invalid-feedback">A valid email address is required.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="regPassword" class="form-label">Temporary Password</label>
-                    <input type="password" class="form-control" id="regPassword" placeholder="Temporary password" required>
-                    <div class="invalid-feedback">Password is required.</div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <label for="regRole" class="form-label">Role</label>
-                    <select class="form-select" id="regRole" required>
-                      <option value="" disabled selected>Select a role&hellip;</option>
-                      <option value="ADMIN">Administrator &ndash; Full system access</option>
-                      <option value="GUARDIAN">Guardian &ndash; Linked participant management and approvals</option>
-                      <option value="PARTICIPANT">Participant &ndash; Personal profile and curated opportunities</option>
-                      <option value="VOLUNTEER">Volunteer &ndash; Events and task updates</option>
-                    </select>
-                    <div class="invalid-feedback">Please select a role.</div>
-                  </div>
-
-                  <div class="col-md-6 d-none" id="userParticipantLinkWrap">
-                    <label for="userParticipantLinkId" class="form-label">Link To Existing Participant Record</label>
-                    <select class="form-select" id="userParticipantLinkId">
-                      <option value="" selected>No participant record link</option>
-                    </select>
-                  </div>
-
-                  <div class="col-md-6 d-none" id="userVolunteerLinkWrap">
-                    <label for="userVolunteerLinkId" class="form-label">Link To Existing Volunteer Profile</label>
-                    <select class="form-select" id="userVolunteerLinkId">
-                      <option value="" selected>No volunteer profile link</option>
-                    </select>
-                  </div>
-
-                  <div class="col-12">
-                    <button type="submit" class="btn btn-primary" id="userSubmitBtn">Create Account</button>
-                  </div>
-
-                </div>
-              </form>
-
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Work Queue (ADMIN only) ══ -->
-      <section id="section-work-queue" class="content-section d-none">
-
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <h5 class="fw-semibold mb-0"><i class="bi bi-kanban me-2 text-primary"></i>Work Queue</h5>
-            <p class="text-muted small mb-0">Manage participant inquiries, linked tasks, and standalone tasks.</p>
-          </div>
-          <button class="btn btn-primary btn-sm" id="newStandaloneTaskBtn" type="button">
-            <i class="bi bi-plus-circle me-1"></i>New Task
-          </button>
-        </div>
-
-        <!-- Sub-view tabs -->
-        <ul class="nav nav-tabs mb-3" id="workQueueTabs" role="tablist">
-          <li class="nav-item">
-            <button class="nav-link active" data-wq-tab="inquiries" type="button">
-              <i class="bi bi-inbox me-1"></i>Inquiries
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" data-wq-tab="standalone" type="button">
-              <i class="bi bi-clipboard me-1"></i>Standalone Tasks
-            </button>
-          </li>
-        </ul>
-
-        <!-- ── Inquiries pane ── -->
-        <div id="wq-inquiries-pane">
-          <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-            <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-secondary active" data-inq-filter="ALL"            type="button">All</button>
-              <button class="btn btn-outline-secondary"        data-inq-filter="PENDING_REVIEW" type="button">Pending</button>
-              <button class="btn btn-outline-secondary"        data-inq-filter="IN_PROGRESS"    type="button">In Progress</button>
-              <button class="btn btn-outline-secondary"        data-inq-filter="RESOLVED"       type="button">Resolved</button>
-              <button class="btn btn-outline-secondary"        data-inq-filter="REJECTED"       type="button">Rejected</button>
-            </div>
-            <select class="form-select form-select-sm" id="inquiryVolunteerFilter" style="max-width:220px;">
-              <option value="">All Volunteers</option>
-            </select>
-          </div>
-          <div id="wqInquiriesList">
-            <p class="text-muted small">Loading…</p>
-          </div>
-        </div>
-
-        <!-- ── Standalone tasks pane ── -->
-        <div id="wq-standalone-pane" class="d-none">
-          <div class="d-flex align-items-center gap-2 mb-3 flex-wrap">
-            <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-secondary active" data-task-filter="ALL"         type="button">All</button>
-              <button class="btn btn-outline-secondary"        data-task-filter="UNASSIGNED"  type="button">Unassigned</button>
-              <button class="btn btn-outline-secondary"        data-task-filter="ASSIGNED"    type="button">Assigned</button>
-              <button class="btn btn-outline-secondary"        data-task-filter="IN_PROGRESS" type="button">In Progress</button>
-              <button class="btn btn-outline-secondary"        data-task-filter="COMPLETED"   type="button">Completed</button>
-              <button class="btn btn-outline-secondary"        data-task-filter="REJECTED"    type="button">Rejected</button>
-            </div>
-            <select class="form-select form-select-sm" id="standaloneVolunteerFilter" style="max-width:220px;">
-              <option value="">All Volunteers</option>
-            </select>
-          </div>
-          <div id="wqStandaloneList">
-            <p class="text-muted small">Loading…</p>
-          </div>
-        </div>
-
-      </section>
-
-      <!-- ══ SECTION: Participant — My Inquiries ══ -->
-      <section id="section-p-inquiries" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0"><i class="bi bi-chat-left-text me-2 text-success"></i>My Inquiries</h5>
-          <p class="text-muted small mb-0">Submit a question or request to the Kindred team.</p>
-        </div>
-        <div class="card shadow-sm mb-4">
-          <div class="card-header bg-success text-white fw-semibold">New Inquiry</div>
-          <div class="card-body">
-            <div id="inquirySuccess" class="alert alert-success d-none" role="alert"></div>
-            <div id="inquiryError"   class="alert alert-danger  d-none" role="alert"></div>
-            <form id="inquiryForm" novalidate>
-              <div class="mb-3">
-                <label for="inquirySubject" class="form-label">Subject <span class="text-muted fw-normal">(optional)</span></label>
-                <input type="text" class="form-control" id="inquirySubject" placeholder="Brief subject line">
-              </div>
-              <div class="mb-3">
-                <label for="inquiryDescription" class="form-label">Your message <span class="text-danger">*</span></label>
-                <textarea class="form-control" id="inquiryDescription" rows="5"
-                  placeholder="Describe your question or request…" required></textarea>
-                <div class="invalid-feedback">Please enter your inquiry message.</div>
-              </div>
-              <button type="submit" class="btn btn-success" id="inquirySubmitBtn">
-                <i class="bi bi-send me-2"></i>Submit Inquiry
-              </button>
-            </form>
-          </div>
-        </div>
-        <div class="card shadow-sm">
-          <div class="card-header fw-semibold bg-light"><i class="bi bi-clock-history me-2"></i>My Submitted Inquiries</div>
-          <div class="card-body p-3" id="myInquiriesList">
-            <p class="text-muted small mb-0">Loading…</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ══ SECTION: Volunteer — My Tasks ══ -->
-      <section id="section-v-tasks" class="content-section d-none">
-        <div class="mb-3">
-          <h5 class="portal-section-title mb-0"><i class="bi bi-clipboard-check me-2 text-info"></i>My Assigned Tasks</h5>
-          <p class="text-muted small mb-0">Tasks assigned to you by Kindred administrators.</p>
-        </div>
-        <div id="volTasksList">
-          <p class="text-muted small">Loading…</p>
-        </div>
-      </section>
-
-    </main>
   </div>
 
-  <!-- ── Confirm Save Participant Modal ── -->
+  <!-- ════════════ MODALS (always in DOM — not role-gated) ════════════ -->
+
+  <!-- Confirm Save Participant Modal -->
   <div class="modal fade" id="confirmSaveParticipantModal" tabindex="-1"
        aria-labelledby="confirmSaveParticipantModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-semibold" id="confirmSaveParticipantModalLabel">Confirm Participant Record</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
         </div>
-
         <div class="modal-body">
           <div class="bg-light rounded p-3 mb-3">
             <div class="row g-2 small">
@@ -1607,29 +123,24 @@
             </div>
           </div>
         </div>
-
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-success" id="confirmSaveParticipantBtn">Yes, Save Record</button>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- ── Confirm Account Creation Modal ── -->
+  <!-- Confirm Account Creation Modal -->
   <div class="modal fade" id="confirmCreateModal" tabindex="-1" aria-labelledby="confirmCreateModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-
         <div class="modal-header border-0 pb-0">
           <h5 class="modal-title fw-semibold" id="confirmCreateModalLabel">Confirm Account Creation</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
         </div>
-
         <div class="modal-body">
-
           <div class="bg-light rounded p-3 mb-3">
             <div class="row g-2 small">
               <div class="col-4 text-muted fw-semibold">Name</div>
@@ -1640,24 +151,20 @@
               <div class="col-8"><span id="modalSummaryRole" class="badge"></span></div>
             </div>
           </div>
-
           <div class="alert alert-info mb-0 small" role="alert">
             <strong>A welcome email will be sent</strong> to <strong id="modalSummaryEmailTarget"></strong> containing
             their temporary password and step-by-step instructions to reset it before their first login.
           </div>
-
         </div>
-
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="confirmCreateBtn">Yes, Create Account</button>
         </div>
-
       </div>
     </div>
   </div>
 
-  <!-- ── Update Background Check Status Modal ── -->
+  <!-- Update Background Check Status Modal -->
   <div class="modal fade" id="updateBgCheckModal" tabindex="-1" aria-labelledby="updateBgCheckModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -1695,7 +202,7 @@
     </div>
   </div>
 
-  <!-- ── Background Check Details Modal ── -->
+  <!-- Background Check Details Modal -->
   <div class="modal fade" id="bgCheckDetailsModal" tabindex="-1" aria-labelledby="bgCheckDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
@@ -1704,9 +211,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div id="bgCheckDetailsContent">
-            <!-- Content will be populated by JS -->
-          </div>
+          <div id="bgCheckDetailsContent"></div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
@@ -1716,7 +221,7 @@
     </div>
   </div>
 
-  <!-- ── Inquiry Review Modal (ADMIN) ── -->
+  <!-- Inquiry Review Modal (ADMIN) -->
   <div class="modal fade" id="inquiryReviewModal" tabindex="-1"
        aria-labelledby="inquiryReviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -1729,7 +234,6 @@
         </div>
         <div class="modal-body">
           <div id="inquiryReviewError" class="alert alert-danger d-none" role="alert"></div>
-          <!-- Inquiry details -->
           <div class="bg-light rounded p-3 mb-4">
             <div class="row g-2 small">
               <div class="col-4 col-md-3 text-muted fw-semibold">Subject</div>
@@ -1742,7 +246,6 @@
               <div class="col-8 col-md-9" id="modalInqDescription" style="white-space:pre-wrap;"></div>
             </div>
           </div>
-          <!-- Rejection panel (shown when Reject Inquiry is clicked) -->
           <div id="inquiryRejectPanel" class="d-none border border-danger rounded p-3 mb-4 bg-white">
             <h6 class="text-danger fw-semibold mb-2"><i class="bi bi-x-circle me-1"></i>Reject This Inquiry</h6>
             <div class="mb-2">
@@ -1755,12 +258,10 @@
               <button class="btn btn-outline-secondary btn-sm" id="inquiryRejectCancelBtn">Cancel</button>
             </div>
           </div>
-          <!-- Linked tasks -->
           <h6 class="fw-semibold mb-2">Tasks Created from This Inquiry</h6>
           <div id="modalInqTasksList" class="mb-4">
             <p class="text-muted small mb-0">No tasks yet.</p>
           </div>
-          <!-- Add task form (hidden when inquiry is rejected/resolved) -->
           <div id="inquiryCreateTaskForm" class="border rounded p-3 bg-white">
             <h6 class="fw-semibold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Create New Task</h6>
             <div class="mb-3">
@@ -1788,7 +289,7 @@
     </div>
   </div>
 
-  <!-- ── Task Assignment Modal (ADMIN) ── -->
+  <!-- Task Assignment Modal (ADMIN) -->
   <div class="modal fade" id="taskAssignModal" tabindex="-1"
        aria-labelledby="taskAssignModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1832,7 +333,7 @@
     </div>
   </div>
 
-  <!-- ── Standalone Task Creation Modal (ADMIN) ── -->
+  <!-- Standalone Task Creation Modal (ADMIN) -->
   <div class="modal fade" id="standaloneTaskModal" tabindex="-1"
        aria-labelledby="standaloneTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1872,7 +373,7 @@
     </div>
   </div>
 
-  <!-- ── Task Checklist Modal (ADMIN) ── -->
+  <!-- Task Checklist Modal (ADMIN) -->
   <div class="modal fade" id="taskChecklistModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -1899,7 +400,7 @@
     </div>
   </div>
 
-  <!-- ── Task Delete Confirm Modal (ADMIN) ── -->
+  <!-- Task Delete Confirm Modal (ADMIN) -->
   <div class="modal fade" id="taskDeleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
       <div class="modal-content">
@@ -1920,7 +421,7 @@
     </div>
   </div>
 
-  <!-- ── Task Resolution Modal (VOLUNTEER) ── -->
+  <!-- Task Resolution Modal (VOLUNTEER) -->
   <div class="modal fade" id="taskResolveModal" tabindex="-1"
        aria-labelledby="taskResolveModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1971,56 +472,7 @@
     </div>
   </div>
 
-  <!-- Bootstrap Toast — success notification -->
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
-    <div id="adminToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
-      aria-atomic="true" data-bs-delay="4000">
-      <div class="d-flex">
-        <div class="toast-body fw-semibold" id="adminToastMsg"></div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-          aria-label="Close"></button>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=13"></script>
-  <script src="js/sidebar.js?v=3"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-
-      // ── Route Guard ──────────────────────────────────────────────────────
-      const session = await Auth.requireAuth();
-      if (!session) return;
-
-      // ── Welcome Heading ──────────────────────────────────────────────────
-      document.getElementById('welcomeHeading').textContent =
-        `Welcome back, ${session.name || session.email}`;
-
-      // ── Reveal role-specific content card in the Dashboard section ───────
-      document.getElementById(`panel-${session.role}`)?.classList.remove('d-none');
-
-      // ── Init Sidebar + Set Initial Section ──────────────────────────────
-      initSidebar(session);
-      navigateTo('dashboard');
-      if (session.role === 'VOLUNTEER') {
-        document.getElementById('panel-VOLUNTEER-saved')?.classList.remove('d-none');
-        loadSavedEvents();
-      }
-    });
-    
-    function loadSavedEvents() {
-      const container = document.getElementById('volunteerSavedEvents');
-      if (!container) return;
-      container.innerHTML = `
-        <p class="text-muted mb-0">
-          Volunteer saved events are not part of this linked-identity flow. Browse <a href="events.html">events</a> to review current opportunities.
-        </p>`;
-    }
-
-  </script>
-  <!-- Modal: Update Application Status -->
+  <!-- Update Application Status Modal -->
   <div class="modal fade" id="updateAppStatusModal" tabindex="-1" aria-labelledby="updateAppStatusModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -2048,9 +500,26 @@
     </div>
   </div>
 
-  <script src="js/admin.js?v=3"></script>
-  <script src="js/volunteer.js?v=3"></script>
-  <script src="js/participant.js?v=2"></script>
+  <!-- Bootstrap Toast — success notification -->
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+    <div id="adminToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
+      aria-atomic="true" data-bs-delay="4000">
+      <div class="d-flex">
+        <div class="toast-body fw-semibold" id="adminToastMsg"></div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+          aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/nav.js?v=2"></script>
+  <script src="js/auth.js?v=14"></script>
+  <script src="js/sidebar.js?v=5"></script>
+  <script src="js/sections.js?v=3"></script>
+  <script src="js/admin.js?v=5"></script>
+  <script src="js/volunteer.js?v=5"></script>
+  <script src="js/participant.js?v=4"></script>
 </body>
 
 </html>
