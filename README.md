@@ -39,6 +39,27 @@ Open directly in your browser:
 login.html
 ```
 
+### GitHub Pages Deployment
+
+This project is deployed to GitHub Pages from the dedicated `gh-pages` branch, not from `main`.
+
+1. In GitHub, open **Settings > Pages** for the repository.
+2. Under **Build and deployment**, set **Source** to **Deploy from a branch**.
+3. Set **Branch** to `gh-pages` and **Folder** to `/ (root)`.
+4. From the project root, install the deploy dependency:
+
+```bash
+npm install
+```
+
+5. Publish the current site contents to the `gh-pages` branch:
+
+```bash
+npm run deploy
+```
+
+The deploy script uses the `gh-pages` package to push the repository root to the `gh-pages` branch. After the push completes, GitHub Pages will serve the site from that branch at [https://akhileshboda.github.io/SPRC](https://akhileshboda.github.io/SPRC).
+
 ### Test Accounts
 
 - Admin: `lisawilliams@kindred.org` / `lisa123`

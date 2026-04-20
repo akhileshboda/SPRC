@@ -1,0 +1,17 @@
+{
+  "name": "sprc",
+  "version": "1.0.0",
+  "description": "CNIT 280 Term Project · Purdue University",
+  "private": true,
+  "scripts": {
+    "deploy": "gh-pages -d ."
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akhileshboda/SPRC.git"
+  },
+  "homepage": "https://akhileshboda.github.io/SPRC"
+}
