@@ -4,8 +4,8 @@
  * and renders their matched events on the dashboard and a full event
  * discovery grid in the Events section.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || session.role !== 'VOLUNTEER') return;
 
   // ── Matched-events scoring ─────────────────────────────────────────────────
@@ -23,24 +23,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Job Coaching':          ['Vocational']
   };
 
-  function computeVolunteerMatches(profile, events) {
-    const rawInterests = Array.isArray(profile.interests) ? profile.interests : [];
-    const normalized = rawInterests.map(i => String(i).trim()).filter(Boolean);
-    const interestTokens = normalized.flatMap(i => tokenize(i.startsWith('Other:') ? i.replace(/^Other:\s*/i, '') : i));
-    const categoryHints  = normalized.flatMap(i => i.startsWith('Other:') ? [] : (INTEREST_CATEGORY_MAP[i] || []));
+  function scoreVolunteerEvent(profile, event) {
+    const rawInterests = Array.isArray(profile?.interests) ? profile.interests : [];
+    const normalized = rawInterests.map((i) => String(i).trim()).filter(Boolean);
+    const interestTokens = normalized.flatMap((i) => tokenize(i.startsWith('Other:') ? i.replace(/^Other:\s*/i, '') : i));
+    const categoryHints = normalized.flatMap((i) => (i.startsWith('Other:') ? [] : (INTEREST_CATEGORY_MAP[i] || [])));
+    let score = 0;
+    if (categoryHints.includes(event.category)) score += 3;
+    const eventTokens = new Set(tokenize(`${event.title} ${event.location} ${event.accommodations}`));
+    interestTokens.forEach((t) => { if (eventTokens.has(t)) score++; });
+    return score;
+  }
 
+  function computeVolunteerMatches(profile, events) {
     return events
-      .map(event => {
-        let score = 0;
-        if (categoryHints.includes(event.category)) score += 3;
-        const eventTokens = new Set(tokenize(`${event.title} ${event.location} ${event.accommodations}`));
-        interestTokens.forEach(t => { if (eventTokens.has(t)) score++; });
-        return { event, score };
-      })
-      .filter(e => e.score > 0)
+      .map((event) => ({ event, score: scoreVolunteerEvent(profile, event) }))
+      .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 3)
-      .map(e => e.event);
+      .map((e) => e.event);
   }
 
   // ── HTML helpers ───────────────────────────────────────────────────────────
@@ -71,24 +72,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `<span class="portal-cost-pill"><i class="bi bi-tag me-1"></i>${totalLabel}${details}</span>`;
   }
 
-  function buildEventCard(event) {
+  function relativeTimeLabel(ts) {
+    if (isNaN(ts)) return '';
+    const diff = ts - Date.now();
+    const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+    if (diff < 0) return 'Past';
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    if (days <= 7) return `In ${days} days`;
+    return '';
+  }
+
+  function buildEventCard(event, options = {}) {
+    const matchScore = typeof options.matchScore === 'number' ? options.matchScore : null;
+    const showMatch = Boolean(options.showMatchBadge);
     const now = Date.now();
-    const ts  = event.eventTimestamp ?? new Date(event.dateTime).getTime();
+    const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
     const isPast = !isNaN(ts) && ts < now;
+    const rel = !isPast ? relativeTimeLabel(ts) : '';
     const meta = EVENT_BADGE[event.category] || { cls: 'bg-secondary', icon: 'bi-calendar' };
+    const urgent = Boolean(event.isUrgent);
+    const acc = String(event.accommodations || '');
+    const accShort = acc.length > 220 ? `${acc.slice(0, 220)}…` : acc;
     return `
       <div class="col">
-        <div class="portal-card h-100${isPast ? ' portal-card--past' : ''}">
+        <div class="portal-card h-100 position-relative${isPast ? ' portal-card--past' : ''}${urgent ? ' border border-danger border-opacity-50' : ''}">
+          ${urgent ? '<span class="position-absolute top-0 end-0 m-2 badge bg-danger" style="font-size:0.65rem;">URGENT</span>' : ''}
           <div class="portal-card-header d-flex align-items-start justify-content-between gap-2">
             <div class="portal-card-title">${escHtml(event.title)}</div>
-            <span class="badge ${meta.cls}"><i class="bi ${meta.icon} me-1"></i>${escHtml(event.category)}</span>
+            <div class="d-flex flex-column align-items-end gap-1">
+              <span class="badge ${meta.cls}"><i class="bi ${meta.icon} me-1"></i>${escHtml(event.category)}</span>
+              ${showMatch && matchScore > 0 ? `<span class="badge bg-info text-dark" style="font-size:0.65rem;"><i class="bi bi-stars me-1"></i>Match ${matchScore}</span>` : ''}
+            </div>
           </div>
-          <div class="portal-card-meta">
-            <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}</span>
+          <div class="portal-card-meta flex-column align-items-start">
+            <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}${rel ? ` <span class="text-muted">(${rel})</span>` : ''}</span>
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
           </div>
           <div class="portal-card-body">
-            <p class="portal-card-accommodations">${escHtml(event.accommodations)}</p>
+            <p class="portal-card-accommodations small mb-0">${escHtml(accShort)}</p>
           </div>
           <div class="portal-card-footer">
             ${buildCostBreakdown(event)}
@@ -122,20 +144,151 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
+  let volunteerEventFilter = 'all';
+  let volunteerEventCategory = '';
+
+  async function renderVolunteerDashboardSnapshot() {
+    const el = document.getElementById('volunteerDashboardSnapshot');
+    if (!el) return;
+    const profile = await Auth.getVolunteerProfile(session.email);
+    const events = await Auth.getEvents();
+    const now = Date.now();
+    const upcoming = events.filter((e) => {
+      const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+      return !isNaN(t) && t >= now;
+    });
+    const matched = profile ? computeVolunteerMatches(profile, events) : [];
+    const bg = await Auth.getMyBgCheckRecord();
+    const bgLabel = bg?.status || 'Not Started';
+    el.innerHTML = `
+      <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(120deg, #e8f4fc 0%, #f0f4ff 100%);">
+        <div class="card-body">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-8">
+              <h5 class="mb-2 fw-semibold"><i class="bi bi-compass me-2 text-primary"></i>Your volunteer snapshot</h5>
+              <p class="text-muted small mb-2 mb-md-0">
+                <strong>${upcoming.length}</strong> upcoming event${upcoming.length === 1 ? '' : 's'} published ·
+                <strong>${matched.length}</strong> strong match${matched.length === 1 ? '' : 'es'} for your interests
+                ${profile?.interests?.length ? '' : ' — <span class="text-warning">add interests below to unlock matches</span>'}
+              </p>
+              <div class="small"><span class="text-muted">Background check:</span> <span class="badge bg-secondary">${escHtml(bgLabel)}</span></div>
+            </div>
+            <div class="col-md-4 d-flex flex-wrap gap-2 justify-content-md-end">
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('v-events')"><i class="bi bi-calendar-event me-1"></i>Browse events</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('v-bgcheck')"><i class="bi bi-shield-lock me-1"></i>Background check</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('volunteerProfileForm')?.scrollIntoView({behavior:'smooth'})"><i class="bi bi-person-lines-fill me-1"></i>Edit profile</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
   // ── Render full event grid in the v-events section ─────────────────────────
 
   async function renderVolunteerEvents() {
+    const toolbar = document.getElementById('v-events-toolbar');
     const container = document.getElementById('v-events-grid');
     if (!container) return;
 
+    const profile = await Auth.getVolunteerProfile(session.email);
     const events = await Auth.getEvents();
+    const now = Date.now();
+
     if (!events.length) {
+      if (toolbar) toolbar.innerHTML = '';
       container.innerHTML = emptyState('bi-calendar-x', 'No events have been published yet. Check back soon!');
       return;
     }
 
+    const upcomingCount = events.filter((e) => {
+      const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+      return !isNaN(t) && t >= now;
+    }).length;
+
+    const scored = events.map((event) => ({
+      event,
+      score: profile ? scoreVolunteerEvent(profile, event) : 0
+    }));
+    const matchedCount = scored.filter((s) => s.score > 0).length;
+
+    if (toolbar) {
+      toolbar.innerHTML = `
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, rgba(13,202,240,0.08), rgba(79,98,176,0.06));">
+          <div class="card-body py-3">
+            <div class="row g-2 align-items-center">
+              <div class="col-12 col-lg-auto">
+                <span class="text-muted small me-2"><i class="bi bi-funnel me-1"></i>View</span>
+                <div class="btn-group btn-group-sm flex-wrap" role="group">
+                  <button type="button" class="btn ${volunteerEventFilter === 'all' ? 'btn-info' : 'btn-outline-secondary'} js-vol-ev-filter" data-filter="all">All</button>
+                  <button type="button" class="btn ${volunteerEventFilter === 'upcoming' ? 'btn-info' : 'btn-outline-secondary'} js-vol-ev-filter" data-filter="upcoming">Upcoming</button>
+                  <button type="button" class="btn ${volunteerEventFilter === 'matched' ? 'btn-info' : 'btn-outline-secondary'} js-vol-ev-filter" data-filter="matched">Matched to me</button>
+                </div>
+              </div>
+              <div class="col-12 col-lg">
+                <label class="visually-hidden" for="volEventCategorySelect">Category</label>
+                <select class="form-select form-select-sm js-vol-ev-category" id="volEventCategorySelect" style="max-width:260px;">
+                  <option value="">All categories</option>
+                  <option value="Social">Social</option>
+                  <option value="Educational">Educational</option>
+                  <option value="Vocational">Vocational</option>
+                </select>
+              </div>
+              <div class="col-12 col-lg text-lg-end small text-muted">
+                <i class="bi bi-calendar-week me-1"></i>${upcomingCount} upcoming
+                <span class="mx-1">·</span>
+                <i class="bi bi-stars me-1"></i>${matchedCount} interest match${matchedCount === 1 ? '' : 'es'}
+              </div>
+            </div>
+          </div>
+        </div>`;
+      toolbar.querySelectorAll('.js-vol-ev-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          volunteerEventFilter = btn.dataset.filter || 'all';
+          renderVolunteerEvents();
+        });
+      });
+      const sel = toolbar.querySelector('.js-vol-ev-category');
+      if (sel) {
+        sel.value = volunteerEventCategory;
+        sel.addEventListener('change', () => {
+          volunteerEventCategory = sel.value;
+          renderVolunteerEvents();
+        });
+      }
+    }
+
+    let list = scored.map((s) => s.event);
+    if (volunteerEventFilter === 'upcoming') {
+      list = scored
+        .filter((s) => {
+          const t = s.event.eventTimestamp ?? new Date(s.event.dateTime).getTime();
+          return !isNaN(t) && t >= now;
+        })
+        .map((s) => s.event);
+    } else if (volunteerEventFilter === 'matched') {
+      list = scored
+        .filter((s) => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((s) => s.event);
+    }
+    if (volunteerEventCategory) {
+      list = list.filter((e) => e.category === volunteerEventCategory);
+    }
+
+    if (!list.length) {
+      container.innerHTML = emptyState('bi-funnel', 'No events match these filters. Try All or Upcoming, or pick another category.');
+      return;
+    }
+
+    const showMatchOnCard = volunteerEventFilter === 'matched' || volunteerEventFilter === 'all';
     container.innerHTML = `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
-      ${events.map(buildEventCard).join('')}
+      ${list.map((event) => {
+        const sc = profile ? scoreVolunteerEvent(profile, event) : 0;
+        return buildEventCard(event, {
+          matchScore: sc,
+          showMatchBadge: showMatchOnCard && sc > 0
+        });
+      }).join('')}
     </div>`;
   }
 
@@ -251,6 +404,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     submitBtn.textContent = 'Update My Volunteer Profile';
     await renderMatchedEvents(existing);
+    await renderVolunteerDashboardSnapshot();
+  } else {
+    await renderVolunteerDashboardSnapshot();
   }
 
   otherInterestCheckboxEl?.addEventListener('change', () => {
@@ -302,11 +458,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusEl.classList.remove('d-none');
     }
     submitBtn.textContent = 'Update My Volunteer Profile';
-    if (refreshed) await renderMatchedEvents(refreshed);
+    if (refreshed) {
+      await renderMatchedEvents(refreshed);
+      await renderVolunteerDashboardSnapshot();
+    }
   });
 
-  // Render full events grid now (for when volunteer clicks Events in sidebar)
-  await renderVolunteerEvents();
+  const vEventsSection = document.getElementById('section-v-events');
+  if (vEventsSection) {
+    new MutationObserver(() => {
+      if (!vEventsSection.classList.contains('d-none')) renderVolunteerEvents();
+    }).observe(vEventsSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  const dashboardSection = document.getElementById('section-dashboard');
+  if (dashboardSection) {
+    new MutationObserver(() => {
+      if (!dashboardSection.classList.contains('d-none')) renderVolunteerDashboardSnapshot();
+    }).observe(dashboardSection, { attributes: true, attributeFilter: ['class'] });
+  }
 
   // ── Background Check Consent Flow ───────────────────────────────────────
 

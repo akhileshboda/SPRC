@@ -1,0 +1,81 @@
+<!-- ══ SECTION: Communications (ADMIN only) ══ -->
+<section id="section-communications" class="content-section d-none">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h5 class="text-primary fw-semibold mb-1">Generate Weekly Newsletter</h5>
+      <p class="text-muted mb-0">Compile event highlights and updates, preview, then distribute to selected registered users.</p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-7">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div id="newsletterError" class="alert alert-danger d-none" role="alert"></div>
+          <div id="newsletterSuccess" class="alert alert-success d-none" role="alert"></div>
+
+          <form id="newsletterForm" novalidate>
+            <div class="mb-3">
+              <label for="newsletterSubject" class="form-label">Newsletter Subject</label>
+              <input type="text" class="form-control" id="newsletterSubject" placeholder="e.g. Kindred Weekly Update" required>
+              <div class="invalid-feedback">Subject is required.</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="newsletterEvents" class="form-label">Event Highlights</label>
+              <textarea class="form-control" id="newsletterEvents" rows="4" placeholder="Add key events and links for this week..." required></textarea>
+              <div class="invalid-feedback">Add event highlights or updates.</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="newsletterUpdates" class="form-label">Updates / Resources</label>
+              <textarea class="form-control" id="newsletterUpdates" rows="4" placeholder="Announcements, resources, reminders..."></textarea>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label d-block">Recipients</label>
+              <div id="newsletterRecipientsList" class="border rounded p-3" style="max-height: 220px; overflow-y: auto;"></div>
+              <div class="form-text">Select recipients before distribution.</div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" id="newsletterPreviewBtn">
+                <i class="bi bi-eye me-1"></i>Preview Newsletter
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="newsletterSaveDraftBtn">
+                <i class="bi bi-save me-1"></i>Save as Draft
+              </button>
+              <button type="submit" class="btn btn-primary btn-sm" id="newsletterDistributeBtn">
+                <i class="bi bi-send me-1"></i>Distribute Newsletter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card shadow-sm mb-3" id="newsletterPreviewCard">
+        <div class="card-header bg-light fw-semibold">Newsletter Preview</div>
+        <div class="card-body">
+          <h6 id="newsletterPreviewSubject" class="fw-bold mb-2">No preview yet</h6>
+          <div class="small mb-3">
+            <div class="fw-semibold">Event Highlights</div>
+            <div id="newsletterPreviewEvents" class="text-muted">Add content and click Preview Newsletter.</div>
+          </div>
+          <div class="small">
+            <div class="fw-semibold">Updates / Resources</div>
+            <div id="newsletterPreviewUpdates" class="text-muted">Add content and click Preview Newsletter.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-header bg-light fw-semibold">Distribution History</div>
+        <div class="card-body" id="newsletterHistoryList">
+          <p class="text-muted small mb-0">No newsletters distributed yet.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
