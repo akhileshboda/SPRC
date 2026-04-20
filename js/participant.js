@@ -180,6 +180,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>`;
     }
 
+    await renderParticipantDashboardSnapshot();
+
     selfForm?.addEventListener('submit', async (event) => {
       event.preventDefault();
       statusEl?.classList.add('d-none');
@@ -198,6 +200,50 @@ document.addEventListener('DOMContentLoaded', async () => {
       await renderParticipantDashboard();
       await renderParticipantSavedJobs();
     }, { once: true });
+  }
+
+  async function renderParticipantDashboardSnapshot() {
+    if (session.role !== 'PARTICIPANT') return;
+    const el = document.getElementById('p-dashboard-snapshot');
+    if (!el) return;
+    const participant = await Auth.getMyParticipantRecord();
+    if (!participant) {
+      el.innerHTML = '';
+      return;
+    }
+    const events = await Auth.getEvents();
+    const subscribedIds = new Set(await Auth.getInterestedEventIds());
+    const subscribed = events.filter((e) => subscribedIds.has(String(e.id)));
+    const upcomingSubscribed = subscribed.filter((e) => {
+      const ts = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+      return !isNaN(ts) && ts >= now;
+    });
+    const jobs = await Auth.getJobs();
+    const statuses = await Auth.getMyJobInterestStatuses();
+    const savedJobCount = jobs.filter((j) => statuses[String(j.id)]).length;
+    const nextEvent = upcomingSubscribed
+      .slice()
+      .sort((a, b) => (a.eventTimestamp ?? 0) - (b.eventTimestamp ?? 0))[0];
+    el.innerHTML = `
+      <div class="card border-0 shadow-sm mb-0" style="background: linear-gradient(135deg, rgba(25,135,84,0.09), rgba(13,110,253,0.06));">
+        <div class="card-body py-3">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-8">
+              <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
+              <div class="d-flex flex-wrap gap-3 small">
+                <div><span class="text-muted">Subscribed events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
+                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> saved</div>
+                ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
+              </div>
+            </div>
+            <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">Subscribed events</button>
+              <a href="events.html" class="btn btn-sm btn-outline-success">Browse events</a>
+              <a href="jobs.html" class="btn btn-sm btn-outline-primary">Browse jobs</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
   }
 
   async function renderParticipantSavedJobs() {
@@ -255,6 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await renderParticipantSavedJobs();
       });
     });
+    await renderParticipantDashboardSnapshot();
   }
 
   async function renderParticipantEvents() {
@@ -284,6 +331,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
         await renderParticipantEvents();
+        await renderParticipantDashboardSnapshot();
       });
     });
   }
@@ -300,6 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.innerHTML = upcoming.length
       ? `<div class="row row-cols-1 row-cols-md-3 g-3">${upcoming.map((event) => buildEventCard(event)).join('')}</div>`
       : emptyState('bi-calendar-x', 'No upcoming events right now. Check back soon!');
+    await renderParticipantDashboardSnapshot();
   }
 
   function participantCard(participant) {
@@ -351,6 +400,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="text-muted small text-uppercase">Pending approvals</div>
                 <div class="display-6 fw-semibold">${approvals.filter((approval) => approval.status === 'PENDING').length}</div>
                 <div class="small text-muted">Vocational interests waiting for your review.</div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="d-flex flex-wrap gap-2 pt-1">
+                <button type="button" class="btn btn-sm btn-primary" onclick="navigateTo('g-approvals')"><i class="bi bi-shield-check me-1"></i>Review approvals</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-participants')"><i class="bi bi-people-fill me-1"></i>Participant profiles</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-newsletter')"><i class="bi bi-envelope-paper me-1"></i>Family newsletter</button>
               </div>
             </div>
           </div>`

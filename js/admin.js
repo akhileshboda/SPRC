@@ -1384,7 +1384,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetUserFormState();
     showUsersListView();
   });
-  document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => navigateTo('communications'));
+  async function applyGeneratedWeeklyNewsletter() {
+    clearNewsletterMessages();
+    const gen = await Auth.generateWeeklyNewsletter();
+    if (!gen.success) {
+      showToast(gen.message || 'Could not generate newsletter.');
+      return;
+    }
+    const n = gen.newsletter;
+    const users = await Auth.getUsers();
+    const recipientEmails = users.filter((u) => u.role !== 'ADMIN').map((u) => u.email);
+    await Auth.saveNewsletterDraft({
+      subject: n.subject || '',
+      eventHighlights: n.eventHighlights || '',
+      updates: n.updates || '',
+      recipients: recipientEmails
+    });
+    navigateTo('communications');
+    const subEl = document.getElementById('newsletterSubject');
+    const evEl = document.getElementById('newsletterEvents');
+    const upEl = document.getElementById('newsletterUpdates');
+    if (subEl) subEl.value = n.subject || '';
+    if (evEl) evEl.value = n.eventHighlights || '';
+    if (upEl) upEl.value = n.updates || '';
+    await renderNewsletterRecipients();
+    const draft = await Auth.getNewsletterDraft();
+    const selected = new Set((draft?.recipients || []).map((e) => String(e).toLowerCase()));
+    document.querySelectorAll('input[name="newsletterRecipients"]').forEach((cb) => {
+      cb.checked = selected.has(String(cb.value).toLowerCase());
+    });
+    renderNewsletterPreview();
+    showNewsletterSuccess(
+      gen.updated
+        ? 'Weekly newsletter refreshed with the latest events and jobs. Review the form, then distribute.'
+        : 'Weekly newsletter generated and loaded. Review recipients, then distribute when ready.'
+    );
+    showToast('Weekly newsletter draft is ready in Communications.');
+  }
+
+  document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => {
+    applyGeneratedWeeklyNewsletter();
+  });
   document.getElementById('adminUrgentAlertsQuickBtn')?.addEventListener('click', () => navigateTo('urgent-notifications'));
 
   // ─── Urgent Notifications UI ─────────────────────────────────────────────────────
@@ -2441,6 +2481,68 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
+
+  async function renderAdminDashboardStats() {
+    const el = document.getElementById('adminDashboardStats');
+    if (!el) return;
+    try {
+      const [participants, events, jobs, approvals] = await Promise.all([
+        Auth.getParticipants(),
+        Auth.getEvents(),
+        Auth.getJobs(),
+        Auth.getPendingApprovals()
+      ]);
+      const now = Date.now();
+      const upcomingCount = events.filter((e) => {
+        const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+        return !isNaN(t) && t >= now;
+      }).length;
+      const openJobs = jobs.filter((j) => (j.status || 'Open') === 'Open').length;
+      const pendingApprovalCount = approvals.filter((a) => a.status === 'PENDING').length;
+      el.innerHTML = `
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Participants</div>
+              <div class="h4 mb-1 fw-semibold">${participants.length}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('participants')">Manage</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Upcoming events</div>
+              <div class="h4 mb-1 fw-semibold">${upcomingCount}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('events')">Events</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Open jobs</div>
+              <div class="h4 mb-1 fw-semibold">${openJobs}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('jobs')">Jobs</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Pending job approvals</div>
+              <div class="h4 mb-1 fw-semibold">${pendingApprovalCount}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('work-queue')">Work queue</button>
+            </div>
+          </div>
+        </div>`;
+    } catch (err) {
+      console.error(err);
+      el.innerHTML = '<div class="col-12"><div class="alert alert-light border mb-0 small">Unable to load dashboard stats.</div></div>';
+    }
+  }
+
+  await renderAdminDashboardStats();
 
   await populateLinkedUserOptions();
   await renderUsersTable();

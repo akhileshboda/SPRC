@@ -1706,7 +1706,27 @@ const Auth = (() => {
       'Kindred Administration'
     ].join('\n');
 
-    return { weekLabel, subject, preview, body };
+    const eventHighlights = [
+      'Upcoming events',
+      eventLines,
+      '',
+      'Job opportunities',
+      jobLines
+    ].join('\n');
+
+    const updates = [
+      preview,
+      '',
+      participants.length
+        ? `Our participant roster currently includes ${participants.length} registered participant${participants.length === 1 ? '' : 's'}.`
+        : 'Participant records can be added by administrators so future newsletters stay aligned with family needs.',
+      '',
+      'Next steps for families',
+      '- Review event accommodations and job requirements in the dashboard before registering interest.',
+      '- Reach out to your Kindred coordinator if you need accessibility support or help choosing the best fit.'
+    ].join('\n');
+
+    return { weekLabel, subject, preview, body, eventHighlights, updates };
   }
 
   async function getNewsletters() {
@@ -1778,6 +1798,8 @@ const Auth = (() => {
       subject: content.subject,
       preview: content.preview,
       body: content.body,
+      eventHighlights: content.eventHighlights,
+      updates: content.updates,
       audience: 'Participants and families',
       eventCount: upcomingEvents.length,
       jobCount: highlightedJobs.length,

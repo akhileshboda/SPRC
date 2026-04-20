@@ -107,6 +107,7 @@
 
         <!-- ADMIN: welcome card directing to sidebar sections -->
         <div id="panel-ADMIN" class="d-none">
+          <div id="adminDashboardStats" class="row g-3 mb-4"></div>
           <div class="card shadow-sm mb-4">
             <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
             <div class="card-body text-muted">
@@ -163,6 +164,7 @@
 
         <!-- PARTICIPANT: Portal home —— upcoming events + job opportunities preview -->
         <div id="panel-PARTICIPANT" class="d-none">
+          <div id="p-dashboard-snapshot" class="mb-4"></div>
           <div class="card shadow-sm mb-4">
             <div class="card-header bg-success text-white fw-semibold">
               <i class="bi bi-person-vcard me-2"></i>My Profile
@@ -249,6 +251,8 @@
 
         <!-- VOLUNTEER: Volunteer Portal card -->
         <div id="panel-VOLUNTEER" class="d-none">
+
+          <div id="volunteerDashboardSnapshot"></div>
 
           <!-- Matched Events row (populated by volunteer.js after profile load) -->
           <div class="card shadow-sm mb-4" id="volMatchedEventsCard">
@@ -515,12 +519,13 @@
 
       <!-- ══ SECTION: Volunteer — Events Discovery ══ -->
       <section id="section-v-events" class="content-section d-none">
-        <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
           <div>
             <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-info"></i>Events</h5>
-            <p class="text-muted small mb-0">Published community events you can support</p>
+            <p class="text-muted small mb-0">Browse published events, filter by what fits you, and prioritize matches to your interests.</p>
           </div>
         </div>
+        <div id="v-events-toolbar" class="mb-3"></div>
         <div id="v-events-grid"></div>
       </section>
 
@@ -1953,7 +1958,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=11"></script>
+  <script src="js/auth.js?v=12"></script>
   <script src="js/sidebar.js?v=3"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -1988,9 +1993,9 @@
     }
 
   </script>
-  <script src="js/admin.js?v=3"></script>
-  <script src="js/volunteer.js?v=3"></script>
-  <script src="js/participant.js?v=2"></script>
+  <script src="js/admin.js?v=4"></script>
+  <script src="js/volunteer.js?v=4"></script>
+  <script src="js/participant.js?v=3"></script>
 </body>
 
 </html>
