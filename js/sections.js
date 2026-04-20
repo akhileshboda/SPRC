@@ -14,12 +14,14 @@ const ROLE_SECTIONS = {
     'sections/admin/urgent-notifications.html?v=1',
     'sections/admin/users.html?v=1',
     'sections/admin/work-queue.html?v=1',
+    'sections/admin/notifications.html?v=1',
   ],
   GUARDIAN: [
     'sections/dashboard.html?v=1',
     'sections/guardian/participants.html?v=1',
     'sections/guardian/approvals.html?v=1',
     'sections/guardian/newsletter.html?v=1',
+    'sections/guardian/notifications.html?v=1',
   ],
   PARTICIPANT: [
     'sections/dashboard.html?v=1',
@@ -35,6 +37,7 @@ const ROLE_SECTIONS = {
     'sections/volunteer/bgcheck.html?v=1',
     'sections/volunteer/events.html?v=1',
     'sections/volunteer/tasks.html?v=1',
+    'sections/volunteer/notifications.html?v=1',
   ],
 };
 

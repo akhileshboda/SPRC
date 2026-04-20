@@ -831,4 +831,20 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   await renderVolunteerTasks();
+
+  // ── Volunteer notification bell ───────────────────────────────────────────
+  const _vBellConfig = { notificationsSection: 'v-notifications', role: 'VOLUNTEER', eventSection: 'v-events' };
+  if (document.getElementById('nav-notifications-bell')) {
+    NotificationsUI.renderNavBell(_vBellConfig);
+  } else {
+    document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_vBellConfig), { once: true });
+  }
+  const vNotifSection = document.getElementById('section-v-notifications');
+  if (vNotifSection) {
+    new MutationObserver(() => {
+      if (!vNotifSection.classList.contains('d-none')) {
+        NotificationsUI.renderInbox('v-notifications-list', _vBellConfig);
+      }
+    }).observe(vNotifSection, { attributes: true, attributeFilter: ['class'] });
+  }
 });

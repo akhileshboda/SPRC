@@ -1557,7 +1557,26 @@ document.addEventListener('sections:ready', async (e) => {
   document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => {
     applyGeneratedWeeklyNewsletter();
   });
+  document.getElementById('newsletterAutoGenerateBtn')?.addEventListener('click', () => {
+    applyGeneratedWeeklyNewsletter();
+  });
   document.getElementById('adminUrgentAlertsQuickBtn')?.addEventListener('click', () => navigateTo('urgent-notifications'));
+
+  // ── Admin notification bell ───────────────────────────────────────────────
+  const _adminBellConfig = { notificationsSection: 'a-notifications', role: 'ADMIN', eventSection: 'events', jobSection: 'jobs' };
+  if (document.getElementById('nav-notifications-bell')) {
+    NotificationsUI.renderNavBell(_adminBellConfig);
+  } else {
+    document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_adminBellConfig), { once: true });
+  }
+  const _adminNotifSection = document.getElementById('section-a-notifications');
+  if (_adminNotifSection) {
+    new MutationObserver(() => {
+      if (!_adminNotifSection.classList.contains('d-none')) {
+        NotificationsUI.renderInbox('a-notifications-list', _adminBellConfig);
+      }
+    }).observe(_adminNotifSection, { attributes: true, attributeFilter: ['class'] });
+  }
 
   // ─── Urgent Notifications UI ─────────────────────────────────────────────────────
 

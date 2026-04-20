@@ -546,116 +546,6 @@ document.addEventListener('sections:ready', async (e) => {
     });
   }
 
-  async function renderNotifications(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const [notifications, readIds, interestedJobIds, interestedEventIds] = await Promise.all([
-      Auth.getMyNotifications(),
-      Promise.resolve(Auth.getReadNotificationIds()),
-      Auth.getInterestedJobIds(),
-      Auth.getInterestedEventIds()
-    ]);
-    if (!notifications.length) {
-      container.innerHTML = emptyState('bi-bell', 'No alerts yet. Kindred Administration will send you personalised alerts here when time-sensitive opportunities arise.');
-      return;
-    }
-
-    // "Clear all" header
-    const clearAllHtml = `
-      <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-outline-secondary btn-sm js-notif-clear-all">
-          <i class="bi bi-trash3 me-1"></i>Clear all
-        </button>
-      </div>`;
-    const readSet = new Set(readIds);
-    const sorted = [...notifications].sort((a, b) => {
-      const aUnread = readSet.has(a.id) ? 1 : 0;
-      const bUnread = readSet.has(b.id) ? 1 : 0;
-      if (aUnread !== bUnread) return aUnread - bUnread;
-      return (b.sentAtMs || 0) - (a.sentAtMs || 0);
-    });
-    Auth.markNotificationsRead(notifications.map((n) => n.id));
-    renderNavNotificationBell();
-
-    container.innerHTML = clearAllHtml + sorted.map((n) => {
-      const isUnread = !readSet.has(n.id);
-      const headerCls = isUnread ? 'bg-danger text-white' : 'bg-secondary bg-opacity-10 text-secondary';
-      const cardBorder = isUnread ? 'border-danger' : 'border-secondary';
-      const newBadge = isUnread ? '<span class="badge bg-warning text-dark ms-2">NEW</span>' : '';
-
-      let actionBtn = '';
-      if (n.opportunityType === 'job' && n.opportunityId) {
-        const isInterested = interestedJobIds.includes(String(n.opportunityId));
-        actionBtn = `<button class="btn btn-sm js-notif-job-action ${isInterested ? 'btn-outline-secondary' : 'btn-success'}"
-          data-job-id="${escHtml(n.opportunityId)}"
-          data-job-title="${escHtml(n.opportunityTitle)}">
-          <i class="bi ${isInterested ? 'bi-x-circle' : 'bi-hand-thumbs-up'} me-1"></i>
-          ${isInterested ? 'Remove Interest' : 'Express Interest'}
-        </button>`;
-      } else if (n.opportunityType === 'event' && n.opportunityId) {
-        const isInterested = interestedEventIds.includes(String(n.opportunityId));
-        actionBtn = `<button class="btn btn-sm js-notif-event-action ${isInterested ? 'btn-outline-secondary' : 'btn-success'}"
-          data-event-id="${escHtml(n.opportunityId)}"
-          data-event-title="${escHtml(n.opportunityTitle)}">
-          <i class="bi ${isInterested ? 'bi-x-circle' : 'bi-calendar-check'} me-1"></i>
-          ${isInterested ? 'Remove Interest' : 'Register Interest'}
-        </button>`;
-      }
-
-      return `
-        <div class="card shadow-sm mb-3 border ${cardBorder}">
-          <div class="card-header d-flex align-items-center justify-content-between ${headerCls}">
-            <span class="fw-semibold"><i class="bi bi-bell-fill me-2"></i>${escHtml(n.subject)}${newBadge}</span>
-            <small class="opacity-75 text-nowrap ms-3">${escHtml(n.sentAtLabel)}</small>
-          </div>
-          <div class="card-body">
-            <pre style="white-space:pre-wrap;font-family:'Inter',system-ui,sans-serif;font-size:0.95rem;border:none;background:none;padding:0;margin:0;">${escHtml(n.body)}</pre>
-          </div>
-          <div class="card-footer d-flex align-items-center justify-content-between bg-transparent border-top">
-            <small class="text-muted"><i class="bi bi-person-fill me-1"></i>From ${escHtml(n.sentByName || 'Kindred Administration')}</small>
-            <div class="d-flex gap-2">
-              ${actionBtn}
-              <button class="btn btn-sm btn-outline-secondary js-notif-delete" data-notif-id="${escHtml(n.id)}" title="Delete alert">
-                <i class="bi bi-trash3"></i>
-              </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-
-    container.querySelectorAll('.js-notif-job-action').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        await Auth.toggleJobInterest(btn.dataset.jobId);
-        await renderNotifications(containerId);
-      });
-    });
-
-    container.querySelectorAll('.js-notif-event-action').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
-        await renderNotifications(containerId);
-      });
-    });
-
-    container.querySelectorAll('.js-notif-delete').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        Auth.deleteMyNotification(btn.dataset.notifId);
-        await renderNotifications(containerId);
-        await renderNavNotificationBell();
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-
-    container.querySelector('.js-notif-clear-all')?.addEventListener('click', async () => {
-      notifications.forEach((n) => Auth.deleteMyNotification(n.id));
-      await renderNotifications(containerId);
-      await renderNavNotificationBell();
-      await renderNotificationBanner('p-notifications-banner');
-    });
-  }
-
   async function renderNotificationBanner(containerId) {
     const banner = document.getElementById(containerId);
     if (!banner) return;
@@ -673,7 +563,7 @@ document.addEventListener('sections:ready', async (e) => {
       </span>
       <div class="d-flex gap-2 flex-shrink-0">
         <button type="button" class="btn btn-warning btn-sm fw-semibold js-banner-view">
-          View Alerts <i class="bi bi-arrow-right ms-1"></i>
+          View Notifications <i class="bi bi-arrow-right ms-1"></i>
         </button>
         <button type="button" class="btn btn-outline-secondary btn-sm js-banner-dismiss">Dismiss</button>
       </div>`;
@@ -681,137 +571,30 @@ document.addEventListener('sections:ready', async (e) => {
     banner.querySelector('.js-banner-dismiss').addEventListener('click', () => banner.classList.add('d-none'));
   }
 
-  async function renderNavNotificationBell() {
-    const bellEl = document.getElementById('nav-notifications-bell');
-    if (!bellEl) return;
-    const notifications = await Auth.getMyNotifications();
-    const readIds = Auth.getReadNotificationIds();
-    const readSet = new Set(readIds);
-    const unreadCount = notifications.filter((n) => !readSet.has(n.id)).length;
-
-    const badgeHtml = unreadCount > 0
-      ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;min-width:1.1em;">${unreadCount}</span>`
-      : '';
-
-    const listItems = notifications.slice(0, 8).map((n) => {
-      const isUnread = !readSet.has(n.id);
-      const dot = isUnread
-        ? `<span class="flex-shrink-0 rounded-circle bg-danger" style="width:8px;height:8px;margin-top:5px;"></span>`
-        : `<span class="flex-shrink-0" style="width:8px;height:8px;margin-top:5px;"></span>`;
-      const readToggleTitle = isUnread ? 'Mark as read' : 'Mark as unread';
-      const readToggleIcon = isUnread ? 'bi-check2' : 'bi-arrow-counterclockwise';
-      return `
-        <li class="d-flex align-items-center gap-1 px-2 py-1 border-bottom" style="min-width:0;">
-          ${dot}
-          <div class="flex-grow-1 text-truncate" style="min-width:0;cursor:pointer;" role="button"
-               tabindex="0" data-bell-nav="p-notifications">
-            <div class="fw-semibold text-truncate" style="font-size:0.82rem;">${escHtml(n.subject)}</div>
-            <div class="text-muted" style="font-size:0.72rem;">${escHtml(n.sentAtLabel)}</div>
-          </div>
-          <div class="d-flex gap-1 flex-shrink-0">
-            <button class="btn btn-link p-0 js-bell-toggle-read" data-notif-id="${escHtml(n.id)}"
-                    title="${readToggleTitle}" style="font-size:0.9rem;color:var(--bs-secondary);">
-              <i class="bi ${readToggleIcon}"></i>
-            </button>
-            <button class="btn btn-link p-0 js-bell-delete" data-notif-id="${escHtml(n.id)}"
-                    title="Delete" style="font-size:0.9rem;color:var(--bs-danger);">
-              <i class="bi bi-trash3"></i>
-            </button>
-          </div>
-        </li>`;
-    }).join('');
-
-    const emptyItem = notifications.length === 0
-      ? `<li class="px-3 py-3 text-muted small text-center">No notifications</li>` : '';
-
-    bellEl.innerHTML = `
-      <div class="dropdown">
-        <button class="btn btn-link text-dark position-relative p-1"
-                type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                title="Notifications" style="font-size:1.25rem;line-height:1;text-decoration:none;">
-          <i class="bi bi-bell${unreadCount > 0 ? '-fill text-danger' : ''}"></i>
-          ${badgeHtml}
-        </button>
-        <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width:320px;max-width:380px;">
-          <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-            <span class="fw-semibold" style="font-size:0.9rem;">Notifications${unreadCount > 0 ? ` <span class="badge bg-danger ms-1">${unreadCount}</span>` : ''}</span>
-            <button class="btn btn-link btn-sm p-0 js-bell-mark-all-read text-secondary"
-                    style="font-size:0.78rem;" ${notifications.length === 0 ? 'disabled' : ''}>
-              Mark all read
-            </button>
-          </div>
-          <ul class="list-unstyled mb-0" style="max-height:320px;overflow-y:auto;">
-            ${listItems || emptyItem}
-          </ul>
-          <div class="border-top px-3 py-2 text-center">
-            <button class="btn btn-link btn-sm p-0 js-bell-view-all" style="font-size:0.82rem;">
-              View all notifications <i class="bi bi-arrow-right ms-1"></i>
-            </button>
-          </div>
-        </div>
-      </div>`;
-
-    bellEl.querySelectorAll('[data-bell-nav]').forEach((el) => {
-      el.addEventListener('click', () => navigateTo(el.dataset.bellNav));
-      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(el.dataset.bellNav); });
-    });
-
-    bellEl.querySelector('.js-bell-view-all')?.addEventListener('click', () => navigateTo('p-notifications'));
-
-    bellEl.querySelector('.js-bell-mark-all-read')?.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      Auth.markNotificationsRead(notifications.map((n) => n.id));
-      await renderNavNotificationBell();
-      await renderNotificationBanner('p-notifications-banner');
-    });
-
-    bellEl.querySelectorAll('.js-bell-toggle-read').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        Auth.toggleNotificationRead(btn.dataset.notifId);
-        await renderNavNotificationBell();
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-
-    bellEl.querySelectorAll('.js-bell-delete').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        Auth.deleteMyNotification(btn.dataset.notifId);
-        await renderNavNotificationBell();
-        await renderNotifications('p-notifications-list');
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-  }
-
   if (session.role === 'PARTICIPANT') {
+    const _pBellConfig = { notificationsSection: 'p-notifications', role: 'PARTICIPANT', eventSection: 'p-events', jobSection: 'p-jobs' };
     await renderParticipantDashboard();
     await renderParticipantEventPreview();
     await renderParticipantSavedJobs();
     await renderParticipantJobApplications();
     await renderNewsletter('p-newsletter-content');
     await renderNotificationBanner('p-notifications-banner');
-    // Bell is injected by nav.js asynchronously; render once the element exists
     if (document.getElementById('nav-notifications-bell')) {
-      await renderNavNotificationBell();
+      await NotificationsUI.renderNavBell(_pBellConfig);
     } else {
-      document.addEventListener('kindred:nav-ready', renderNavNotificationBell, { once: true });
+      document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_pBellConfig), { once: true });
     }
-    // Only render+mark-read when the user actually opens the Alerts section
     const eventsSection = document.getElementById('section-p-events');
     if (eventsSection) {
       new MutationObserver(() => {
-        if (!eventsSection.classList.contains('d-none')) {
-          renderParticipantEvents();
-        }
+        if (!eventsSection.classList.contains('d-none')) renderParticipantEvents();
       }).observe(eventsSection, { attributes: true, attributeFilter: ['class'] });
     }
     const alertsSection = document.getElementById('section-p-notifications');
     if (alertsSection) {
       new MutationObserver(() => {
         if (!alertsSection.classList.contains('d-none')) {
-          renderNotifications('p-notifications-list');
+          NotificationsUI.renderInbox('p-notifications-list', _pBellConfig);
         }
       }).observe(alertsSection, { attributes: true, attributeFilter: ['class'] });
     }
@@ -892,8 +675,22 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   if (session.role === 'GUARDIAN') {
+    const _gBellConfig = { notificationsSection: 'g-notifications', role: 'GUARDIAN' };
     await renderGuardianDashboard();
     await renderGuardianApprovals();
     await renderNewsletter('g-newsletter-content');
+    if (document.getElementById('nav-notifications-bell')) {
+      await NotificationsUI.renderNavBell(_gBellConfig);
+    } else {
+      document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_gBellConfig), { once: true });
+    }
+    const gNotifSection = document.getElementById('section-g-notifications');
+    if (gNotifSection) {
+      new MutationObserver(() => {
+        if (!gNotifSection.classList.contains('d-none')) {
+          NotificationsUI.renderInbox('g-notifications-list', _gBellConfig);
+        }
+      }).observe(gNotifSection, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 });
