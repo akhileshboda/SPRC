@@ -304,6 +304,83 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderParticipantDashboardSnapshot();
   }
 
+  async function renderParticipantJobApplications() {
+    if (session.role !== 'PARTICIPANT') return;
+    const container = document.getElementById('p-jobs-list');
+    if (!container) return;
+
+    const [jobs, statuses] = await Promise.all([Auth.getJobs(), Auth.getMyJobInterestStatuses()]);
+    const myJobs = jobs.filter((job) => statuses[String(job.id)]);
+
+    if (!myJobs.length) {
+      container.innerHTML = emptyState('bi-briefcase', 'You have not registered interest in any jobs yet. Visit <a href="jobs.html">Jobs</a> to browse opportunities.');
+      return;
+    }
+
+    const PIPELINE_STAGES = ['PENDING', 'APPLIED', 'INTERVIEW', 'OFFER', 'STARTED'];
+    const STATUS_BADGE = {
+      PENDING:   'text-bg-warning',
+      APPLIED:   'text-bg-info',
+      INTERVIEW: 'text-bg-primary',
+      OFFER:     'text-bg-success',
+      STARTED:   'text-bg-success',
+      REJECTED:  'text-bg-danger',
+    };
+
+    function buildPipeline(status) {
+      if (status === 'REJECTED') {
+        return `<div class="small text-danger mt-2"><i class="bi bi-x-circle me-1"></i>Application rejected</div>`;
+      }
+      const currentIdx = PIPELINE_STAGES.indexOf(status);
+      const steps = PIPELINE_STAGES.map((stage, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx;
+        const cls = active ? 'fw-semibold text-primary' : (done ? 'text-success' : 'text-muted');
+        const icon = done ? 'bi-check-circle-fill text-success' : (active ? 'bi-circle-fill text-primary' : 'bi-circle text-muted');
+        return `<span class="${cls} me-2 small"><i class="bi ${icon} me-1"></i>${stage}</span>`;
+      });
+      return `<div class="mt-2 d-flex flex-wrap gap-1">${steps.join('<i class="bi bi-chevron-right text-muted small me-2"></i>')}</div>`;
+    }
+
+    container.innerHTML = `<div class="list-group">
+      ${myJobs.map((job) => {
+        const status = statuses[String(job.id)];
+        const badgeCls = STATUS_BADGE[status] || 'text-bg-secondary';
+        const canRemove = status === 'PENDING';
+        return `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">${escHtml(job.title)}</div>
+                <div class="small text-muted">${escHtml(job.employer)}${job.location ? ` · ${escHtml(job.location)}` : ''}</div>
+                ${buildJobExpectationLine(job)}
+                <div class="mt-2"><span class="badge ${badgeCls}">${escHtml(status)}</span></div>
+                ${buildPipeline(status)}
+                ${!canRemove && status !== 'REJECTED' ? `<div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Contact an admin to withdraw this application.</div>` : ''}
+              </div>
+              <div class="text-end flex-shrink-0">
+                <div>${jobTypeBadge(job.jobType)}</div>
+                ${canRemove ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>Remove</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+    container.querySelectorAll('.js-jobs-remove-interest').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await Auth.toggleJobInterest(btn.dataset.jobId);
+        if (!result.success) {
+          alert(result.message || 'Could not remove job interest.');
+          btn.disabled = false;
+          return;
+        }
+        await renderParticipantJobApplications();
+      });
+    });
+  }
+
   async function renderParticipantEvents() {
     if (session.role !== 'PARTICIPANT') return;
     const container = document.getElementById('p-events-grid');
@@ -712,6 +789,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderParticipantDashboard();
     await renderParticipantEventPreview();
     await renderParticipantSavedJobs();
+    await renderParticipantJobApplications();
     await renderNewsletter('p-newsletter-content');
     await renderNotificationBanner('p-notifications-banner');
     // Bell is injected by nav.js asynchronously; render once the element exists
