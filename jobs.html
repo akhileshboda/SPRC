@@ -119,7 +119,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=13"></script>
+  <script src="js/auth.js?v=11"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const gridEl = document.getElementById('jobsGrid');
@@ -158,50 +158,35 @@
 
       function interestButton(job) {
         if (!session) {
-          return `<a href="login.html" class="btn btn-outline-primary btn-sm">Login to apply</a>`;
+          return `<a href="login.html" class="btn btn-outline-primary btn-sm">Login to register interest</a>`;
         }
         if (session.role === 'GUARDIAN') {
           const disabled = guardianParticipantSelectEl?.value ? '' : 'disabled';
           return `<button class="btn btn-primary btn-sm js-interest-btn" data-job-id="${esc(job.id)}" ${disabled}>
-            <i class="bi bi-send me-1"></i>Apply for participant
+            <i class="bi bi-check2-circle me-1"></i>Register for participant
           </button>`;
         }
         if (session.role !== 'PARTICIPANT') {
-          return `<button class="btn btn-outline-secondary btn-sm" disabled title="Participants or guardians can apply for jobs">Restricted</button>`;
+          return `<button class="btn btn-outline-secondary btn-sm" disabled title="Participants or guardians can register job interest">Restricted</button>`;
         }
         const status = jobStatuses[String(job.id)];
+        if (status === 'APPROVED') {
+          return `<button class="btn btn-outline-danger btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+            <i class="bi bi-x-circle me-1"></i>Not interested
+          </button>`;
+        }
         if (status === 'PENDING') {
           return `<button class="btn btn-outline-warning btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
             <i class="bi bi-hourglass-split me-1"></i>Pending approval
           </button>`;
         }
-        if (status === 'APPLIED') {
-          return `<button class="btn btn-outline-primary btn-sm" disabled>
-            <i class="bi bi-clock me-1"></i>Under Review
-          </button>`;
-        }
-        if (status === 'INTERVIEW') {
-          return `<button class="btn btn-outline-info btn-sm" disabled>
-            <i class="bi bi-calendar-check me-1"></i>Interview Stage
-          </button>`;
-        }
-        if (status === 'OFFER') {
-          return `<button class="btn btn-outline-success btn-sm" disabled>
-            <i class="bi bi-envelope-open me-1"></i>Offer Received
-          </button>`;
-        }
-        if (status === 'STARTED') {
-          return `<button class="btn btn-success btn-sm" disabled>
-            <i class="bi bi-check-circle-fill me-1"></i>Confirmed
-          </button>`;
-        }
         if (status === 'REJECTED') {
-          return `<button class="btn btn-outline-primary btn-sm js-interest-btn" data-job-id="${esc(job.id)}">
-            <i class="bi bi-arrow-repeat me-1"></i>Apply Again
+          return `<button class="btn btn-outline-secondary btn-sm js-interest-btn" data-job-id="${esc(job.id)}">
+            <i class="bi bi-arrow-repeat me-1"></i>Resubmit interest
           </button>`;
         }
         return `<button class="btn btn-primary btn-sm js-interest-btn" data-job-id="${esc(job.id)}">
-          <i class="bi bi-send me-1"></i>Apply
+          <i class="bi bi-bookmark-heart me-1"></i>Register interest
         </button>`;
       }
 
@@ -287,31 +272,12 @@
         savedCountEl.textContent = `${saved.length} tracked`;
 
         if (!saved.length) {
-          savedListEl.innerHTML = '<div class="text-muted small">You have not applied for any jobs yet. Click "Apply" on a job below.</div>';
+          savedListEl.innerHTML = '<div class="text-muted small">You have not saved any jobs yet. Click "Register interest" on a job below.</div>';
           return;
         }
 
-        const statusBadgeClass = {
-          PENDING:   'text-bg-warning',
-          APPLIED:   'text-bg-primary',
-          INTERVIEW: 'text-bg-info',
-          OFFER:     'text-bg-success',
-          STARTED:   'text-bg-success',
-          REJECTED:  'text-bg-danger'
-        };
-        const statusLabel = {
-          PENDING:   'Pending Approval',
-          APPLIED:   'Applied',
-          INTERVIEW: 'Interview',
-          OFFER:     'Offer',
-          STARTED:   'Started',
-          REJECTED:  'Not Proceeding'
-        };
         savedListEl.innerHTML = `<div class="list-group">
-          ${saved.map((job) => {
-            const st = jobStatuses[String(job.id)];
-            const canWithdraw = st === 'PENDING';
-            return `
+          ${saved.map((job) => `
             <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
               <div>
                 <div class="fw-semibold">${esc(job.title)}</div>
@@ -320,13 +286,13 @@
                   <span class="text-success fw-semibold"><i class="bi bi-cash-coin me-1"></i>${esc(jobPayText(job))}</span>
                   <span class="text-muted ms-2"><i class="bi bi-tag me-1"></i>${esc(jobCostSummary(job).label)}</span>
                 </div>
-                <div class="small mt-1"><span class="badge ${statusBadgeClass[st] || 'text-bg-secondary'}">${esc(statusLabel[st] || st)}</span></div>
+                <div class="small mt-1"><span class="badge ${jobStatuses[String(job.id)] === 'APPROVED' ? 'text-bg-success' : (jobStatuses[String(job.id)] === 'PENDING' ? 'text-bg-warning' : 'text-bg-danger')}">${esc(jobStatuses[String(job.id)])}</span></div>
               </div>
-              ${canWithdraw ? `<button class="btn btn-outline-secondary btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
-                <i class="bi bi-x-circle me-1"></i>Cancel
-              </button>` : ''}
-            </div>`;
-          }).join('')}
+              <button class="btn btn-outline-danger btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+                <i class="bi bi-x-circle me-1"></i>Not interested
+              </button>
+            </div>
+          `).join('')}
         </div>`;
       }
 

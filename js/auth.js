@@ -12,7 +12,6 @@ const Auth = (() => {
   const EVENT_SIGNUPS_KEY = 'kindredSignups';
   const JOBS_KEY = 'kindred_jobs';
   const JOB_INTERESTS_KEY = 'kindred_job_interests';
-  const JOB_APPLICATIONS_KEY = 'kindred_job_applications';
   const APPROVALS_KEY = 'kindred_approvals';
   const NEWSLETTERS_KEY = 'kindred_newsletters';
   const NEWSLETTER_DRAFT_KEY = 'kindred_newsletter_draft';
@@ -287,10 +286,6 @@ const Auth = (() => {
 
   function getRawJobInterests() {
     return parseJson(JOB_INTERESTS_KEY, []);
-  }
-
-  function getRawJobApplications() {
-    return parseJson(JOB_APPLICATIONS_KEY, []);
   }
 
   function getRawApprovals() {
@@ -626,7 +621,6 @@ const Auth = (() => {
     if (!localStorage.getItem(AUDIT_LOG_KEY)) setJson(AUDIT_LOG_KEY, []);
     if (!localStorage.getItem(INQUIRIES_KEY)) setJson(INQUIRIES_KEY, []);
     if (!localStorage.getItem(TASKS_KEY)) setJson(TASKS_KEY, []);
-    if (!localStorage.getItem(JOB_APPLICATIONS_KEY)) setJson(JOB_APPLICATIONS_KEY, []);
   }
 
   function getUserByIdInternal(userId) {
@@ -662,7 +656,7 @@ const Auth = (() => {
     const guardians = (participant.guardianUserIds || [])
       .map((guardianId) => getUserByIdInternal(guardianId))
       .filter(Boolean);
-    const approvedJobCount = getRawJobApplications().filter((app) => String(app.participantId) === String(participant.id) && app.status !== 'REJECTED').length;
+    const approvedJobCount = getRawJobInterests().filter((interest) => String(interest.participantId) === String(participant.id)).length;
     const pendingApprovalCount = getRawApprovals().filter((approval) =>
       String(approval.participantId) === String(participant.id) && approval.status === 'PENDING'
     ).length;
@@ -740,7 +734,6 @@ const Auth = (() => {
       EVENT_SIGNUPS_KEY,
       JOBS_KEY,
       JOB_INTERESTS_KEY,
-      JOB_APPLICATIONS_KEY,
       APPROVALS_KEY,
       NEWSLETTERS_KEY,
       NEWSLETTER_DRAFT_KEY,
@@ -1425,7 +1418,6 @@ const Auth = (() => {
     if (filtered.length === jobs.length) return { success: false, message: 'Job opportunity not found.' };
     setJson(JOBS_KEY, filtered);
     setJson(JOB_INTERESTS_KEY, getRawJobInterests().filter((entry) => String(entry.jobId) !== String(id)));
-    setJson(JOB_APPLICATIONS_KEY, getRawJobApplications().filter((app) => String(app.jobId) !== String(id)));
     setJson(APPROVALS_KEY, getRawApprovals().filter((entry) => String(entry.jobId) !== String(id)));
     return { success: true };
   }
@@ -1469,27 +1461,23 @@ const Auth = (() => {
     if (!session || session.role !== 'PARTICIPANT') return {};
     const participant = getParticipantRecordByUserIdInternal(session.userId);
     if (!participant) return {};
-
     const statusMap = {};
-    const participantId = participant.id;
-
-    // Check pending guardian approvals
+    getRawJobInterests()
+      .filter((entry) => String(entry.participantId) === String(participant.id))
+      .forEach((entry) => {
+        statusMap[String(entry.jobId)] = 'APPROVED';
+      });
     getRawApprovals()
-      .filter((a) => a.type === 'JOB_INTEREST' && a.status === 'PENDING' && String(a.participantId) === String(participantId))
-      .forEach((a) => { statusMap[String(a.jobId)] = 'PENDING'; });
-
-    // Pipeline applications override pending (most recent wins per job)
-    getRawJobApplications()
-      .filter((app) => String(app.participantId) === String(participantId))
-      .sort((a, b) => a.appliedAtMs - b.appliedAtMs)
-      .forEach((app) => { statusMap[String(app.jobId)] = app.status; });
-
+      .filter((approval) => String(approval.participantId) === String(participant.id) && approval.type === 'JOB_INTEREST')
+      .forEach((approval) => {
+        statusMap[String(approval.jobId)] = approval.status;
+      });
     return statusMap;
   }
 
   async function getInterestedJobIds() {
     const statuses = await getMyJobInterestStatuses();
-    return Object.keys(statuses).filter((jobId) => !['REJECTED', 'PENDING'].includes(statuses[jobId]));
+    return Object.keys(statuses).filter((jobId) => statuses[jobId] === 'APPROVED');
   }
 
   async function toggleJobInterest(jobId, options = {}) {
@@ -1510,14 +1498,12 @@ const Auth = (() => {
       return { success: false, message: 'Job opportunity not found.' };
     }
 
-    // Block if there is already an active application in the pipeline
-    const existingApplication = getRawJobApplications().find((app) =>
-      String(app.participantId) === String(participant.id)
-      && String(app.jobId) === normalizedJobId
-      && !['REJECTED'].includes(app.status)
+    const approvedInterest = getRawJobInterests().find((entry) =>
+      String(entry.participantId) === String(participant.id) && String(entry.jobId) === normalizedJobId
     );
-    if (existingApplication) {
-      return { success: false, message: 'This participant already has an active application for this job.' };
+    if (approvedInterest) {
+      setJson(JOB_INTERESTS_KEY, getRawJobInterests().filter((entry) => String(entry.id) !== String(approvedInterest.id)));
+      return { success: true, status: 'REMOVED' };
     }
 
     const pendingApproval = getRawApprovals().find((entry) =>
@@ -1532,33 +1518,10 @@ const Auth = (() => {
     }
 
     if (session.role === 'GUARDIAN') {
-      const now = Date.now();
-      const dateLabel = makeDateLabel();
-      const applications = getRawJobApplications();
-      applications.push({
-        id: makeId('ja'),
-        participantId: participant.id,
-        participantUserId: participant.participantUserId,
-        guardianUserIds: participant.guardianUserIds,
-        jobId: normalizedJobId,
-        status: 'APPLIED',
-        appliedAtMs: now,
-        appliedAtLabel: dateLabel,
-        updatedAtMs: now,
-        updatedAtLabel: dateLabel,
-        updatedByUserId: String(session.userId),
-        notes: '',
-        statusHistory: [{
-          status: 'APPLIED',
-          changedAtMs: now,
-          changedAtLabel: dateLabel,
-          changedByUserId: String(session.userId),
-          changedByRole: 'GUARDIAN',
-          note: ''
-        }]
-      });
-      setJson(JOB_APPLICATIONS_KEY, applications);
-      return { success: true, status: 'APPLIED' };
+      const interests = getRawJobInterests();
+      interests.push(buildApprovedInterest(participant, normalizedJobId, session, session.userId));
+      setJson(JOB_INTERESTS_KEY, interests);
+      return { success: true, status: 'APPROVED' };
     }
 
     const approvals = getRawApprovals();
@@ -1629,126 +1592,67 @@ const Auth = (() => {
     if (decisionUpper === 'APPROVED') {
       const participant = getRawParticipants().find((entry) => String(entry.id) === String(approval.participantId));
       if (participant) {
-        const now = Date.now();
-        const dateLabel = makeDateLabel();
-        const applications = getRawJobApplications();
-        applications.push({
-          id: makeId('ja'),
+        const interests = getRawJobInterests();
+        interests.push({
+          id: makeId('ji'),
           participantId: participant.id,
           participantUserId: participant.participantUserId,
           guardianUserIds: participant.guardianUserIds,
           jobId: approval.jobId,
-          status: 'APPLIED',
-          appliedAtMs: now,
-          appliedAtLabel: dateLabel,
-          updatedAtMs: now,
-          updatedAtLabel: dateLabel,
-          updatedByUserId: String(session.userId),
-          notes: String(notes || '').trim(),
-          statusHistory: [{
-            status: 'APPLIED',
-            changedAtMs: now,
-            changedAtLabel: dateLabel,
-            changedByUserId: String(session.userId),
-            changedByRole: 'GUARDIAN',
-            note: String(notes || '').trim()
-          }]
+          status: 'APPROVED',
+          requestedByRole: approval.requestedByRole,
+          requestedByUserId: approval.requestedByUserId,
+          approvedByUserId: session.userId,
+          createdAtMs: approval.createdAtMs,
+          approvedAtMs: Date.now()
         });
-        setJson(JOB_APPLICATIONS_KEY, applications);
+        setJson(JOB_INTERESTS_KEY, interests);
       }
     }
 
     return { success: true };
   }
 
-  async function getJobApplicationSummary() {
-    const participants = getRawParticipants();
-    const users = getRawUsers();
-    const participantMap = new Map(participants.map((p) => [String(p.id), p]));
-    const userMap = new Map(users.map((u) => [String(u.id), u]));
-
+  async function getJobInterestSummary() {
+    const participants = await getParticipants();
+    const participantMap = new Map(participants.map((participant) => [String(participant.id), participant]));
     const summary = {};
-    const ensure = (jobId) => {
-      if (!summary[jobId]) summary[jobId] = { pending: [], applied: [], interview: [], offer: [], started: [], rejected: [] };
-    };
-    const entryFor = (participantId) => {
-      const p = participantMap.get(String(participantId));
-      const u = p ? userMap.get(String(p.participantUserId)) : null;
-      return { participantId, name: p ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'Unknown', email: u?.email || '' };
-    };
+
+    getRawJobInterests().forEach((interest) => {
+      const jobId = String(interest.jobId);
+      const participant = participantMap.get(String(interest.participantId));
+      if (!participant) return;
+      if (!summary[jobId]) summary[jobId] = { approved: [], pending: [] };
+      const already = summary[jobId].approved.some((entry) => entry.participantId === participant.id);
+      if (!already) {
+        summary[jobId].approved.push({
+          participantId: participant.id,
+          name: participant.fullName,
+          email: participant.participantUser?.email || '',
+          guardianNames: participant.guardianNames
+        });
+      }
+    });
 
     getRawApprovals()
-      .filter((a) => a.type === 'JOB_INTEREST' && a.status === 'PENDING')
-      .forEach((a) => { ensure(String(a.jobId)); summary[String(a.jobId)].pending.push(entryFor(a.participantId)); });
-
-    getRawJobApplications().forEach((app) => {
-      ensure(String(app.jobId));
-      const key = app.status.toLowerCase();
-      if (summary[String(app.jobId)][key]) summary[String(app.jobId)][key].push(entryFor(app.participantId));
-    });
+      .filter((approval) => approval.type === 'JOB_INTEREST' && approval.status === 'PENDING')
+      .forEach((approval) => {
+        const jobId = String(approval.jobId);
+        const participant = participantMap.get(String(approval.participantId));
+        if (!participant) return;
+        if (!summary[jobId]) summary[jobId] = { approved: [], pending: [] };
+        const already = summary[jobId].pending.some((entry) => entry.participantId === participant.id);
+        if (!already) {
+          summary[jobId].pending.push({
+            participantId: participant.id,
+            name: participant.fullName,
+            email: participant.participantUser?.email || '',
+            guardianNames: participant.guardianNames
+          });
+        }
+      });
 
     return summary;
-  }
-
-  async function getJobApplications(jobId = null) {
-    const session = await getSession();
-    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can view all applications.' };
-    const participants = getRawParticipants();
-    const users = getRawUsers();
-    const jobs = getRawJobs();
-    const participantMap = new Map(participants.map((p) => [String(p.id), p]));
-    const userMap = new Map(users.map((u) => [String(u.id), u]));
-    const jobMap = new Map(jobs.map((j) => [String(j.id), j]));
-
-    let apps = getRawJobApplications();
-    if (jobId) apps = apps.filter((a) => String(a.jobId) === String(jobId));
-    return apps.map((app) => {
-      const p = participantMap.get(String(app.participantId));
-      const u = p ? userMap.get(String(p.participantUserId)) : null;
-      return {
-        ...app,
-        participantName: p ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'Unknown',
-        participantEmail: u?.email || '',
-        job: jobMap.get(String(app.jobId)) || null
-      };
-    }).sort((a, b) => b.appliedAtMs - a.appliedAtMs);
-  }
-
-  const APP_STATUS_TRANSITIONS = {
-    APPLIED:   ['INTERVIEW', 'OFFER', 'REJECTED'],
-    INTERVIEW: ['OFFER', 'REJECTED'],
-    OFFER:     ['STARTED', 'REJECTED'],
-    STARTED:   ['REJECTED'],
-    REJECTED:  []
-  };
-
-  async function updateApplicationStatus(applicationId, newStatus, notes = '') {
-    const session = await getSession();
-    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can update application status.' };
-    const applications = getRawJobApplications();
-    const idx = applications.findIndex((a) => String(a.id) === String(applicationId));
-    if (idx === -1) return { success: false, message: 'Application not found.' };
-    const app = applications[idx];
-    if (!(APP_STATUS_TRANSITIONS[app.status] || []).includes(newStatus)) {
-      return { success: false, message: `Cannot move from ${app.status} to ${newStatus}.` };
-    }
-    const now = Date.now();
-    const dateLabel = makeDateLabel();
-    app.status = newStatus;
-    app.notes = String(notes || '').trim();
-    app.updatedAtMs = now;
-    app.updatedAtLabel = dateLabel;
-    app.updatedByUserId = String(session.userId);
-    app.statusHistory.push({
-      status: newStatus,
-      changedAtMs: now,
-      changedAtLabel: dateLabel,
-      changedByUserId: String(session.userId),
-      changedByRole: 'ADMIN',
-      note: app.notes
-    });
-    setJson(JOB_APPLICATIONS_KEY, applications);
-    return { success: true };
   }
 
   function buildDistributedNewsletterBody(entry) {
@@ -1802,27 +1706,7 @@ const Auth = (() => {
       'Kindred Administration'
     ].join('\n');
 
-    const eventHighlights = [
-      'Upcoming events',
-      eventLines,
-      '',
-      'Job opportunities',
-      jobLines
-    ].join('\n');
-
-    const updates = [
-      preview,
-      '',
-      participants.length
-        ? `Our participant roster currently includes ${participants.length} registered participant${participants.length === 1 ? '' : 's'}.`
-        : 'Participant records can be added by administrators so future newsletters stay aligned with family needs.',
-      '',
-      'Next steps for families',
-      '- Review event accommodations and job requirements in the dashboard before registering interest.',
-      '- Reach out to your Kindred coordinator if you need accessibility support or help choosing the best fit.'
-    ].join('\n');
-
-    return { weekLabel, subject, preview, body, eventHighlights, updates };
+    return { weekLabel, subject, preview, body };
   }
 
   async function getNewsletters() {
@@ -1894,8 +1778,6 @@ const Auth = (() => {
       subject: content.subject,
       preview: content.preview,
       body: content.body,
-      eventHighlights: content.eventHighlights,
-      updates: content.updates,
       audience: 'Participants and families',
       eventCount: upcomingEvents.length,
       jobCount: highlightedJobs.length,
@@ -3020,9 +2902,7 @@ const Auth = (() => {
     toggleJobInterest,
     getPendingApprovals,
     decideApproval,
-    getJobApplicationSummary,
-    getJobApplications,
-    updateApplicationStatus,
+    getJobInterestSummary,
     getNewsletters,
     generateWeeklyNewsletter,
     getNewsletterDraft,
