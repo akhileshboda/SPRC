@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { id: 'volunteers',   label: 'Volunteers',   icon: 'bi-heart',          roles: ['ADMIN'] },
   { id: 'events',       label: 'Events',       icon: 'bi-calendar-event', roles: ['ADMIN'] },
   { id: 'jobs',             label: 'Jobs',             icon: 'bi-briefcase',      roles: ['ADMIN'] },
-  { id: 'job-applications', label: 'Job Applications', icon: 'bi-send-check',     roles: ['ADMIN'] },
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
   { id: 'urgent-notifications', label: 'Urgent Alerts', icon: 'bi-bell-fill', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
