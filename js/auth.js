@@ -27,7 +27,7 @@ const Auth = (() => {
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
-  const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals'];
+  const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals', 'bio', 'dateOfBirth'];
 
   const SEED_EVENTS = [
     {
@@ -382,6 +382,18 @@ const Auth = (() => {
       .filter(Boolean);
   }
 
+  function deriveAgeFromDateOfBirth(dateOfBirth) {
+    const parsed = new Date(String(dateOfBirth || '').trim());
+    if (Number.isNaN(parsed.getTime())) return '';
+    const now = new Date();
+    let age = now.getFullYear() - parsed.getFullYear();
+    const monthDiff = now.getMonth() - parsed.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.getDate())) {
+      age -= 1;
+    }
+    return age >= 0 ? age : '';
+  }
+
   function normalizeParticipants(participants, users) {
     const participantUsers = users.filter((user) => user.role === 'PARTICIPANT');
     const guardianUsers = users.filter((user) => user.role === 'GUARDIAN');
@@ -411,7 +423,8 @@ const Auth = (() => {
         guardianUserIds: selectedGuardianIds,
         firstName: String(participant.firstName || parts.firstName || '').trim(),
         lastName: String(participant.lastName || parts.lastName || '').trim(),
-        age: Number(participant.age) || '',
+        dateOfBirth: String(participant.dateOfBirth || '').trim(),
+        age: deriveAgeFromDateOfBirth(participant.dateOfBirth) || Number(participant.age) || '',
         contactEmail: legacyContactEmail,
         contactPhone: String(participant.contactPhone || '').trim(),
         specialNeeds: String(participant.specialNeeds || '').trim(),
@@ -420,6 +433,7 @@ const Auth = (() => {
         guardianNotes: String(participant.guardianNotes || '').trim(),
         participantInterests: normalizeParticipantInterests(participant.participantInterests),
         jobGoals: String(participant.jobGoals || '').trim(),
+        bio: String(participant.bio || '').trim(),
         createdAtMs: Number(participant.createdAtMs) || Date.now(),
         dateAdded: participant.dateAdded || formatDateLabel(new Date())
       };
@@ -456,6 +470,12 @@ const Auth = (() => {
           email: linkedUser.email,
           interests: normalizeParticipantInterests(profile.interests),
           availability: String(profile.availability || '').trim(),
+          preferredLocation: String(profile.preferredLocation || '').trim(),
+          pronounsSubject: String(profile.pronounsSubject || '').trim(),
+          pronounsObject: String(profile.pronounsObject || '').trim(),
+          languagesSpoken: Array.isArray(profile.languagesSpoken)
+            ? profile.languagesSpoken.map((item) => String(item).trim()).filter(Boolean)
+            : [],
           backgroundCheckStatus: String(profile.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
           updatedAt: Number(profile.updatedAt) || Date.now(),
           updatedAtLabel: profile.updatedAtLabel || new Date(Number(profile.updatedAt) || Date.now()).toLocaleString('en-US', {
@@ -675,6 +695,7 @@ const Auth = (() => {
 
     return {
       ...participant,
+      age: deriveAgeFromDateOfBirth(participant.dateOfBirth) || participant.age || '',
       fullName: participantDisplayName(participant),
       participantUser,
       guardians,
@@ -682,6 +703,18 @@ const Auth = (() => {
       approvedJobCount,
       pendingApprovalCount,
       subscribedEventCount: eventCount
+    };
+  }
+
+  function decorateVolunteerProfile(profile) {
+    const linkedUser = getUserByIdInternal(profile.userId);
+    const bgRecord = getRawBgChecks().find((record) => String(record.volunteerUserId) === String(profile.userId));
+    return {
+      ...profile,
+      fullName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email,
+      linkedUser,
+      backgroundCheckExpiry: bgRecord?.expiresAtLabel || '',
+      backgroundCheckExpiryMs: bgRecord?.expiresAtMs || null
     };
   }
 
@@ -941,7 +974,9 @@ const Auth = (() => {
       sensoryNotes: String(payload.sensoryNotes || '').trim(),
       guardianNotes: String(payload.guardianNotes || '').trim(),
       participantInterests: normalizeParticipantInterests(payload.participantInterests),
-      jobGoals: String(payload.jobGoals || '').trim()
+      jobGoals: String(payload.jobGoals || '').trim(),
+      bio: String(payload.bio || '').trim(),
+      dateOfBirth: String(payload.dateOfBirth || '').trim()
     };
   }
 
@@ -1084,22 +1119,14 @@ const Auth = (() => {
     const normalizedId = String(identifier || '').trim();
     const normalizedEmail = normalizeEmail(identifier);
     const profile = profiles.find((entry) => String(entry.userId) === normalizedId || entry.email === normalizedEmail);
-    return profile || null;
+    return profile ? decorateVolunteerProfile(profile) : null;
   }
 
   async function getVolunteerProfiles() {
     return getRawVolunteerProfiles()
       .slice()
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .map((profile) => {
-        const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email;
-        const linkedUser = getUserByIdInternal(profile.userId);
-        return {
-          ...profile,
-          fullName,
-          linkedUser
-        };
-      });
+      .map(decorateVolunteerProfile);
   }
 
   async function saveVolunteerProfile(payload) {
@@ -1117,6 +1144,12 @@ const Auth = (() => {
       email: volunteerUser.email,
       interests: normalizeParticipantInterests(payload.interests),
       availability: String(payload.availability || '').trim(),
+      preferredLocation: String(payload.preferredLocation || '').trim(),
+      pronounsSubject: String(payload.pronounsSubject || '').trim(),
+      pronounsObject: String(payload.pronounsObject || '').trim(),
+      languagesSpoken: Array.isArray(payload.languagesSpoken)
+        ? payload.languagesSpoken.map(l => String(l).trim()).filter(Boolean)
+        : [],
       backgroundCheckStatus: String(payload.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
       updatedAt: Date.now(),
       updatedAtLabel: new Date().toLocaleString('en-US', {

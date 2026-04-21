@@ -1,8 +1,88 @@
 <!-- ══ SECTION: Participant — Profile ══ -->
 <section id="section-p-profile" class="content-section d-none">
-  <div class="mb-3">
-    <h5 class="portal-section-title mb-0"><i class="bi bi-person-vcard me-2 text-success"></i>My Profile</h5>
-    <p class="text-muted small mb-0">Review your linked profile and update self-service details.</p>
-  </div>
-  <div id="participantProfileSection"></div>
+  <div id="participantProfileStatus" class="alert alert-success d-none mb-3" role="alert"></div>
+  <div id="participantProfileError" class="alert alert-danger d-none mb-3" role="alert"></div>
+
+  <form id="participantProfileForm" novalidate>
+    <div class="profile-shell">
+
+      <div class="profile-header" id="participantProfileHeader"></div>
+
+      <div class="card border-0 shadow-sm mb-0" id="participantProfileSummaryCard" style="background: linear-gradient(135deg, rgba(25,135,84,0.09), rgba(13,110,253,0.06));">
+        <div class="card-body py-3">
+          <div id="participantProfileSummaryContent"></div>
+        </div>
+      </div>
+
+      <div class="profile-grid">
+        <div class="profile-main">
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">About Me</h3>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="participantDateOfBirthInput" class="form-label">Date of Birth</label>
+                <input type="date" class="form-control" id="participantDateOfBirthInput">
+              </div>
+              <div class="col-12">
+                <label for="participantBioInput" class="form-label">Bio</label>
+                <textarea class="form-control" id="participantBioInput" rows="3" placeholder="Share a little about yourself, your strengths, and what matters to you."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Interests &amp; Goals</h3>
+            <div class="mb-3">
+              <label class="form-label">Personal Interests</label>
+              <div id="participantInterestsChips"></div>
+            </div>
+            <div>
+              <label for="participantJobGoalsInput" class="form-label">Personal Goals</label>
+              <textarea class="form-control" id="participantJobGoalsInput" rows="3" placeholder="What kind of work, routines, or goals matter most to you?"></textarea>
+            </div>
+          </div>
+
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Support Context</h3>
+            <div id="participantSupportReadonlyBanner" class="mb-3"></div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label for="participantSpecialNeedsReadonly" class="form-label">Support Needs</label>
+                <textarea class="form-control" id="participantSpecialNeedsReadonly" rows="4" readonly></textarea>
+              </div>
+              <div class="col-md-4">
+                <label for="participantMedicalReadonly" class="form-label">Medical Notes</label>
+                <textarea class="form-control" id="participantMedicalReadonly" rows="4" readonly></textarea>
+              </div>
+              <div class="col-md-4">
+                <label for="participantSensoryReadonly" class="form-label">Sensory Notes</label>
+                <textarea class="form-control" id="participantSensoryReadonly" rows="4" readonly></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-rail">
+          <div class="profile-rail-block">
+            <h4 class="profile-rail-title">Linked Contacts</h4>
+            <div id="participantLinkedContacts"></div>
+          </div>
+
+          <div class="profile-rail-block">
+            <h4 class="profile-rail-title">Profile Completeness</h4>
+            <div id="participantCompleteness"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-actions-bar">
+        <button type="submit" class="btn btn-success fw-semibold" id="participantProfileSubmitBtn">
+          <i class="bi bi-check-lg me-1"></i>Save Changes
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="participantProfileCancelBtn">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </form>
 </section>

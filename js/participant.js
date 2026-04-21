@@ -7,14 +7,16 @@ document.addEventListener('sections:ready', async (e) => {
   const session = e.detail.session;
   if (!session || !['PARTICIPANT', 'GUARDIAN'].includes(session.role)) return;
 
-  function escHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  const {
+    escHtml,
+    renderProfileHeader,
+    renderInterestChips,
+    readOnlyPanelHTML,
+    linkedRowHTML,
+    renderCompletenessMeter,
+    calcCompleteness,
+    VOLUNTEER_INTERESTS
+  } = await import('./profile-ui.js');
 
   function emptyState(icon, message) {
     return `<div class="portal-empty-state"><i class="bi ${icon}"></i><p>${message}</p></div>`;
@@ -84,6 +86,11 @@ document.addEventListener('sections:ready', async (e) => {
       </div>`;
   }
 
+  const participantInterestChipsEl = document.getElementById('participantInterestsChips');
+  const participantInterestChips = participantInterestChipsEl
+    ? renderInterestChips(participantInterestChipsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+
   function buildEventCard(event, options = {}) {
     const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
     const isPast = !isNaN(ts) && ts < Date.now();
@@ -139,67 +146,104 @@ document.addEventListener('sections:ready', async (e) => {
       </div>`;
   }
 
-  async function renderParticipantDashboard() {
-    if (session.role !== 'PARTICIPANT') return;
-    const participant = await Auth.getMyParticipantRecord();
-    const statusEl = document.getElementById('participantProfileStatus');
-    const errorEl = document.getElementById('participantProfileError');
-    const sectionEl = document.getElementById('participantProfileSection');
-    const selfForm = document.getElementById('participantSelfProfileForm');
+  function renderParticipantDashboardProfileSummary(participant) {
+    const container = document.getElementById('participantDashboardProfileSummary');
+    if (!container) return;
+    container.innerHTML = participant ? `
+      <div class="row g-3 align-items-center">
+        <div class="col-md-8">
+          <div class="fw-semibold">${escHtml(participant.fullName)}</div>
+          <div class="text-muted small">Age ${escHtml(participant.age || '—')} · Linked contacts: ${escHtml(participant.guardianNames.join(', ') || 'None')}</div>
+          <div class="small mt-2"><span class="fw-semibold">Interests:</span> ${escHtml(participant.participantInterests.join(', ') || 'No interests yet')}</div>
+          <div class="small mt-1"><span class="fw-semibold">Goals:</span> ${escHtml(participant.jobGoals || 'No goals added yet')}</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+          <button type="button" class="btn btn-success btn-sm" onclick="navigateTo('p-profile')">
+            View / Edit Profile <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </div>
+    ` : '<div class="alert alert-warning mb-0">No participant record is linked to this login yet. Ask an administrator to link your participant profile.</div>';
+  }
 
-    if (!participant) {
-      document.getElementById('panel-PARTICIPANT')?.classList.add('d-none');
-      if (sectionEl) {
-        sectionEl.innerHTML = '<div class="alert alert-warning mb-0">No participant record is linked to this login yet. Ask an administrator to link your participant profile.</div>';
-      }
-      return;
-    }
+  function renderParticipantProfileWorkspace(participant) {
+    const form = document.getElementById('participantProfileForm');
+    if (!form) return;
 
-    document.getElementById('participantInterestsInput').value = participant.participantInterests.join(', ');
-    document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
-    document.getElementById('participantSpecialNeedsReadonly').value = participant.specialNeeds || '';
-    document.getElementById('participantMedicalReadonly').value = participant.medicalNotes || '';
-    document.getElementById('participantSensoryReadonly').value = participant.sensoryNotes || '';
+    renderProfileHeader(document.getElementById('participantProfileHeader'), {
+      name: participant.fullName,
+      role: 'Participant',
+      managedBy: 'Shared with guardian and admin',
+      lastUpdatedMs: participant.createdAtMs
+    });
 
-    if (sectionEl) {
-      sectionEl.innerHTML = `
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="fw-semibold">${escHtml(participant.fullName)}</div>
-                <div class="text-muted small">Age ${escHtml(participant.age || '—')}</div>
-                <div class="text-muted small mt-2">Linked guardians: ${escHtml(participant.guardianNames.join(', ') || 'None')}</div>
-              </div>
-              <div class="col-md-6">
-                <div class="small"><span class="fw-semibold">Interests:</span> ${escHtml(participant.participantInterests.join(', ') || 'No interests yet')}</div>
-                <div class="small mt-2"><span class="fw-semibold">Job goals:</span> ${escHtml(participant.jobGoals || 'No goals yet')}</div>
-              </div>
+    const summaryContent = document.getElementById('participantProfileSummaryContent');
+    if (summaryContent) {
+      summaryContent.innerHTML = `
+        <div class="row g-3 align-items-center">
+          <div class="col-md-8">
+            <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-stars me-2 text-success"></i>Profile Snapshot</h6>
+            <div class="d-flex flex-wrap gap-3 small">
+              <div><span class="text-muted">Interests</span><br><strong>${escHtml(participant.participantInterests.length || 0)}</strong> selected</div>
+              <div><span class="text-muted">Linked Contacts</span><br><strong>${escHtml(participant.guardianNames.length || 0)}</strong> on file</div>
+              <div class="flex-grow-1"><span class="text-muted">Bio</span><br>${escHtml(participant.bio || 'Add a short introduction about yourself')}</div>
             </div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <span class="badge text-bg-light border">${escHtml(participant.participantUser?.email || session.email)}</span>
           </div>
         </div>`;
     }
 
-    await renderParticipantDashboardSnapshot();
+    document.getElementById('participantBioInput').value = participant.bio || '';
+    document.getElementById('participantDateOfBirthInput').value = participant.dateOfBirth || '';
+    document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
+    document.getElementById('participantSpecialNeedsReadonly').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalReadonly').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryReadonly').value = participant.sensoryNotes || '';
+    participantInterestChips?.setSelected(participant.participantInterests || []);
 
-    selfForm?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      statusEl?.classList.add('d-none');
-      errorEl?.classList.add('d-none');
-      const result = await Auth.updateMyParticipantProfile({
-        participantInterests: document.getElementById('participantInterestsInput').value,
-        jobGoals: document.getElementById('participantJobGoalsInput').value
-      });
-      if (!result.success) {
-        errorEl.textContent = result.message || 'Could not update your profile.';
-        errorEl.classList.remove('d-none');
-        return;
-      }
-      statusEl.textContent = 'Your self-service profile updates have been saved.';
-      statusEl.classList.remove('d-none');
-      await renderParticipantDashboard();
-      await renderParticipantSavedJobs();
-    }, { once: true });
+    const readonlyBanner = document.getElementById('participantSupportReadonlyBanner');
+    if (readonlyBanner) {
+      readonlyBanner.innerHTML = readOnlyPanelHTML('Care needs and support notes', 'Managed by guardian or admin');
+    }
+
+    const contacts = document.getElementById('participantLinkedContacts');
+    if (contacts) {
+      contacts.innerHTML = participant.guardians.length
+        ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+        : '<div class="text-muted small">No linked contacts yet.</div>';
+    }
+
+    const completenessEl = document.getElementById('participantCompleteness');
+    if (completenessEl) {
+      renderCompletenessMeter(completenessEl, calcCompleteness({
+        bio: participant.bio,
+        dateOfBirth: participant.dateOfBirth,
+        interests: participant.participantInterests,
+        jobGoals: participant.jobGoals,
+        specialNeeds: participant.specialNeeds,
+        contactEmail: participant.contactEmail
+      }));
+    }
+  }
+
+  async function renderParticipantDashboard() {
+    if (session.role !== 'PARTICIPANT') return;
+    const participant = await Auth.getMyParticipantRecord();
+    const form = document.getElementById('participantProfileForm');
+
+    if (!participant) {
+      document.getElementById('panel-PARTICIPANT')?.classList.add('d-none');
+      renderParticipantDashboardProfileSummary(null);
+      form?.classList.add('d-none');
+      return;
+    }
+
+    form?.classList.remove('d-none');
+    renderParticipantDashboardProfileSummary(participant);
+    renderParticipantProfileWorkspace(participant);
+    await renderParticipantDashboardSnapshot();
   }
 
   async function renderParticipantDashboardSnapshot() {
@@ -430,29 +474,97 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   function participantCard(participant) {
+    const participantName = participant.fullName || 'Participant';
+    const linkedContacts = participant.guardians?.length
+      ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+      : '<div class="text-muted small">No linked guardian contacts.</div>';
+    const completeness = calcCompleteness({
+      firstName: participant.firstName,
+      lastName: participant.lastName,
+      dateOfBirth: participant.dateOfBirth,
+      participantInterests: participant.participantInterests,
+      jobGoals: participant.jobGoals,
+      specialNeeds: participant.specialNeeds,
+      contactEmail: participant.contactEmail,
+      contactPhone: participant.contactPhone,
+      bio: participant.bio
+    });
+
+    const completenessHtml = `
+      <div class="profile-completeness">
+        <div class="profile-completeness-label">
+          <span>Profile Completeness</span>
+          <span>${completeness}%</span>
+        </div>
+        <div class="progress" role="progressbar"
+          aria-valuenow="${completeness}" aria-valuemin="0" aria-valuemax="100"
+          aria-label="Profile ${completeness}% complete">
+          <div class="progress-bar" style="width: ${completeness}%"></div>
+        </div>
+      </div>`;
+
     return `
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <h6 class="mb-1">${escHtml(participant.fullName)}</h6>
-              <div class="text-muted small">Participant login: ${escHtml(participant.participantUser?.email || 'Unlinked')}</div>
-              <div class="text-muted small">Primary contact: ${escHtml(participant.contactEmail || '—')} • ${escHtml(participant.contactPhone || '—')}</div>
+      <div class="profile-section-card guardian-participant-card">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h3 class="profile-section-title mb-0 border-0 p-0">${escHtml(participantName)}</h3>
+              <span class="badge bg-success">Participant</span>
             </div>
-            <div class="text-end small">
-              <div><span class="badge text-bg-warning">${escHtml(participant.pendingApprovalCount)}</span> pending approvals</div>
-              <div class="mt-1"><span class="badge text-bg-success">${escHtml(participant.approvedJobCount)}</span> approved interests</div>
+            <div class="guardian-participant-meta">
+              <span class="guardian-participant-stat"><i class="bi bi-envelope"></i>${escHtml(participant.participantUser?.email || 'Unlinked')}</span>
+              <span class="guardian-participant-stat"><i class="bi bi-telephone"></i>${escHtml(participant.contactPhone || '—')}</span>
+              <span class="guardian-participant-stat"><i class="bi bi-person-lines-fill"></i>${escHtml(participant.contactEmail || '—')}</span>
             </div>
           </div>
-          <hr>
-          <div class="row g-3 small">
-            <div class="col-md-6"><span class="fw-semibold">Support needs:</span> ${escHtml(participant.specialNeeds || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Medical notes:</span> ${escHtml(participant.medicalNotes || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Sensory notes:</span> ${escHtml(participant.sensoryNotes || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Participant interests:</span> ${escHtml(participant.participantInterests.join(', ') || '—')}</div>
-            <div class="col-12"><span class="fw-semibold">Guardian notes:</span> ${escHtml(participant.guardianNotes || '—')}</div>
-            <div class="col-12"><span class="fw-semibold">Job goals:</span> ${escHtml(participant.jobGoals || '—')}</div>
+          <div class="profile-kpi-grid flex-grow-1">
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Pending Approvals</div>
+              <div class="profile-kpi-value">${escHtml(participant.pendingApprovalCount)}</div>
+              <div class="profile-kpi-note">Items waiting for guardian review.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Approved Interests</div>
+              <div class="profile-kpi-value">${escHtml(participant.approvedJobCount)}</div>
+              <div class="profile-kpi-note">Vocational interests already cleared.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Profile Completeness</div>
+              ${completenessHtml}
+            </div>
           </div>
+        </div>
+
+        <div class="profile-support-grid">
+          <div class="profile-support-item">
+            <strong>Support Needs</strong>
+            <span>${escHtml(participant.specialNeeds || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Medical Notes</strong>
+            <span>${escHtml(participant.medicalNotes || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Sensory Notes</strong>
+            <span>${escHtml(participant.sensoryNotes || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Participant Interests</strong>
+            <span>${escHtml(participant.participantInterests.join(', ') || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Job Goals</strong>
+            <span>${escHtml(participant.jobGoals || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Guardian Notes</strong>
+            <span>${escHtml(participant.guardianNotes || '—')}</span>
+          </div>
+        </div>
+
+        <div class="profile-rail-block mt-3">
+          <h4 class="profile-rail-title">Linked Contacts</h4>
+          ${linkedContacts}
         </div>
       </div>`;
   }
@@ -463,32 +575,78 @@ document.addEventListener('sections:ready', async (e) => {
     const approvals = await Auth.getPendingApprovals();
     const summary = document.getElementById('guardianDashboardSummary');
     if (summary) {
-      summary.innerHTML = participants.length
-        ? `
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="border rounded p-3 bg-light h-100">
-                <div class="text-muted small text-uppercase">Linked participants</div>
-                <div class="display-6 fw-semibold">${participants.length}</div>
-                <div class="small text-muted">${participants.map((participant) => escHtml(participant.fullName)).join(', ')}</div>
+      if (!participants.length) {
+        summary.innerHTML = '<div class="alert alert-warning mb-0">No participants are linked to this guardian account yet.</div>';
+      } else {
+        const pendingCount = approvals.filter((approval) => approval.status === 'PENDING').length;
+        const avgCompleteness = Math.round(participants.reduce((sum, participant) => (
+          sum + calcCompleteness({
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            dateOfBirth: participant.dateOfBirth,
+            participantInterests: participant.participantInterests,
+            jobGoals: participant.jobGoals,
+            specialNeeds: participant.specialNeeds,
+            contactEmail: participant.contactEmail,
+            contactPhone: participant.contactPhone,
+            bio: participant.bio
+          })
+        ), 0) / participants.length);
+
+        summary.innerHTML = `
+          <div class="profile-shell">
+            <div class="profile-header" id="guardianDashboardHeader"></div>
+            <div class="profile-grid">
+              <div class="profile-main">
+                <div class="profile-section-card">
+                  <h3 class="profile-section-title">Guardian Overview</h3>
+                  <p class="profile-summary-copy">Review your linked participants, monitor support context, and keep up with vocational approvals from one place.</p>
+                  <div class="profile-kpi-grid">
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Linked Participants</div>
+                      <div class="profile-kpi-value">${participants.length}</div>
+                      <div class="profile-kpi-note">${participants.map((participant) => escHtml(participant.fullName)).join(', ')}</div>
+                    </div>
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Pending Approvals</div>
+                      <div class="profile-kpi-value">${pendingCount}</div>
+                      <div class="profile-kpi-note">Vocational interests waiting for your review.</div>
+                    </div>
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Average Completeness</div>
+                      <div class="profile-kpi-value">${avgCompleteness}%</div>
+                      <div class="profile-kpi-note">Across all linked participant profiles.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="profile-rail">
+                <div class="profile-rail-block">
+                  <h4 class="profile-rail-title">Quick Actions</h4>
+                  <div class="profile-inline-actions">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="navigateTo('g-approvals')"><i class="bi bi-shield-check me-1"></i>Review approvals</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-participants')"><i class="bi bi-people-fill me-1"></i>Participant profiles</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-newsletter')"><i class="bi bi-envelope-paper me-1"></i>Family newsletter</button>
+                  </div>
+                </div>
+                <div class="profile-rail-block">
+                  <h4 class="profile-rail-title">Linked Contacts</h4>
+                  ${participants.map((participant) => linkedRowHTML({ name: participant.fullName, role: participant.contactEmail || 'Primary contact on file', icon: 'bi-person-badge' })).join('')}
+                </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="border rounded p-3 bg-light h-100">
-                <div class="text-muted small text-uppercase">Pending approvals</div>
-                <div class="display-6 fw-semibold">${approvals.filter((approval) => approval.status === 'PENDING').length}</div>
-                <div class="small text-muted">Vocational interests waiting for your review.</div>
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="d-flex flex-wrap gap-2 pt-1">
-                <button type="button" class="btn btn-sm btn-primary" onclick="navigateTo('g-approvals')"><i class="bi bi-shield-check me-1"></i>Review approvals</button>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-participants')"><i class="bi bi-people-fill me-1"></i>Participant profiles</button>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-newsletter')"><i class="bi bi-envelope-paper me-1"></i>Family newsletter</button>
-              </div>
-            </div>
-          </div>`
-        : '<div class="alert alert-warning mb-0">No participants are linked to this guardian account yet.</div>';
+          </div>`;
+
+        const guardianHeader = document.getElementById('guardianDashboardHeader');
+        if (guardianHeader) {
+          renderProfileHeader(guardianHeader, {
+            name: session.name || 'Guardian',
+            role: 'Guardian',
+            managedBy: 'Family management workspace',
+            lastUpdatedMs: Math.max(...participants.map((participant) => participant.createdAtMs || 0))
+          });
+        }
+      }
     }
 
     const participantsContainer = document.getElementById('guardianParticipantsList');
@@ -496,6 +654,39 @@ document.addEventListener('sections:ready', async (e) => {
       participantsContainer.innerHTML = participants.length
         ? participants.map(participantCard).join('')
         : emptyState('bi-people', 'No participants are linked to your guardian account yet.');
+    }
+
+    const guardianParticipantsHeader = document.getElementById('guardianParticipantsHeader');
+    if (guardianParticipantsHeader) {
+      renderProfileHeader(guardianParticipantsHeader, {
+        name: session.name || 'Guardian',
+        role: 'Guardian',
+        managedBy: 'Linked participant management',
+        lastUpdatedMs: Math.max(...participants.map((participant) => participant.createdAtMs || 0))
+      });
+    }
+
+    const guardianParticipantsSummary = document.getElementById('guardianParticipantsSummary');
+    if (guardianParticipantsSummary) {
+      const pendingCount = approvals.filter((approval) => approval.status === 'PENDING').length;
+      guardianParticipantsSummary.innerHTML = participants.length
+        ? `
+          <div class="profile-kpi-grid">
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Profiles</div>
+              <div class="profile-kpi-value">${participants.length}</div>
+              <div class="profile-kpi-note">Linked participant records you can review.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Approvals</div>
+              <div class="profile-kpi-value">${pendingCount}</div>
+              <div class="profile-kpi-note">Items currently waiting for a decision.</div>
+            </div>
+          </div>
+          <div class="mt-3">
+            ${participants.map((participant) => linkedRowHTML({ name: participant.fullName, role: participant.participantUser?.email || participant.contactEmail || 'Participant profile', icon: 'bi-person-vcard' })).join('')}
+          </div>`
+        : '<div class="text-muted small">No linked participant records yet.</div>';
     }
   }
 
@@ -574,6 +765,51 @@ document.addEventListener('sections:ready', async (e) => {
 
   if (session.role === 'PARTICIPANT') {
     const _pBellConfig = { notificationsSection: 'p-notifications', role: 'PARTICIPANT', eventSection: 'p-events', jobSection: 'p-jobs' };
+    const participantForm = document.getElementById('participantProfileForm');
+    const participantStatusEl = document.getElementById('participantProfileStatus');
+    const participantErrorEl = document.getElementById('participantProfileError');
+
+    participantForm?.addEventListener('input', () => {
+      participantStatusEl?.classList.add('d-none');
+      participantErrorEl?.classList.add('d-none');
+    });
+
+    document.getElementById('participantProfileCancelBtn')?.addEventListener('click', async () => {
+      participantForm?.classList.remove('was-validated');
+      participantStatusEl?.classList.add('d-none');
+      participantErrorEl?.classList.add('d-none');
+      await renderParticipantDashboard();
+    });
+
+    participantForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      participantForm.classList.add('was-validated');
+      const interestsValid = participantInterestChips?.validate() ?? true;
+      if (!participantForm.checkValidity() || !interestsValid) return;
+
+      const result = await Auth.updateMyParticipantProfile({
+        participantInterests: participantInterestChips?.getSelected() || [],
+        jobGoals: document.getElementById('participantJobGoalsInput')?.value || '',
+        bio: document.getElementById('participantBioInput')?.value || '',
+        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || ''
+      });
+
+      if (!result.success) {
+        if (participantErrorEl) {
+          participantErrorEl.textContent = result.message || 'Could not update your profile.';
+          participantErrorEl.classList.remove('d-none');
+        }
+        return;
+      }
+
+      if (participantStatusEl) {
+        participantStatusEl.textContent = 'Your profile changes have been saved.';
+        participantStatusEl.classList.remove('d-none');
+      }
+      await renderParticipantDashboard();
+      await renderParticipantSavedJobs();
+    });
+
     await renderParticipantDashboard();
     await renderParticipantEventPreview();
     await renderParticipantSavedJobs();

@@ -33,12 +33,30 @@ document.addEventListener('sections:ready', async (e) => {
     Vocational: 'badge-event-vocational'
   };
 
+  const { renderProfileHeader, renderInterestChips, renderLanguageChips,
+          VOLUNTEER_INTERESTS, renderCompletenessMeter, calcCompleteness,
+          linkedRowHTML, adminNoteHTML, fieldAttrBadge } = await import('./profile-ui.js');
+
   const registerForm = document.getElementById('registerForm');
   const registerError = document.getElementById('registerError');
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const volunteerAdminForm = document.getElementById('volunteerAdminForm');
   const volunteerAdminError = document.getElementById('volunteerAdminError');
+
+  // ── Admin volunteer chip selectors (initialized once) ─────────────────────
+  const _adminVolInterestsEl  = document.getElementById('adminVolInterestsChips');
+  const _adminVolLanguagesEl  = document.getElementById('adminVolLanguagesChips');
+  const adminVolInterestChips = _adminVolInterestsEl
+    ? renderInterestChips(_adminVolInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const adminVolLangChips = _adminVolLanguagesEl
+    ? renderLanguageChips(_adminVolLanguagesEl, [])
+    : null;
+  const _participantInterestsEl = document.getElementById('participantInterestsChips');
+  const participantInterestChips = _participantInterestsEl
+    ? renderInterestChips(_participantInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const jobForm = document.getElementById('jobForm');
@@ -84,6 +102,25 @@ document.addEventListener('sections:ready', async (e) => {
   function splitFullName(fullName) {
     const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
+  }
+
+  function deriveAgeFromDateOfBirth(dateOfBirth) {
+    const parsed = new Date(String(dateOfBirth || '').trim());
+    if (Number.isNaN(parsed.getTime())) return '';
+    const now = new Date();
+    let age = now.getFullYear() - parsed.getFullYear();
+    const monthDiff = now.getMonth() - parsed.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.getDate())) age -= 1;
+    return age >= 0 ? age : '';
+  }
+
+  function updateParticipantAgeDisplay(fallbackAge = '') {
+    const dob = document.getElementById('participantDateOfBirth')?.value || '';
+    const age = deriveAgeFromDateOfBirth(dob);
+    const ageEl = document.getElementById('participantAge');
+    const nextAge = age || fallbackAge || '';
+    if (ageEl) ageEl.value = nextAge;
+    return nextAge;
   }
 
   function getSelectedValues(selectEl) {
@@ -155,7 +192,7 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   function setFormFieldsDisabled(formId, disabled) {
-    document.getElementById(formId).querySelectorAll('input, select, textarea').forEach((el) => {
+    document.getElementById(formId).querySelectorAll('input, select, textarea, .profile-chip').forEach((el) => {
       el.disabled = disabled;
     });
   }
@@ -305,12 +342,29 @@ document.addEventListener('sections:ready', async (e) => {
     participantForm?.classList.remove('was-validated');
     participantError?.classList.add('d-none');
     editingParticipantId = null;
+    participantInterestChips?.setSelected([]);
     const submitBtn = document.getElementById('participantSubmitBtn');
-    if (submitBtn) submitBtn.textContent = 'Save Participant Record';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
+    const ageEl = document.getElementById('participantAge');
+    if (ageEl) ageEl.value = '';
     document.getElementById('participantCreateUserToggle').checked = false;
     document.getElementById('participantNewUserEmail').value = '';
     document.getElementById('participantNewUserPassword').value = '';
     toggleInlineParticipantUserFields();
+    const headerEl = document.getElementById('participantAdminProfileHeader');
+    if (headerEl) {
+      headerEl.innerHTML = `
+        <div class="profile-avatar">P</div>
+        <div class="profile-header-meta">
+          <div class="profile-header-name">New Participant</div>
+          <div class="profile-header-sub"><span class="badge bg-success">Participant</span></div>
+        </div>`;
+    }
+    document.getElementById('participantGuardianSummary').innerHTML = '';
+    document.getElementById('participantAdminNotesSummary').innerHTML = '';
+    document.getElementById('participantAdminMeta').textContent = '—';
+    document.getElementById('participantAdminCompleteness').innerHTML = '';
+    applyParticipantFieldAttribution();
   }
 
   function resetVolunteerFormState() {
@@ -318,17 +372,29 @@ document.addEventListener('sections:ready', async (e) => {
     volunteerAdminForm?.classList.remove('was-validated');
     volunteerAdminError?.classList.add('d-none');
     editingVolunteerUserId = null;
-    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
-    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
+    adminVolInterestChips?.setSelected([]);
+    adminVolLangChips?.setSelected([]);
     const submitBtn = document.getElementById('volunteerAdminSubmitBtn');
-    if (submitBtn) submitBtn.textContent = 'Save Volunteer Profile';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
     const bgSelect = document.getElementById('adminVolBackgroundCheck');
     if (bgSelect) bgSelect.disabled = false;
     document.getElementById('adminVolCreateUserToggle').checked = false;
     document.getElementById('adminVolNewUserEmail').value = '';
     document.getElementById('adminVolNewUserPassword').value = '';
-    setAdminVolunteerOtherInterestInputState();
     toggleInlineVolunteerUserFields();
+    const headerEl = document.getElementById('adminVolProfileHeader');
+    if (headerEl) {
+      headerEl.innerHTML = `
+        <div class="profile-avatar">V</div>
+        <div class="profile-header-meta">
+          <div class="profile-header-name">New Volunteer Profile</div>
+          <div class="profile-header-sub"><span class="badge bg-info text-dark">Volunteer</span></div>
+        </div>`;
+    }
+    const railMeta = document.getElementById('adminVolRailMeta');
+    if (railMeta) railMeta.textContent = '—';
+    const completenessEl = document.getElementById('adminVolCompleteness');
+    if (completenessEl) completenessEl.innerHTML = '';
   }
 
   function resetEventFormState() {
@@ -341,6 +407,99 @@ document.addEventListener('sections:ready', async (e) => {
     const urgentCheck = document.getElementById('eventIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
     document.getElementById('eventVolunteersPanel')?.classList.add('d-none');
+  }
+
+  function renderParticipantAdminRail(participant) {
+    const guardianSummary = document.getElementById('participantGuardianSummary');
+    if (guardianSummary) {
+      guardianSummary.innerHTML = participant.guardians?.length
+        ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+        : '<div class="text-muted small">No linked guardians.</div>';
+    }
+
+    const notesSummary = document.getElementById('participantAdminNotesSummary');
+    if (notesSummary) {
+      const notes = [
+        participant.guardianNotes && `Guardian/Admin notes: ${participant.guardianNotes}`,
+        participant.specialNeeds && `Support needs: ${participant.specialNeeds}`
+      ].filter(Boolean);
+      notesSummary.innerHTML = notes.length
+        ? notes.slice(0, 2).map((note) => adminNoteHTML(note)).join('')
+        : '<div class="text-muted small">No admin notes added yet.</div>';
+    }
+
+    const metaEl = document.getElementById('participantAdminMeta');
+    if (metaEl) {
+      metaEl.innerHTML = `
+        <div>Created: ${escapeHtml(participant.dateAdded || 'N/A')}</div>
+        <div class="mt-1">Participant login: ${escapeHtml(participant.participantUser?.email || 'Unlinked')}</div>
+      `;
+    }
+
+    const completenessEl = document.getElementById('participantAdminCompleteness');
+    if (completenessEl) {
+      renderCompletenessMeter(completenessEl, calcCompleteness({
+        firstName: participant.firstName,
+        lastName: participant.lastName,
+        dateOfBirth: participant.dateOfBirth,
+        participantInterests: participant.participantInterests,
+        jobGoals: participant.jobGoals,
+        specialNeeds: participant.specialNeeds,
+        contactEmail: participant.contactEmail,
+        contactPhone: participant.contactPhone,
+        bio: participant.bio
+      }));
+    }
+  }
+
+  function applyParticipantFieldAttribution() {
+    const mappings = [
+      ['participantDobAttr', 'Participant'],
+      ['participantBioAttr', 'Participant'],
+      ['participantInterestsAttr', 'Participant'],
+      ['participantGoalsAttr', 'Participant'],
+      ['participantSupportAttr', 'Admin'],
+      ['participantMedicalAttr', 'Admin'],
+      ['participantSensoryAttr', 'Admin'],
+      ['participantGuardianAttr', 'Admin']
+    ];
+    mappings.forEach(([id, label]) => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = fieldAttrBadge(label);
+    });
+  }
+
+  function populateParticipantFormFromRecord(participant) {
+    document.getElementById('participantFirstName').value = participant.firstName || '';
+    document.getElementById('participantLastName').value = participant.lastName || '';
+    document.getElementById('participantDateOfBirth').value = participant.dateOfBirth || '';
+    updateParticipantAgeDisplay(participant.age || '');
+    document.getElementById('participantUserId').value = participant.participantUserId || '';
+    Array.from(document.getElementById('participantGuardianIds').options).forEach((option) => {
+      option.selected = participant.guardianUserIds.includes(option.value);
+    });
+    document.getElementById('participantEmail').value = participant.contactEmail || '';
+    document.getElementById('participantPhone').value = participant.contactPhone || '';
+    participantInterestChips?.setSelected(participant.participantInterests || []);
+    document.getElementById('participantJobGoals').value = participant.jobGoals || '';
+    document.getElementById('participantBio').value = participant.bio || '';
+    document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
+    document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
+    document.getElementById('participantCreateUserToggle').checked = false;
+    toggleInlineParticipantUserFields();
+    const headerEl = document.getElementById('participantAdminProfileHeader');
+    if (headerEl) {
+      renderProfileHeader(headerEl, {
+        name: participant.fullName || `${participant.firstName || ''} ${participant.lastName || ''}`.trim(),
+        role: 'Participant',
+        managedBy: 'Shared with family and admin',
+        lastUpdatedMs: participant.createdAtMs
+      });
+    }
+    renderParticipantAdminRail(participant);
+    applyParticipantFieldAttribution();
   }
 
   async function renderEventVolunteersPanel(eventId) {
@@ -429,57 +588,6 @@ document.addEventListener('sections:ready', async (e) => {
     if (submitBtn) submitBtn.textContent = 'Save Opportunity';
     const urgentCheck = document.getElementById('jobIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
-  }
-
-  function setAdminVolunteerOtherInterestInputState() {
-    const checkbox = document.getElementById('adminVolInterestOther');
-    const input = document.getElementById('adminVolInterestOtherText');
-    const enabled = Boolean(checkbox?.checked);
-    if (!input) return;
-    input.disabled = !enabled;
-    if (!enabled) input.value = '';
-  }
-
-  function getAdminSelectedVolunteerInterests() {
-    const values = Array.from(document.querySelectorAll('input[name="adminVolInterests"]:checked')).map((checkbox) => checkbox.value);
-    if (values.includes('Other')) {
-      const custom = String(document.getElementById('adminVolInterestOtherText')?.value || '').trim();
-      if (custom) {
-        return values.map((value) => value === 'Other' ? `Other: ${custom}` : value);
-      }
-    }
-    return values;
-  }
-
-  function setAdminSelectedVolunteerInterests(interests) {
-    const list = Array.isArray(interests) ? interests : [];
-    let otherText = '';
-    Array.from(document.querySelectorAll('input[name="adminVolInterests"]')).forEach((checkbox) => {
-      if (checkbox.value === 'Other') {
-        const custom = list.find((item) => String(item).startsWith('Other:'));
-        checkbox.checked = Boolean(custom) || list.includes('Other');
-        otherText = custom ? String(custom).replace(/^Other:\s*/i, '').trim() : '';
-      } else {
-        checkbox.checked = list.includes(checkbox.value);
-      }
-    });
-    setAdminVolunteerOtherInterestInputState();
-    const input = document.getElementById('adminVolInterestOtherText');
-    if (input && otherText) input.value = otherText;
-  }
-
-  function validateAdminVolunteerInterests() {
-    const selected = getAdminSelectedVolunteerInterests();
-    const group = document.getElementById('adminVolInterestsGroup');
-    const feedback = document.getElementById('adminVolInterestsFeedback');
-    if (!selected.length) {
-      group?.classList.add('border-danger');
-      feedback?.classList.remove('d-none');
-      return false;
-    }
-    group?.classList.remove('border-danger');
-    feedback?.classList.add('d-none');
-    return true;
   }
 
   async function renderUsersTable() {
@@ -587,27 +695,11 @@ document.addEventListener('sections:ready', async (e) => {
       button.addEventListener('click', async () => {
         const participant = await Auth.getParticipantById(button.dataset.participantEditId);
         if (!participant) return;
-        document.getElementById('participantFirstName').value = participant.firstName || '';
-        document.getElementById('participantLastName').value = participant.lastName || '';
-        document.getElementById('participantAge').value = participant.age || '';
-        document.getElementById('participantUserId').value = participant.participantUserId || '';
-        Array.from(document.getElementById('participantGuardianIds').options).forEach((option) => {
-          option.selected = participant.guardianUserIds.includes(option.value);
-        });
-        document.getElementById('participantEmail').value = participant.contactEmail || '';
-        document.getElementById('participantPhone').value = participant.contactPhone || '';
-        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
-        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
-        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
-        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
-        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
-        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
-        document.getElementById('participantCreateUserToggle').checked = false;
-        toggleInlineParticipantUserFields();
+        populateParticipantFormFromRecord(participant);
         editingParticipantId = participant.id;
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');
-        document.getElementById('participantSubmitBtn').textContent = 'Update Participant Record';
+        document.getElementById('participantSubmitBtn').textContent = 'Save Changes';
         participantsViewOrigin = null;
         showParticipantsFormView(true, true);
       });
@@ -741,19 +833,56 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('adminVolLastName').value = profile.lastName || '';
         document.getElementById('adminVolPhone').value = profile.phone || '';
         document.getElementById('adminVolAvailability').value = profile.availability || '';
+        const prefLocEl = document.getElementById('adminVolPreferredLocation');
+        if (prefLocEl) prefLocEl.value = profile.preferredLocation || '';
+        const pronSubjEl = document.getElementById('adminVolPronounsSubject');
+        const pronObjEl  = document.getElementById('adminVolPronounsObject');
+        if (pronSubjEl) pronSubjEl.value = profile.pronounsSubject || '';
+        if (pronObjEl)  pronObjEl.value  = profile.pronounsObject  || '';
+
         const bgSelect = document.getElementById('adminVolBackgroundCheck');
         bgSelect.value = profile.backgroundCheckStatus || 'Not Started';
-
         const bgRecord = await Auth.getBgCheckRecord(profile.userId);
         const isLocked = profile.backgroundCheckStatus === 'Cleared'
           && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
         bgSelect.disabled = isLocked;
 
-        setAdminSelectedVolunteerInterests(profile.interests);
+        adminVolInterestChips?.setSelected(profile.interests || []);
+        adminVolLangChips?.setSelected(profile.languagesSpoken || []);
+
+        // Render profile header
+        const headerEl = document.getElementById('adminVolProfileHeader');
+        if (headerEl) {
+          renderProfileHeader(headerEl, {
+            name: profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+            role: 'Volunteer',
+            lastUpdatedMs: profile.updatedAt
+          });
+        }
+
+        // Render right rail
+        const railMeta = document.getElementById('adminVolRailMeta');
+        if (railMeta) {
+          railMeta.innerHTML = `
+            <div class="small text-muted">Last updated: ${escapeHtml(profile.updatedAtLabel || 'N/A')}</div>
+            <div class="small text-muted mt-1">BG Check: <span class="fw-semibold">${escapeHtml(profile.backgroundCheckStatus || 'Not Started')}</span></div>
+          `;
+        }
+        const completenessEl = document.getElementById('adminVolCompleteness');
+        if (completenessEl) {
+          const pct = calcCompleteness({
+            firstName: profile.firstName, lastName: profile.lastName,
+            phone: profile.phone, interests: profile.interests,
+            availability: profile.availability, pronounsSubject: profile.pronounsSubject,
+            languagesSpoken: profile.languagesSpoken
+          });
+          renderCompletenessMeter(completenessEl, pct);
+        }
+
         document.getElementById('adminVolCreateUserToggle').checked = false;
         toggleInlineVolunteerUserFields();
         editingVolunteerUserId = profile.userId;
-        document.getElementById('volunteerAdminSubmitBtn').textContent = 'Update Volunteer Profile';
+        document.getElementById('volunteerAdminSubmitBtn').textContent = 'Save Changes';
         volunteerAdminError.classList.add('d-none');
         volunteerAdminForm.classList.remove('was-validated');
         showVolunteersFormView(true, true);
@@ -1251,22 +1380,26 @@ document.addEventListener('sections:ready', async (e) => {
     event.preventDefault();
     participantForm.classList.add('was-validated');
     const guardianIds = getSelectedValues(document.getElementById('participantGuardianIds'));
-    if (!participantForm.checkValidity() || !guardianIds.length) {
+    const interestsValid = participantInterestChips?.validate() ?? true;
+    if (!participantForm.checkValidity() || !guardianIds.length || !interestsValid) {
       document.getElementById('participantGuardianIds')?.setCustomValidity(guardianIds.length ? '' : 'Select at least one guardian.');
       participantForm.reportValidity();
       return;
     }
     document.getElementById('participantGuardianIds')?.setCustomValidity('');
+    const derivedAge = updateParticipantAgeDisplay(document.getElementById('participantAge').value);
     const payload = {
       firstName: document.getElementById('participantFirstName').value,
       lastName: document.getElementById('participantLastName').value,
-      age: document.getElementById('participantAge').value,
+      age: derivedAge,
+      dateOfBirth: document.getElementById('participantDateOfBirth').value,
       participantUserId: document.getElementById('participantUserId').value,
       guardianUserIds: guardianIds,
       contactEmail: document.getElementById('participantEmail').value,
       contactPhone: document.getElementById('participantPhone').value,
-      participantInterests: document.getElementById('participantInterests').value,
+      participantInterests: participantInterestChips?.getSelected() || [],
       jobGoals: document.getElementById('participantJobGoals').value,
+      bio: document.getElementById('participantBio').value,
       specialNeeds: document.getElementById('participantSpecialNeeds').value,
       medicalNotes: document.getElementById('participantMedicalNotes').value,
       sensoryNotes: document.getElementById('participantSensoryNotes').value,
@@ -1309,36 +1442,26 @@ document.addEventListener('sections:ready', async (e) => {
 
   participantForm?.addEventListener('input', () => participantError?.classList.add('d-none'));
 
-  document.getElementById('adminVolInterestOther')?.addEventListener('change', () => {
-    setAdminVolunteerOtherInterestInputState();
-    volunteerAdminError?.classList.add('d-none');
-  });
-
-  document.querySelectorAll('input[name="adminVolInterests"]').forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
-      volunteerAdminError?.classList.add('d-none');
-      validateAdminVolunteerInterests();
-    });
-  });
-
   volunteerAdminForm?.addEventListener('input', () => {
     volunteerAdminError?.classList.add('d-none');
-    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
-    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
   });
 
   volunteerAdminForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     volunteerAdminForm.classList.add('was-validated');
-    const interestsValid = validateAdminVolunteerInterests();
+    const interestsValid = adminVolInterestChips?.validate() ?? true;
     if (!volunteerAdminForm.checkValidity() || !interestsValid) return;
     const payload = {
       userId: document.getElementById('adminVolUserId').value,
       firstName: document.getElementById('adminVolFirstName').value,
       lastName: document.getElementById('adminVolLastName').value,
       phone: document.getElementById('adminVolPhone').value,
-      interests: getAdminSelectedVolunteerInterests(),
+      interests: adminVolInterestChips?.getSelected() || [],
       availability: document.getElementById('adminVolAvailability').value,
+      preferredLocation: document.getElementById('adminVolPreferredLocation').value,
+      pronounsSubject: document.getElementById('adminVolPronounsSubject').value,
+      pronounsObject: document.getElementById('adminVolPronounsObject').value,
+      languagesSpoken: adminVolLangChips?.getSelected() || [],
       backgroundCheckStatus: document.getElementById('adminVolBackgroundCheck').value
     };
 
@@ -1527,6 +1650,16 @@ document.addEventListener('sections:ready', async (e) => {
       showParticipantsListView();
     }
   });
+  document.getElementById('participantCancelBtn')?.addEventListener('click', () => {
+    const origin = participantsViewOrigin;
+    resetParticipantFormState();
+    participantsViewOrigin = null;
+    if (origin) {
+      navigateTo(origin);
+    } else {
+      showParticipantsListView();
+    }
+  });
   document.getElementById('participantFormEditBtn')?.addEventListener('click', () => {
     document.getElementById('participantFormTitle').textContent = 'Edit Participant';
     setFormFieldsDisabled('participantForm', false);
@@ -1541,12 +1674,17 @@ document.addEventListener('sections:ready', async (e) => {
     resetVolunteerFormState();
     showVolunteersListView();
   });
+  document.getElementById('volunteerAdminCancelBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersListView();
+  });
   document.getElementById('volunteerFormEditBtn')?.addEventListener('click', () => {
     document.getElementById('volunteerFormTitle').textContent = 'Edit Volunteer Profile';
     setFormFieldsDisabled('volunteerAdminForm', false);
     document.getElementById('volunteerAdminSubmitBtn').classList.remove('d-none');
     document.getElementById('volunteerFormEditBtn').classList.add('d-none');
   });
+  document.getElementById('participantDateOfBirth')?.addEventListener('input', updateParticipantAgeDisplay);
   document.getElementById('newEventBtn')?.addEventListener('click', () => {
     resetEventFormState();
     showEventsFormView(false);
@@ -1994,23 +2132,7 @@ document.addEventListener('sections:ready', async (e) => {
         }
         if (!participant) { showToast('No participant record linked to this user.'); return; }
 
-        document.getElementById('participantFirstName').value = participant.firstName || '';
-        document.getElementById('participantLastName').value = participant.lastName || '';
-        document.getElementById('participantAge').value = participant.age || '';
-        document.getElementById('participantUserId').value = participant.participantUserId || '';
-        Array.from(document.getElementById('participantGuardianIds').options).forEach((opt) => {
-          opt.selected = participant.guardianUserIds.includes(opt.value);
-        });
-        document.getElementById('participantEmail').value = participant.contactEmail || '';
-        document.getElementById('participantPhone').value = participant.contactPhone || '';
-        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
-        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
-        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
-        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
-        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
-        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
-        document.getElementById('participantCreateUserToggle').checked = false;
-        toggleInlineParticipantUserFields();
+        populateParticipantFormFromRecord(participant);
         editingParticipantId = participant.id;
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');

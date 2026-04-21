@@ -336,150 +336,126 @@ document.addEventListener('sections:ready', async (e) => {
 
   // ── Profile form wiring ────────────────────────────────────────────────────
 
-  const form = document.getElementById('volunteerProfileForm');
-  const statusEl = document.getElementById('volunteerProfileStatus');
-  const errorEl = document.getElementById('volunteerProfileError');
-  const submitBtn = document.getElementById('volunteerProfileSubmitBtn');
-  const interestsDropdownBtnEl = document.getElementById('volInterestsDropdownBtn');
-  const interestsSummaryEl = document.getElementById('volInterestsSummary');
-  const firstNameEl = document.getElementById('volFirstName');
-  const lastNameEl = document.getElementById('volLastName');
-  const phoneEl = document.getElementById('volPhone');
-  const emailEl = document.getElementById('volEmail');
-  const interestsGroupEl = document.getElementById('volInterestsGroup');
-  const interestsFeedbackEl = document.getElementById('volInterestsFeedback');
-  const otherInterestCheckboxEl = document.getElementById('volInterestOther');
-  const otherInterestTextEl = document.getElementById('volInterestOtherText');
-  const interestCheckboxEls = () => Array.from(document.querySelectorAll('input[name="volInterests"]'));
-  const availabilityEl = document.getElementById('volAvailability');
+  const { renderProfileHeader, renderInterestChips, renderLanguageChips,
+          VOLUNTEER_INTERESTS } =
+    await import('./profile-ui.js');
+
+  const form      = document.getElementById('volunteerProfileForm');
+  const statusEl  = document.getElementById('volunteerProfileStatus');
+  const errorEl   = document.getElementById('volunteerProfileError');
+  const firstNameEl         = document.getElementById('volFirstName');
+  const lastNameEl          = document.getElementById('volLastName');
+  const phoneEl             = document.getElementById('volPhone');
+  const emailEl             = document.getElementById('volEmail');
+  const pronounsSubjectEl   = document.getElementById('volPronounsSubject');
+  const pronounsObjectEl    = document.getElementById('volPronounsObject');
+  const availabilityEl      = document.getElementById('volAvailability');
+  const preferredLocationEl = document.getElementById('volPreferredLocation');
+  const interestsContainer  = document.getElementById('volInterestsChips');
+  const languagesContainer  = document.getElementById('volLanguagesChips');
+  const headerContainer     = document.getElementById('volProfileHeader');
+  const complianceDisplay   = document.getElementById('volComplianceDisplay');
 
   if (!form) return;
 
-  function hideMessages() {
-    statusEl?.classList.add('d-none');
-    errorEl?.classList.add('d-none');
-    interestsDropdownBtnEl?.classList.remove('border-danger');
-    interestsFeedbackEl?.classList.add('d-none');
-  }
+  const interestChips = renderInterestChips(interestsContainer, VOLUNTEER_INTERESTS, [], { required: true });
+  interestsContainer.id = 'volInterestsChips';
+
+  const langChips = renderLanguageChips(languagesContainer, []);
 
   function splitName(fullName) {
     const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
   }
 
-  function setOtherInterestInputState() {
-    const enabled = Boolean(otherInterestCheckboxEl?.checked);
-    if (!otherInterestTextEl) return;
-    otherInterestTextEl.disabled = !enabled;
-    if (!enabled) otherInterestTextEl.value = '';
+  function hideMessages() {
+    statusEl?.classList.add('d-none');
+    errorEl?.classList.add('d-none');
   }
 
-  function updateInterestsSummary() {
-    const selected = getSelectedInterests();
-    if (!interestsSummaryEl) return;
-    if (selected.length === 0) { interestsSummaryEl.textContent = 'Select interests'; return; }
-    const preview = selected.slice(0, 2).join(', ');
-    const extra = selected.length > 2 ? ` +${selected.length - 2} more` : '';
-    interestsSummaryEl.textContent = `${preview}${extra}`;
-  }
+  const BG_STATUS_BADGE = {
+    'Not Started': { cls: 'bg-secondary',         icon: 'bi-dash-circle',                label: 'Not Started' },
+    'Pending':     { cls: 'bg-warning text-dark',  icon: 'bi-hourglass-split',            label: 'Pending' },
+    'Cleared':     { cls: 'bg-success',            icon: 'bi-check-circle-fill',          label: 'Cleared' },
+    'Denied':      { cls: 'bg-danger',             icon: 'bi-x-circle-fill',              label: 'Denied' },
+    'Expired':     { cls: 'bg-dark',               icon: 'bi-exclamation-triangle-fill',  label: 'Expired' },
+    'Revoked':     { cls: 'bg-secondary',          icon: 'bi-arrow-counterclockwise',     label: 'Revoked' }
+  };
 
-  function getSelectedInterests() {
-    const checked = interestCheckboxEls().filter(cb => cb.checked);
-    const values = checked.map(cb => cb.value);
-    if (values.includes('Other')) {
-      const custom = String(otherInterestTextEl?.value || '').trim();
-      if (custom) return values.map(v => v === 'Other' ? `Other: ${custom}` : v);
-    }
-    return values;
-  }
-
-  function setSelectedInterests(interests) {
-    const list = Array.isArray(interests)
-      ? interests
-      : String(interests || '').split(',').map(i => i.trim()).filter(Boolean);
-
-    let otherText = '';
-    interestCheckboxEls().forEach(cb => {
-      const isOtherPrefixed = list.some(v => v.startsWith('Other:'));
-      if (cb.value === 'Other') {
-        cb.checked = list.includes('Other') || isOtherPrefixed;
-        if (isOtherPrefixed) {
-          const match = list.find(v => v.startsWith('Other:'));
-          otherText = String(match || '').replace(/^Other:\s*/i, '').trim();
-        }
-      } else {
-        cb.checked = list.includes(cb.value);
-      }
-    });
-    setOtherInterestInputState();
-    if (otherText && otherInterestTextEl) otherInterestTextEl.value = otherText;
-    updateInterestsSummary();
-  }
-
-  function validateInterestsSelection() {
-    const selected = getSelectedInterests();
-    if (selected.length === 0) {
-      interestsDropdownBtnEl?.classList.add('border-danger');
-      interestsFeedbackEl?.classList.remove('d-none');
-      return false;
-    }
-    interestsDropdownBtnEl?.classList.remove('border-danger');
-    interestsFeedbackEl?.classList.add('d-none');
-    return true;
+  function renderComplianceBadge(profile) {
+    if (!complianceDisplay) return;
+    const status = profile?.backgroundCheckStatus || 'Not Started';
+    const badge  = BG_STATUS_BADGE[status] || BG_STATUS_BADGE['Not Started'];
+    const expiry = profile?.backgroundCheckExpiry
+      ? `<span class="text-muted small ms-2">Expires ${escHtml(profile.backgroundCheckExpiry)}</span>`
+      : '';
+    complianceDisplay.innerHTML = `
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi ${badge.icon}" aria-hidden="true"></i>
+        <span class="badge ${badge.cls}"><i class="bi ${badge.icon} me-1" aria-hidden="true"></i>Background Check</span>
+        <span class="fw-semibold small">${escHtml(badge.label)}</span>
+        ${expiry}
+      </div>
+    `;
   }
 
   emailEl.value = session.email || '';
   const fallbackName = splitName(session.name || '');
   firstNameEl.value = fallbackName.firstName;
-  lastNameEl.value = fallbackName.lastName;
+  lastNameEl.value  = fallbackName.lastName;
 
   const existing = await Auth.getVolunteerProfile(session.email);
+
+  renderProfileHeader(headerContainer, {
+    name: existing
+      ? `${existing.firstName || fallbackName.firstName} ${existing.lastName || fallbackName.lastName}`.trim()
+      : (session.name || session.email),
+    role: 'Volunteer',
+    lastUpdatedMs: existing?.updatedAt
+  });
+
   if (existing) {
     firstNameEl.value = existing.firstName || firstNameEl.value;
-    lastNameEl.value = existing.lastName || lastNameEl.value;
-    phoneEl.value = existing.phone || '';
-    setSelectedInterests(existing.interests);
-    availabilityEl.value = existing.availability || '';
-    if (statusEl && existing.updatedAtLabel) {
-      statusEl.textContent = `Profile loaded. Last updated: ${existing.updatedAtLabel}`;
-      statusEl.classList.remove('d-none');
-    }
-    submitBtn.textContent = 'Update My Volunteer Profile';
+    lastNameEl.value  = existing.lastName  || lastNameEl.value;
+    phoneEl.value     = existing.phone     || '';
+    availabilityEl.value      = existing.availability      || '';
+    if (preferredLocationEl) preferredLocationEl.value = existing.preferredLocation || '';
+    if (pronounsSubjectEl)   pronounsSubjectEl.value   = existing.pronounsSubject   || '';
+    if (pronounsObjectEl)    pronounsObjectEl.value    = existing.pronounsObject    || '';
+    interestChips.setSelected(existing.interests || []);
+    langChips.setSelected(existing.languagesSpoken || []);
+    renderComplianceBadge(existing);
     await renderMatchedEvents(existing);
     await renderVolunteerDashboardSnapshot();
   } else {
+    renderComplianceBadge(null);
     await renderVolunteerDashboardSnapshot();
   }
 
-  otherInterestCheckboxEl?.addEventListener('change', () => {
-    setOtherInterestInputState();
-    updateInterestsSummary();
+  form.addEventListener('input', hideMessages);
+
+  document.getElementById('volunteerProfileCancelBtn')?.addEventListener('click', () => {
+    form.classList.remove('was-validated');
     hideMessages();
   });
-
-  interestCheckboxEls().forEach(cb => {
-    cb.addEventListener('change', () => { updateInterestsSummary(); hideMessages(); });
-  });
-
-  otherInterestTextEl?.addEventListener('input', () => { updateInterestsSummary(); });
-
-  form.addEventListener('input', hideMessages);
-  setOtherInterestInputState();
-  updateInterestsSummary();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     form.classList.add('was-validated');
-    const interestsValid = validateInterestsSelection();
+    const interestsValid = interestChips.validate();
     if (!form.checkValidity() || !interestsValid) return;
 
     const payload = {
-      firstName: firstNameEl.value,
-      lastName: lastNameEl.value,
-      phone: phoneEl.value,
-      email: emailEl.value,
-      interests: getSelectedInterests(),
-      availability: availabilityEl.value
+      firstName:         firstNameEl.value,
+      lastName:          lastNameEl.value,
+      phone:             phoneEl.value,
+      email:             emailEl.value,
+      interests:         interestChips.getSelected(),
+      availability:      availabilityEl.value,
+      preferredLocation: preferredLocationEl?.value || '',
+      pronounsSubject:   pronounsSubjectEl?.value   || '',
+      pronounsObject:    pronounsObjectEl?.value    || '',
+      languagesSpoken:   langChips.getSelected()
     };
 
     const result = await Auth.saveVolunteerProfile(payload);
@@ -495,11 +471,16 @@ document.addEventListener('sections:ready', async (e) => {
     const refreshed = await Auth.getVolunteerProfile(session.email);
     if (statusEl) {
       statusEl.textContent = refreshed?.updatedAtLabel
-        ? `Volunteer profile saved. Last updated: ${refreshed.updatedAtLabel}`
-        : 'Volunteer profile saved.';
+        ? `Profile saved. Last updated: ${refreshed.updatedAtLabel}`
+        : 'Profile saved.';
       statusEl.classList.remove('d-none');
     }
-    submitBtn.textContent = 'Update My Volunteer Profile';
+    renderProfileHeader(headerContainer, {
+      name: `${refreshed?.firstName || ''} ${refreshed?.lastName || ''}`.trim() || session.name,
+      role: 'Volunteer',
+      lastUpdatedMs: refreshed?.updatedAt
+    });
+    renderComplianceBadge(refreshed);
     if (refreshed) {
       await renderMatchedEvents(refreshed);
       await renderVolunteerDashboardSnapshot();
@@ -531,15 +512,6 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   // ── Background Check Consent Flow ───────────────────────────────────────
-
-  const BG_STATUS_BADGE = {
-    'Not Started': { cls: 'bg-secondary',          icon: 'bi-dash-circle' },
-    'Pending':     { cls: 'bg-warning text-dark',   icon: 'bi-hourglass-split' },
-    'Cleared':     { cls: 'bg-success',             icon: 'bi-check-circle-fill' },
-    'Denied':      { cls: 'bg-danger',              icon: 'bi-x-circle-fill' },
-    'Expired':     { cls: 'bg-dark',                icon: 'bi-exclamation-triangle-fill' },
-    'Revoked':     { cls: 'bg-secondary',           icon: 'bi-arrow-counterclockwise' }
-  };
 
   async function renderBgCheckPanel() {
     const statusDisplay = document.getElementById('bgCheckStatusDisplay');

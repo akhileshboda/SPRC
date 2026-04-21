@@ -46,110 +46,180 @@
         <i class="bi bi-pencil me-1"></i>Edit
       </button>
     </div>
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div id="volunteerAdminError" class="alert alert-danger d-none" role="alert"></div>
-        <form id="volunteerAdminForm" novalidate>
-          <div class="row g-3">
-            <div class="col-md-3">
-              <label for="adminVolFirstName" class="form-label">First Name</label>
-              <input type="text" class="form-control" id="adminVolFirstName" required>
-              <div class="invalid-feedback">First name is required.</div>
-            </div>
-            <div class="col-md-3">
-              <label for="adminVolLastName" class="form-label">Last Name</label>
-              <input type="text" class="form-control" id="adminVolLastName" required>
-              <div class="invalid-feedback">Last name is required.</div>
-            </div>
-            <div class="col-md-3">
-              <label for="adminVolPhone" class="form-label">Phone Number</label>
-              <input type="tel" class="form-control" id="adminVolPhone" placeholder="e.g. (555) 555-0101" required>
-              <div class="invalid-feedback">Phone number is required.</div>
-            </div>
-            <div class="col-md-3">
-              <label for="adminVolUserId" class="form-label">Volunteer Login</label>
-              <select class="form-select" id="adminVolUserId" required></select>
-              <div class="invalid-feedback">Choose a volunteer account.</div>
-            </div>
-            <div class="col-md-3">
-              <div class="form-check mt-4 pt-2">
-                <input class="form-check-input" type="checkbox" id="adminVolCreateUserToggle">
-                <label class="form-check-label" for="adminVolCreateUserToggle">
-                  Create new volunteer login
-                </label>
-              </div>
-            </div>
-            <div class="col-md-3 d-none" id="adminVolNewUserEmailWrap">
-              <label for="adminVolNewUserEmail" class="form-label">New Login Email</label>
-              <input type="email" class="form-control" id="adminVolNewUserEmail" placeholder="volunteer@email.com">
-            </div>
-            <div class="col-md-3 d-none" id="adminVolNewUserPasswordWrap">
-              <label for="adminVolNewUserPassword" class="form-label">Temporary Password</label>
-              <input type="password" class="form-control" id="adminVolNewUserPassword" placeholder="Temporary password">
-            </div>
 
-            <div class="col-md-6">
-              <label class="form-label d-block mb-2">Interests</label>
-              <div id="adminVolInterestsGroup" class="border rounded p-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Mentoring" id="adminVolInterestMentoring" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestMentoring">Mentoring</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Educational Programs" id="adminVolInterestEducational" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestEducational">Educational Programs</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Community Events" id="adminVolInterestCommunityEvents" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestCommunityEvents">Community Events</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Sports & Recreation" id="adminVolInterestSports" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestSports">Sports &amp; Recreation</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Administrative Support" id="adminVolInterestAdminSupport" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestAdminSupport">Administrative Support</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Job Coaching" id="adminVolInterestJobCoaching" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestJobCoaching">Job Coaching</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" value="Other" id="adminVolInterestOther" name="adminVolInterests">
-                  <label class="form-check-label" for="adminVolInterestOther">Other</label>
-                </div>
-                <div class="mt-2">
-                  <input type="text" class="form-control form-control-sm" id="adminVolInterestOtherText"
-                    placeholder="If other, specify the interest" disabled>
-                </div>
-              </div>
-              <div class="invalid-feedback d-none" id="adminVolInterestsFeedback">Select at least one interest.</div>
-            </div>
+    <div id="volunteerAdminError" class="alert alert-danger d-none mb-3" role="alert"></div>
 
-            <div class="col-md-6">
-              <label for="adminVolAvailability" class="form-label">Availability</label>
-              <textarea class="form-control" id="adminVolAvailability" rows="4"
-                placeholder="e.g. Weeknights after 6PM, Saturday mornings"></textarea>
-            </div>
+    <form id="volunteerAdminForm" novalidate>
+      <div class="profile-shell">
 
-            <div class="col-md-6">
-              <label for="adminVolBackgroundCheck" class="form-label">Background Check Status</label>
-              <select class="form-select" id="adminVolBackgroundCheck">
-                <option value="Not Started">Not Started</option>
-                <option value="Pending">Pending</option>
-                <option value="Cleared">Cleared</option>
-                <option value="Revoked">Revoked</option>
-              </select>
-            </div>
-
-            <div class="col-12">
-              <button type="submit" class="btn btn-info text-white" id="volunteerAdminSubmitBtn">Save Volunteer Profile</button>
+        <!-- Header -->
+        <div class="profile-header" id="adminVolProfileHeader">
+          <div class="profile-avatar">V</div>
+          <div class="profile-header-meta">
+            <div class="profile-header-name">New Volunteer Profile</div>
+            <div class="profile-header-sub">
+              <span class="badge bg-info text-dark">Volunteer</span>
             </div>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <!-- Two-column grid -->
+        <div class="profile-grid">
+
+          <!-- ── Primary column ─────────────────────────────── -->
+          <div class="profile-main">
+
+            <!-- Identity -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Identity</h3>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="adminVolFirstName" class="form-label">First Name</label>
+                  <input type="text" class="form-control" id="adminVolFirstName" required>
+                  <div class="invalid-feedback">First name is required.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="adminVolLastName" class="form-label">Last Name</label>
+                  <input type="text" class="form-control" id="adminVolLastName" required>
+                  <div class="invalid-feedback">Last name is required.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="adminVolPhone" class="form-label">Phone Number</label>
+                  <input type="tel" class="form-control" id="adminVolPhone"
+                    placeholder="e.g. (555) 555-0101" required>
+                  <div class="invalid-feedback">Phone number is required.</div>
+                </div>
+
+                <!-- Pronouns -->
+                <div class="col-md-3">
+                  <label for="adminVolPronounsSubject" class="form-label">Pronouns (Subject)</label>
+                  <select class="form-select" id="adminVolPronounsSubject">
+                    <option value="">Prefer not to say</option>
+                    <option value="he">he</option>
+                    <option value="she">she</option>
+                    <option value="they">they</option>
+                    <option value="ze">ze</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label for="adminVolPronounsObject" class="form-label">Pronouns (Object)</label>
+                  <select class="form-select" id="adminVolPronounsObject">
+                    <option value="">Prefer not to say</option>
+                    <option value="him">him</option>
+                    <option value="her">her</option>
+                    <option value="them">them</option>
+                    <option value="zir">zir</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Account Linkage -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Account Linkage</h3>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="adminVolUserId" class="form-label">Volunteer Login</label>
+                  <select class="form-select" id="adminVolUserId" required></select>
+                  <div class="invalid-feedback">Choose a volunteer account.</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check mt-4 pt-2">
+                    <input class="form-check-input" type="checkbox" id="adminVolCreateUserToggle">
+                    <label class="form-check-label" for="adminVolCreateUserToggle">
+                      Create new volunteer login
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-6 d-none" id="adminVolNewUserEmailWrap">
+                  <label for="adminVolNewUserEmail" class="form-label">New Login Email</label>
+                  <input type="email" class="form-control" id="adminVolNewUserEmail"
+                    placeholder="volunteer@email.com">
+                </div>
+                <div class="col-md-6 d-none" id="adminVolNewUserPasswordWrap">
+                  <label for="adminVolNewUserPassword" class="form-label">Temporary Password</label>
+                  <input type="password" class="form-control" id="adminVolNewUserPassword"
+                    placeholder="Temporary password">
+                </div>
+              </div>
+            </div>
+
+            <!-- Languages Spoken -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Languages Spoken</h3>
+              <div id="adminVolLanguagesChips"></div>
+            </div>
+
+            <!-- Interests -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Interests</h3>
+              <div id="adminVolInterestsChips"></div>
+            </div>
+
+            <!-- Availability -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Availability</h3>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label for="adminVolAvailability" class="form-label">Schedule Preferences</label>
+                  <textarea class="form-control" id="adminVolAvailability" rows="3"
+                    placeholder="e.g. Weeknights after 6PM, Saturday mornings"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label for="adminVolPreferredLocation" class="form-label">Preferred Location</label>
+                  <input type="text" class="form-control" id="adminVolPreferredLocation"
+                    placeholder="e.g. Downtown Community Center">
+                </div>
+              </div>
+            </div>
+
+            <!-- Compliance -->
+            <div class="profile-section-card">
+              <h3 class="profile-section-title">Compliance</h3>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="adminVolBackgroundCheck" class="form-label">Background Check Status</label>
+                  <select class="form-select" id="adminVolBackgroundCheck">
+                    <option value="Not Started">Not Started</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Cleared">Cleared</option>
+                    <option value="Revoked">Revoked</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /.profile-main -->
+
+          <!-- ── Rail ───────────────────────────────────────── -->
+          <div class="profile-rail">
+
+            <div class="profile-rail-block">
+              <h4 class="profile-rail-title">Record Info</h4>
+              <div id="adminVolRailMeta" class="text-muted small">—</div>
+            </div>
+
+            <div class="profile-rail-block">
+              <h4 class="profile-rail-title">Profile Completeness</h4>
+              <div id="adminVolCompleteness"></div>
+            </div>
+
+          </div><!-- /.profile-rail -->
+
+        </div><!-- /.profile-grid -->
+
+        <!-- Sticky action bar -->
+        <div class="profile-actions-bar">
+          <button type="submit" class="btn btn-primary fw-semibold" id="volunteerAdminSubmitBtn">
+            <i class="bi bi-check-lg me-1"></i>Save Changes
+          </button>
+          <button type="button" class="btn btn-outline-secondary" id="volunteerAdminCancelBtn">
+            Cancel
+          </button>
+        </div>
+
+      </div><!-- /.profile-shell -->
+    </form>
   </div>
 
 </section>

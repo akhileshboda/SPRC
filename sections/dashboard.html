@@ -49,15 +49,7 @@
 
   <!-- GUARDIAN: dashboard -->
   <div id="panel-GUARDIAN" class="d-none">
-    <div class="card shadow-sm mb-4">
-      <div class="card-header text-white fw-semibold" style="background-color:#4F62B0;">Guardian Dashboard</div>
-      <div class="card-body">
-        <p class="text-muted mb-3">
-          Review your linked participants, manage profile details, and approve vocational interest requests.
-        </p>
-        <div id="guardianDashboardSummary"></div>
-      </div>
-    </div>
+    <div id="guardianDashboardSummary"></div>
   </div>
 
   <!-- PARTICIPANT: Portal home —— upcoming events + job opportunities preview -->
@@ -68,36 +60,8 @@
         <i class="bi bi-person-vcard me-2"></i>My Profile
       </div>
       <div class="card-body">
-        <p class="text-muted mb-3">Update your interests and job goals. Guardian-managed support notes stay visible as read-only context.</p>
-        <div id="participantProfileStatus" class="alert alert-success d-none" role="alert"></div>
-        <div id="participantProfileError" class="alert alert-danger d-none" role="alert"></div>
-        <form id="participantSelfProfileForm" novalidate>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="participantInterestsInput" class="form-label">Personal Interests</label>
-              <textarea class="form-control" id="participantInterestsInput" rows="3" placeholder="Art, sports, cooking, technology"></textarea>
-            </div>
-            <div class="col-md-6">
-              <label for="participantJobGoalsInput" class="form-label">Job Goals</label>
-              <textarea class="form-control" id="participantJobGoalsInput" rows="3" placeholder="What kind of work environment or goals matter to you?"></textarea>
-            </div>
-            <div class="col-md-4">
-              <label for="participantSpecialNeedsReadonly" class="form-label">Support Needs</label>
-              <textarea class="form-control" id="participantSpecialNeedsReadonly" rows="4" readonly></textarea>
-            </div>
-            <div class="col-md-4">
-              <label for="participantMedicalReadonly" class="form-label">Medical Notes</label>
-              <textarea class="form-control" id="participantMedicalReadonly" rows="4" readonly></textarea>
-            </div>
-            <div class="col-md-4">
-              <label for="participantSensoryReadonly" class="form-label">Sensory Notes</label>
-              <textarea class="form-control" id="participantSensoryReadonly" rows="4" readonly></textarea>
-            </div>
-            <div class="col-12">
-              <button type="submit" class="btn btn-success" id="participantSelfProfileSubmitBtn">Save My Updates</button>
-            </div>
-          </div>
-        </form>
+        <p class="text-muted mb-3">Review the parts of your profile that guide events, jobs, and support planning, then open the full workspace to make updates.</p>
+        <div id="participantDashboardProfileSummary"></div>
       </div>
     </div>
 
