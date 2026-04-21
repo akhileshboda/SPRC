@@ -33,108 +33,121 @@
     const viewAllEl= document.getElementById('nav-bell-view-all');
     if (!listEl) return; // shell not yet in DOM
 
-    const notifications = await Auth.getMyNotifications();
-    const readIds = Auth.getReadNotificationIds();
-    const readSet = new Set(readIds);
-    const unreadCount = notifications.filter(n => !readSet.has(n.id)).length;
+    try {
+      const notifications = await Auth.getMyNotifications();
+      const readIds = Auth.getReadNotificationIds();
+      const readSet = new Set(readIds);
+      const unreadCount = notifications.filter(n => !readSet.has(n.id)).length;
 
-    // ── Icon ───────────────────────────────────────────────────────────────────
-    if (iconEl) {
-      iconEl.className = unreadCount > 0 ? 'bi bi-bell-fill text-danger' : 'bi bi-bell';
-    }
-
-    // ── Badge ─────────────────────────────────────────────────────────────────
-    if (badgeEl) {
-      if (unreadCount > 0) {
-        badgeEl.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
-        badgeEl.classList.remove('d-none');
-      } else {
-        badgeEl.classList.add('d-none');
+      // ── Icon ───────────────────────────────────────────────────────────────────
+      if (iconEl) {
+        iconEl.className = unreadCount > 0 ? 'bi bi-bell-fill text-danger' : 'bi bi-bell';
       }
-    }
 
-    // ── Heading ───────────────────────────────────────────────────────────────
-    if (headingEl) {
-      headingEl.innerHTML = unreadCount > 0
-        ? `Notifications <span class="badge bg-danger ms-1">${unreadCount}</span>`
-        : 'Notifications';
-    }
+      // ── Badge ─────────────────────────────────────────────────────────────────
+      if (badgeEl) {
+        if (unreadCount > 0) {
+          badgeEl.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+          badgeEl.classList.remove('d-none');
+        } else {
+          badgeEl.classList.add('d-none');
+        }
+      }
 
-    // ── List items ────────────────────────────────────────────────────────────
-    if (notifications.length === 0) {
-      listEl.innerHTML = `<li class="px-3 py-4 text-muted small text-center">
-        <i class="bi bi-bell opacity-50 d-block mb-2" style="font-size:1.5rem;"></i>No notifications yet
-      </li>`;
-    } else {
-      listEl.innerHTML = notifications.slice(0, 10).map(n => {
-        const isUnread = !readSet.has(n.id);
-        const dot = isUnread
-          ? `<span class="flex-shrink-0 rounded-circle bg-danger" style="width:7px;height:7px;margin-top:6px;"></span>`
-          : `<span class="flex-shrink-0" style="width:7px;height:7px;margin-top:6px;"></span>`;
-        const readToggleTitle = isUnread ? 'Mark as read' : 'Mark as unread';
-        const readToggleIcon  = isUnread ? 'bi-check2' : 'bi-arrow-counterclockwise';
-        return `
-          <li class="d-flex align-items-start gap-2 px-3 py-2 border-bottom${isUnread ? ' bg-danger bg-opacity-10' : ''}" style="min-width:0;">
-            <span class="flex-shrink-0 mt-1">${dot}</span>
-            <div class="flex-grow-1" style="min-width:0;cursor:pointer;" role="button" tabindex="0"
-                 data-bell-nav="${_esc(notificationsSection)}">
-              <div class="text-truncate${isUnread ? ' fw-semibold' : ''}" style="font-size:0.83rem;">${_esc(n.subject)}</div>
-              <div class="text-muted" style="font-size:0.72rem;">${_esc(n.sentAtLabel)}</div>
-            </div>
-            <div class="d-flex gap-1 flex-shrink-0 ms-1">
-              <button class="btn btn-link p-0 js-bell-toggle-read" data-notif-id="${_esc(n.id)}"
-                      title="${readToggleTitle}" style="font-size:0.85rem;color:var(--bs-secondary);">
-                <i class="bi ${readToggleIcon}"></i>
-              </button>
-              <button class="btn btn-link p-0 js-bell-delete" data-notif-id="${_esc(n.id)}"
-                      title="Delete" style="font-size:0.85rem;color:var(--bs-danger);">
-                <i class="bi bi-x-lg"></i>
-              </button>
-            </div>
-          </li>`;
-      }).join('');
-    }
+      // ── Heading ───────────────────────────────────────────────────────────────
+      if (headingEl) {
+        headingEl.innerHTML = unreadCount > 0
+          ? `Notifications <span class="badge bg-danger ms-1">${unreadCount}</span>`
+          : 'Notifications';
+      }
 
-    // ── Wire list actions (re-attached on every render since innerHTML replaced) ─
-    listEl.querySelectorAll('[data-bell-nav]').forEach(el => {
-      el.onclick = () => {
-        bootstrap.Dropdown.getInstance(document.getElementById('nav-bell-btn'))?.hide();
-        navigateTo(el.dataset.bellNav);
-      };
-      el.onkeydown = e => { if (e.key === 'Enter') el.onclick(); };
-    });
+      // ── List items ────────────────────────────────────────────────────────────
+      if (notifications.length === 0) {
+        listEl.innerHTML = `<li class="px-3 py-4 text-muted small text-center">
+          <i class="bi bi-bell opacity-50 d-block mb-2" style="font-size:1.5rem;"></i>No notifications yet
+        </li>`;
+      } else {
+        listEl.innerHTML = notifications.slice(0, 10).map(n => {
+          const isUnread = !readSet.has(n.id);
+          const dot = isUnread
+            ? `<span class="flex-shrink-0 rounded-circle bg-danger" style="width:7px;height:7px;margin-top:6px;"></span>`
+            : `<span class="flex-shrink-0" style="width:7px;height:7px;margin-top:6px;"></span>`;
+          const readToggleTitle = isUnread ? 'Mark as read' : 'Mark as unread';
+          const readToggleIcon  = isUnread ? 'bi-check2' : 'bi-arrow-counterclockwise';
+          return `
+            <li class="d-flex align-items-start gap-2 px-3 py-2 border-bottom${isUnread ? ' bg-danger bg-opacity-10' : ''}" style="min-width:0;">
+              <span class="flex-shrink-0 mt-1">${dot}</span>
+              <div class="flex-grow-1" style="min-width:0;cursor:pointer;" role="button" tabindex="0"
+                   data-bell-nav="${_esc(notificationsSection)}">
+                <div class="text-truncate${isUnread ? ' fw-semibold' : ''}" style="font-size:0.83rem;">${_esc(n.subject)}</div>
+                <div class="text-muted" style="font-size:0.72rem;">${_esc(n.sentAtLabel)}</div>
+              </div>
+              <div class="d-flex gap-1 flex-shrink-0 ms-1">
+                <button class="btn btn-link p-0 js-bell-toggle-read" data-notif-id="${_esc(n.id)}"
+                        title="${readToggleTitle}" style="font-size:0.85rem;color:var(--bs-secondary);">
+                  <i class="bi ${readToggleIcon}"></i>
+                </button>
+                <button class="btn btn-link p-0 js-bell-delete" data-notif-id="${_esc(n.id)}"
+                        title="Delete" style="font-size:0.85rem;color:var(--bs-danger);">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </div>
+            </li>`;
+        }).join('');
+      }
 
-    listEl.querySelectorAll('.js-bell-toggle-read').forEach(btn => {
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        Auth.toggleNotificationRead(btn.dataset.notifId);
-        await renderNavBell(config);
-      };
-    });
+      // ── Wire list actions (re-attached on every render since innerHTML replaced) ─
+      listEl.querySelectorAll('[data-bell-nav]').forEach(el => {
+        el.onclick = () => {
+          bootstrap.Dropdown.getInstance(document.getElementById('nav-bell-btn'))?.hide();
+          navigateTo(el.dataset.bellNav);
+        };
+        el.onkeydown = e => { if (e.key === 'Enter') el.onclick(); };
+      });
 
-    listEl.querySelectorAll('.js-bell-delete').forEach(btn => {
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        Auth.deleteMyNotification(btn.dataset.notifId);
-        await renderNavBell(config);
-      };
-    });
+      listEl.querySelectorAll('.js-bell-toggle-read').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          Auth.toggleNotificationRead(btn.dataset.notifId);
+          await renderNavBell(config);
+        };
+      });
 
-    // ── Static button handlers (use .onclick to avoid stacking) ───────────────
-    if (markAllEl) {
-      markAllEl.disabled = notifications.length === 0;
-      markAllEl.onclick = async (e) => {
-        e.stopPropagation();
-        Auth.markNotificationsRead(notifications.map(n => n.id));
-        await renderNavBell(config);
-      };
-    }
+      listEl.querySelectorAll('.js-bell-delete').forEach(btn => {
+        btn.onclick = async (e) => {
+          e.stopPropagation();
+          Auth.deleteMyNotification(btn.dataset.notifId);
+          await renderNavBell(config);
+        };
+      });
 
-    if (viewAllEl) {
-      viewAllEl.onclick = () => {
-        bootstrap.Dropdown.getInstance(document.getElementById('nav-bell-btn'))?.hide();
-        navigateTo(notificationsSection);
-      };
+      // ── Static button handlers (use .onclick to avoid stacking) ───────────────
+      if (markAllEl) {
+        markAllEl.disabled = notifications.length === 0;
+        markAllEl.onclick = async (e) => {
+          e.stopPropagation();
+          Auth.markNotificationsRead(notifications.map(n => n.id));
+          await renderNavBell(config);
+        };
+      }
+
+      if (viewAllEl) {
+        viewAllEl.onclick = () => {
+          bootstrap.Dropdown.getInstance(document.getElementById('nav-bell-btn'))?.hide();
+          navigateTo(notificationsSection);
+        };
+      }
+    } catch (error) {
+      console.error('Unable to render notifications bell.', error);
+      if (headingEl) headingEl.textContent = 'Notifications';
+      if (badgeEl) badgeEl.classList.add('d-none');
+      if (listEl) {
+        listEl.innerHTML = `<li class="px-3 py-4 text-muted small text-center">
+          <i class="bi bi-exclamation-circle opacity-50 d-block mb-2" style="font-size:1.5rem;"></i>
+          Unable to load notifications right now.
+        </li>`;
+      }
+      if (markAllEl) markAllEl.disabled = true;
     }
   }
 

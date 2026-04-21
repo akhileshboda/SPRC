@@ -214,6 +214,7 @@ document.addEventListener('sections:ready', async (e) => {
     const events = await Auth.getEvents();
     const subscribedIds = new Set(await Auth.getInterestedEventIds());
     const subscribed = events.filter((e) => subscribedIds.has(String(e.id)));
+    const now = Date.now();
     const upcomingSubscribed = subscribed.filter((e) => {
       const ts = e.eventTimestamp ?? new Date(e.dateTime).getTime();
       return !isNaN(ts) && ts >= now;

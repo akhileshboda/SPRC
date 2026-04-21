@@ -2513,17 +2513,25 @@ const Auth = (() => {
   const NOTIFICATION_READS_KEY   = 'kindred_notification_reads';
   const NOTIFICATION_DELETES_KEY = 'kindred_notification_deletes';
 
+  function getNotificationIdList(key) {
+    const parsed = parseJson(key, []);
+    return Array.isArray(parsed)
+      ? parsed.map((id) => String(id || '').trim()).filter(Boolean)
+      : [];
+  }
+
   function getReadNotificationIds() {
-    try { return JSON.parse(localStorage.getItem(NOTIFICATION_READS_KEY)) || []; } catch { return []; }
+    return getNotificationIdList(NOTIFICATION_READS_KEY);
   }
 
   function getDeletedNotificationIds() {
-    try { return JSON.parse(localStorage.getItem(NOTIFICATION_DELETES_KEY)) || []; } catch { return []; }
+    return getNotificationIdList(NOTIFICATION_DELETES_KEY);
   }
 
   function markNotificationsRead(notificationIds) {
     const existing = getReadNotificationIds();
-    const merged = Array.from(new Set([...existing, ...notificationIds]));
+    const incoming = Array.isArray(notificationIds) ? notificationIds.map((id) => String(id || '').trim()).filter(Boolean) : [];
+    const merged = Array.from(new Set([...existing, ...incoming]));
     localStorage.setItem(NOTIFICATION_READS_KEY, JSON.stringify(merged));
     return { success: true };
   }
@@ -2538,7 +2546,8 @@ const Auth = (() => {
 
   function deleteMyNotification(notificationId) {
     const existing = getDeletedNotificationIds();
-    const merged = Array.from(new Set([...existing, String(notificationId)]));
+    const id = String(notificationId || '').trim();
+    const merged = id ? Array.from(new Set([...existing, id])) : existing;
     localStorage.setItem(NOTIFICATION_DELETES_KEY, JSON.stringify(merged));
     return { success: true };
   }
