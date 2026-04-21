@@ -340,6 +340,84 @@ document.addEventListener('sections:ready', async (e) => {
     if (submitBtn) submitBtn.textContent = 'Publish Event';
     const urgentCheck = document.getElementById('eventIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
+    document.getElementById('eventVolunteersPanel')?.classList.add('d-none');
+  }
+
+  async function renderEventVolunteersPanel(eventId) {
+    const panel = document.getElementById('eventVolunteersPanel');
+    const listEl = document.getElementById('eventVolunteersList');
+    const selectEl = document.getElementById('eventVolunteerSelect');
+    const errEl = document.getElementById('eventVolunteersError');
+    if (!panel || !listEl || !selectEl) return;
+
+    panel.classList.remove('d-none');
+    if (errEl) errEl.classList.add('d-none');
+
+    const [volunteers, assigned] = await Promise.all([
+      Auth.getVolunteerProfiles(),
+      Auth.getEventVolunteers(eventId)
+    ]);
+
+    const assignedEmails = new Set(assigned.map((a) => String(a.volunteerEmail)));
+
+    selectEl.innerHTML = '<option value="">Select a volunteer to assign&hellip;</option>'
+      + volunteers
+          .filter((v) => !assignedEmails.has(String(v.email)))
+          .map((v) => `<option value="${escapeHtml(v.email)}">${escapeHtml(`${v.fullName} (${v.email})`)}</option>`)
+          .join('');
+
+    if (!assigned.length) {
+      listEl.innerHTML = '<p class="text-muted small mb-0">No volunteers assigned yet.</p>';
+    } else {
+      listEl.innerHTML = `<ul class="list-group list-group-flush">
+        ${assigned.map((a) => `
+          <li class="list-group-item d-flex align-items-center justify-content-between px-0 py-2">
+            <div>
+              <span class="fw-semibold small">${escapeHtml(a.volunteerName)}</span>
+              <span class="text-muted small ms-2">${escapeHtml(a.volunteerEmail)}</span>
+              <span class="badge ${a.selfSignedUp ? 'bg-info text-dark' : 'bg-secondary'} ms-2" style="font-size:0.65rem;">
+                ${a.selfSignedUp ? 'Self sign-up' : 'Admin assigned'}
+              </span>
+            </div>
+            <button class="btn btn-outline-danger btn-sm js-remove-vol-assignment"
+              data-event-id="${escapeHtml(eventId)}" data-vol-email="${escapeHtml(a.volunteerEmail)}">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </li>`).join('')}
+      </ul>`;
+
+      listEl.querySelectorAll('.js-remove-vol-assignment').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          const result = await Auth.removeVolunteerFromEvent(btn.dataset.eventId, btn.dataset.volEmail);
+          if (result.success) {
+            await renderEventVolunteersPanel(eventId);
+          } else {
+            if (errEl) { errEl.textContent = result.message; errEl.classList.remove('d-none'); }
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    const assignBtn = document.getElementById('eventAssignVolunteerBtn');
+    const newAssignBtn = assignBtn?.cloneNode(true);
+    if (assignBtn && newAssignBtn) {
+      assignBtn.replaceWith(newAssignBtn);
+      newAssignBtn.addEventListener('click', async () => {
+        const email = selectEl.value;
+        if (!email) return;
+        if (errEl) errEl.classList.add('d-none');
+        newAssignBtn.disabled = true;
+        const result = await Auth.assignVolunteerToEvent(eventId, email);
+        if (result.success) {
+          await renderEventVolunteersPanel(eventId);
+        } else {
+          if (errEl) { errEl.textContent = result.message; errEl.classList.remove('d-none'); }
+          newAssignBtn.disabled = false;
+        }
+      });
+    }
   }
 
   function resetJobFormState() {
@@ -820,6 +898,7 @@ document.addEventListener('sections:ready', async (e) => {
         editingEventId = event.id;
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         showEventsFormView(true, true);
+        await renderEventVolunteersPanel(event.id);
       });
     });
 
@@ -1795,6 +1874,7 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         navigateTo('events');
         showEventsFormView(true);
+        await renderEventVolunteersPanel(event.id);
       });
     });
 

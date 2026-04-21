@@ -22,6 +22,7 @@ const Auth = (() => {
   const AUDIT_LOG_KEY = 'kindred_audit_log';
   const INQUIRIES_KEY = 'kindred_inquiries';
   const TASKS_KEY = 'kindred_tasks';
+  const VOLUNTEER_EVENT_ASSIGNMENTS_KEY = 'kindred_volunteer_event_assignments';
 
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
@@ -279,6 +280,10 @@ const Auth = (() => {
 
   function getRawEventSignups() {
     return parseJson(EVENT_SIGNUPS_KEY, []);
+  }
+
+  function getRawVolunteerEventAssignments() {
+    return parseJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
   }
 
   function getRawJobs() {
@@ -1152,6 +1157,135 @@ const Auth = (() => {
     setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().filter((entry) => String(entry.userId) !== String(profile.userId)));
     return { success: true };
   }
+
+  // ─── Volunteer-Event Assignment Methods ───────────────────────────────────
+
+  async function assignVolunteerToEvent(eventId, volunteerEmail) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can assign volunteers to events.' };
+    }
+    const events = getRawEvents();
+    if (!events.find((e) => String(e.id) === String(eventId))) {
+      return { success: false, message: 'Event not found.' };
+    }
+    const profile = getRawVolunteerProfiles().find((p) => normalizeEmail(p.email) === normalizeEmail(volunteerEmail));
+    if (!profile) return { success: false, message: 'Volunteer profile not found.' };
+
+    const assignments = getRawVolunteerEventAssignments();
+    const duplicate = assignments.find(
+      (a) => String(a.eventId) === String(eventId) && normalizeEmail(a.volunteerEmail) === normalizeEmail(volunteerEmail)
+    );
+    if (duplicate) return { success: true, alreadyAssigned: true };
+
+    const now = Date.now();
+    assignments.push({
+      id: makeId('va'),
+      eventId: String(eventId),
+      volunteerEmail: normalizeEmail(volunteerEmail),
+      volunteerUserId: String(profile.userId),
+      volunteerName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || normalizeEmail(volunteerEmail),
+      selfSignedUp: false,
+      assignedByUserId: String(session.userId),
+      assignedByRole: 'ADMIN',
+      assignedAtMs: now,
+      assignedAtLabel: formatDateLabel(new Date(now))
+    });
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, assignments);
+    return { success: true };
+  }
+
+  async function removeVolunteerFromEvent(eventId, volunteerEmail) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can remove volunteer assignments.' };
+    }
+    const assignments = getRawVolunteerEventAssignments();
+    const filtered = assignments.filter(
+      (a) => !(String(a.eventId) === String(eventId) && normalizeEmail(a.volunteerEmail) === normalizeEmail(volunteerEmail))
+    );
+    if (filtered.length === assignments.length) return { success: false, message: 'Assignment not found.' };
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, filtered);
+    return { success: true };
+  }
+
+  async function selfSignUpForEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can sign up for events.' };
+    }
+    const events = getRawEvents();
+    if (!events.find((e) => String(e.id) === String(eventId))) {
+      return { success: false, message: 'Event not found.' };
+    }
+    const profile = getRawVolunteerProfiles().find((p) => String(p.userId) === String(session.userId));
+    if (!profile) return { success: false, message: 'Please complete your volunteer profile before signing up for events.' };
+
+    const assignments = getRawVolunteerEventAssignments();
+    const duplicate = assignments.find(
+      (a) => String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId)
+    );
+    if (duplicate) return { success: true, alreadySignedUp: true };
+
+    const now = Date.now();
+    assignments.push({
+      id: makeId('va'),
+      eventId: String(eventId),
+      volunteerEmail: normalizeEmail(session.email),
+      volunteerUserId: String(session.userId),
+      volunteerName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || session.name,
+      selfSignedUp: true,
+      assignedByUserId: String(session.userId),
+      assignedByRole: 'VOLUNTEER',
+      assignedAtMs: now,
+      assignedAtLabel: formatDateLabel(new Date(now))
+    });
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, assignments);
+    return { success: true };
+  }
+
+  async function withdrawFromEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can withdraw from events.' };
+    }
+    const assignments = getRawVolunteerEventAssignments();
+    const filtered = assignments.filter(
+      (a) => !(String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId))
+    );
+    if (filtered.length === assignments.length) return { success: false, message: 'You are not signed up for this event.' };
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, filtered);
+    return { success: true };
+  }
+
+  async function getEventVolunteers(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return [];
+    return getRawVolunteerEventAssignments()
+      .filter((a) => String(a.eventId) === String(eventId))
+      .sort((a, b) => (a.assignedAtMs || 0) - (b.assignedAtMs || 0));
+  }
+
+  async function getMyVolunteerEvents() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return [];
+    const userAssignments = getRawVolunteerEventAssignments().filter(
+      (a) => String(a.volunteerUserId) === String(session.userId)
+    );
+    const eventIds = new Set(userAssignments.map((a) => String(a.eventId)));
+    const events = await getEvents();
+    return events.filter((e) => eventIds.has(String(e.id)));
+  }
+
+  async function isSignedUpForEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return false;
+    return getRawVolunteerEventAssignments().some(
+      (a) => String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId)
+    );
+  }
+
+  // ─── End Volunteer-Event Assignment Methods ────────────────────────────────
 
   function eventDuplicate(events, payload, skipId = null) {
     const title = String(payload.title || '').trim().toLowerCase();
@@ -3011,6 +3145,13 @@ const Auth = (() => {
     getVolunteerProfiles,
     saveVolunteerProfile,
     removeVolunteerProfile,
+    assignVolunteerToEvent,
+    removeVolunteerFromEvent,
+    selfSignUpForEvent,
+    withdrawFromEvent,
+    getEventVolunteers,
+    getMyVolunteerEvents,
+    isSignedUpForEvent,
     getEvents,
     addEvent,
     updateEvent,

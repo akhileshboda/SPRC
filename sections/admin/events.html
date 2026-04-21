@@ -126,5 +126,26 @@
         </form>
       </div>
     </div>
+
+    <!-- Assigned Volunteers panel (shown only when viewing/editing an existing event) -->
+    <div class="card shadow-sm mt-4 d-none" id="eventVolunteersPanel">
+      <div class="card-header fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-people-fill text-primary"></i>Assigned Volunteers
+      </div>
+      <div class="card-body">
+        <div id="eventVolunteersError" class="alert alert-danger d-none" role="alert"></div>
+        <div class="d-flex gap-2 mb-3">
+          <select class="form-select form-select-sm" id="eventVolunteerSelect" style="max-width: 320px;">
+            <option value="">Select a volunteer to assign&hellip;</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" id="eventAssignVolunteerBtn">
+            <i class="bi bi-person-plus me-1"></i>Assign
+          </button>
+        </div>
+        <div id="eventVolunteersList">
+          <p class="text-muted small mb-0">No volunteers assigned yet.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>

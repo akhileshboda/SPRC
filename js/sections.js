@@ -34,6 +34,7 @@ const ROLE_SECTIONS = {
   ],
   VOLUNTEER: [
     'sections/dashboard.html?v=1',
+    'sections/volunteer/profile.html?v=1',
     'sections/volunteer/bgcheck.html?v=1',
     'sections/volunteer/events.html?v=1',
     'sections/volunteer/tasks.html?v=1',
