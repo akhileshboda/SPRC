@@ -141,6 +141,7 @@ document.addEventListener('sections:ready', async (e) => {
     }
     if (email) email.required = enabled;
     if (password) password.required = enabled;
+    window.KindredRequiredMarkers?.sync();
   }
 
   function toggleInlineVolunteerUserFields() {
@@ -157,6 +158,7 @@ document.addEventListener('sections:ready', async (e) => {
     }
     if (email) email.required = enabled;
     if (password) password.required = enabled;
+    window.KindredRequiredMarkers?.sync();
   }
 
   function syncUserLinkVisibility() {
@@ -330,6 +332,7 @@ document.addEventListener('sections:ready', async (e) => {
       passwordEl.required = true;
       passwordEl.placeholder = 'Temporary password';
     }
+    window.KindredRequiredMarkers?.sync();
     const submitBtn = document.getElementById('userSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Create Account';
     document.getElementById('userParticipantLinkId').value = '';
@@ -631,6 +634,7 @@ document.addEventListener('sections:ready', async (e) => {
         passwordEl.value = '';
         passwordEl.required = false;
         passwordEl.placeholder = 'Leave blank to keep current password';
+        window.KindredRequiredMarkers?.sync();
         const participants = await Auth.getParticipants();
         const linkedParticipant = participants.find((participant) => String(participant.participantUserId) === String(user.id));
         const volunteerProfile = await Auth.getVolunteerProfile(user.id);

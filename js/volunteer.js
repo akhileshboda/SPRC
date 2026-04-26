@@ -796,13 +796,14 @@ document.addEventListener('sections:ready', async (e) => {
         const completedRadio = document.getElementById('resolveCompleted');
         if (completedRadio) completedRadio.checked = true;
         const noteEl = document.getElementById('taskResolveNote');
-        if (noteEl) { noteEl.value = ''; noteEl.classList.remove('is-invalid'); }
+        if (noteEl) { noteEl.value = ''; noteEl.required = false; noteEl.classList.remove('is-invalid'); }
         const hintEl = document.getElementById('taskResolveNoteHint');
         if (hintEl) hintEl.textContent = '(optional)';
         const errEl = document.getElementById('taskResolveError');
         if (errEl) errEl.classList.add('d-none');
         const confirmBtn = document.getElementById('taskResolveConfirmBtn');
         if (confirmBtn) { confirmBtn.className = 'btn btn-success'; confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm'; }
+        window.KindredRequiredMarkers?.sync();
         bootstrap.Modal.getOrCreateInstance(document.getElementById('taskResolveModal')).show();
       });
     });
@@ -817,13 +818,16 @@ document.addEventListener('sections:ready', async (e) => {
       const hintEl = document.getElementById('taskResolveNoteHint');
       const confirmBtn = document.getElementById('taskResolveConfirmBtn');
       if (radio.value === 'REJECTED') {
-        if (hintEl) hintEl.textContent = '(required — please explain why)';
+        if (noteEl) noteEl.required = true;
+        if (hintEl) hintEl.textContent = '';
         if (confirmBtn) { confirmBtn.className = 'btn btn-danger'; confirmBtn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Reject Task'; }
       } else {
+        if (noteEl) noteEl.required = false;
         if (hintEl) hintEl.textContent = '(optional)';
         if (noteEl) noteEl.classList.remove('is-invalid');
         if (confirmBtn) { confirmBtn.className = 'btn btn-success'; confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm'; }
       }
+      window.KindredRequiredMarkers?.sync();
     });
   });
 

@@ -128,7 +128,7 @@ export function renderInterestChips(container, allOptions, selected = [], opts =
         value="${escHtml(otherText)}"
         aria-label="Other interest details">
     </div>
-    <div class="profile-chips-hint">Select all that apply</div>
+    <div class="profile-chips-hint">Select all that apply${required ? ' <span class="required-marker" aria-hidden="true">*</span>' : ''}</div>
     ${required ? `<div class="profile-chips-error" id="${container.id}-error">Select at least one interest.</div>` : ''}
   `;
 

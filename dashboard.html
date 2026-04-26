@@ -266,7 +266,7 @@
             <h6 class="fw-semibold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Create New Task</h6>
             <div class="mb-3">
               <label for="modalNewTaskTitle" class="form-label">Task Title <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="modalNewTaskTitle" placeholder="e.g. Follow up on housing resources">
+              <input type="text" class="form-control" id="modalNewTaskTitle" placeholder="e.g. Follow up on housing resources" required>
               <div class="invalid-feedback">Please enter a task title.</div>
             </div>
             <div class="mb-3">
@@ -315,7 +315,7 @@
               Assign to Volunteer
               <span class="text-muted fw-normal small">(Cleared background check only)</span>
             </label>
-            <select class="form-select" id="taskAssignVolunteerSelect">
+            <select class="form-select" id="taskAssignVolunteerSelect" required>
               <option value="" disabled selected>Select a cleared volunteer…</option>
             </select>
             <div id="taskAssignNoVolunteers" class="form-text text-warning d-none">
@@ -348,7 +348,7 @@
           <div id="standaloneTaskError" class="alert alert-danger d-none" role="alert"></div>
           <div class="mb-3">
             <label for="stTaskTitle" class="form-label">Task Title <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="stTaskTitle" placeholder="e.g. Prepare venue for Saturday event">
+            <input type="text" class="form-control" id="stTaskTitle" placeholder="e.g. Prepare venue for Saturday event" required>
             <div class="invalid-feedback">Please enter a task title.</div>
           </div>
           <div class="mb-3">
@@ -483,7 +483,7 @@
         <div class="modal-body">
           <p class="text-muted small mb-3" id="updateAppStatusContext"></p>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Move to</label>
+            <label class="form-label fw-semibold">Move to <span class="required-marker" aria-hidden="true">*</span></label>
             <div id="updateAppStatusOptions" class="d-flex flex-wrap gap-2"></div>
           </div>
           <div class="mb-3">
@@ -516,6 +516,7 @@
   <script src="js/nav.js?v=3"></script>
   <script src="js/auth.js?v=14"></script>
   <script src="js/notifications-ui.js?v=2"></script>
+  <script src="js/required-markers.js"></script>
   <script src="js/sidebar.js?v=6"></script>
   <script src="js/sections.js?v=4"></script>
   <script src="js/admin.js?v=6"></script>
