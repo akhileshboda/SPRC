@@ -1,7 +1,41 @@
+# Dependencies
 node_modules/
+
+# Local data and environment
 data/
 .env
+.env.*
+!.env.example
+
+# Logs and package manager diagnostics
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Build, coverage, and deploy artifacts
+dist/
+build/
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+.vite/
+.next/
+out/
+
+# OS and editor junk
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+.Spotlight-V100
+.Trashes
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Claude Code
 .claude/

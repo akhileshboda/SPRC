@@ -91,6 +91,7 @@ function initSidebar(session) {
 
 function navigateTo(sectionId) {
   if (!sectionId) return;
+  const navItem = NAV_ITEMS.find(item => item.id === sectionId);
 
   // Hide all content sections
   document.querySelectorAll('.content-section').forEach(s => s.classList.add('d-none'));
@@ -104,6 +105,11 @@ function navigateTo(sectionId) {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-current', active ? 'page' : 'false');
   });
+
+  const mobileTitle = document.getElementById('mobileDashboardTitle');
+  if (mobileTitle && navItem) {
+    mobileTitle.textContent = navItem.label;
+  }
 
   // Scroll the main content area back to the top
   document.getElementById('mainContent').scrollTop = 0;

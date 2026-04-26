@@ -78,19 +78,31 @@
     </nav>
 
     <!-- ─── MOBILE OFFCANVAS SIDEBAR ─── -->
-    <div class="offcanvas offcanvas-start bg-dark text-white"
+    <div class="offcanvas offcanvas-start dashboard-sidebar-offcanvas"
          tabindex="-1"
          id="sidebarOffcanvas"
-         aria-labelledby="sidebarOffcanvasLabel"
-         style="width: 260px;">
-      <div class="offcanvas-header border-bottom border-secondary">
-        <span class="fw-bold text-white fs-5" id="sidebarOffcanvasLabel">Kindred</span>
+         aria-labelledby="sidebarOffcanvasLabel">
+      <div class="offcanvas-header">
+        <span class="fw-bold fs-5" id="sidebarOffcanvasLabel">Dashboard</span>
         <button type="button"
-                class="btn-close btn-close-white"
+                class="btn-close"
                 data-bs-dismiss="offcanvas"
                 aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body d-flex flex-column p-0"></div>
+    </div>
+
+    <!-- ─── MOBILE DASHBOARD NAV ─── -->
+    <div id="mobileDashboardBar" class="d-md-none" aria-label="Dashboard navigation">
+      <button class="mobile-dashboard-menu-btn"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sidebarOffcanvas"
+              aria-controls="sidebarOffcanvas">
+        <i class="bi bi-list" aria-hidden="true"></i>
+        <span class="visually-hidden">Open dashboard navigation</span>
+      </button>
+      <span id="mobileDashboardTitle">Dashboard</span>
     </div>
 
     <!-- ─── MAIN CONTENT AREA (sections injected here by sections.js) ─── -->
