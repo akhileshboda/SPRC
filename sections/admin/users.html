@@ -17,6 +17,7 @@
               <th scope="col" class="ps-3">Name</th>
               <th scope="col">Email</th>
               <th scope="col">Role</th>
+              <th scope="col">Access</th>
               <th scope="col">Date Added</th>
               <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
             </tr>
@@ -79,18 +80,118 @@
               <div class="invalid-feedback">Please select a role.</div>
             </div>
 
-            <div class="col-md-6 d-none" id="userParticipantLinkWrap">
-              <label for="userParticipantLinkId" class="form-label">Link To Existing Participant Record</label>
-              <select class="form-select" id="userParticipantLinkId">
-                <option value="" selected>No participant record link</option>
-              </select>
+            <div class="col-12 d-none" id="userParticipantRecordWrap">
+              <div class="border rounded p-3 bg-light">
+                <h6 class="fw-semibold mb-3 text-success">Participant Record</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="userParticipantDateOfBirth" class="form-label">Date of Birth</label>
+                    <input type="date" class="form-control" id="userParticipantDateOfBirth">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantGuardianIds" class="form-label">Linked Guardians</label>
+                    <select class="form-select" id="userParticipantGuardianIds" multiple size="4"></select>
+                    <div class="invalid-feedback">Choose at least one guardian login.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantContactEmail" class="form-label">Primary Contact Email</label>
+                    <input type="email" class="form-control" id="userParticipantContactEmail" placeholder="guardian@email.com">
+                    <div class="invalid-feedback">A valid contact email is required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantContactPhone" class="form-label">Contact Phone</label>
+                    <input type="tel" class="form-control" id="userParticipantContactPhone" placeholder="e.g. (555) 555-0101">
+                    <div class="invalid-feedback">Contact phone is required.</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Participant Interests</label>
+                    <div id="userParticipantInterestsChips"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantJobGoals" class="form-label">Job Goals</label>
+                    <textarea class="form-control" id="userParticipantJobGoals" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantBio" class="form-label">Bio</label>
+                    <textarea class="form-control" id="userParticipantBio" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantSpecialNeeds" class="form-label">Support Needs</label>
+                    <textarea class="form-control" id="userParticipantSpecialNeeds" rows="3"></textarea>
+                    <div class="invalid-feedback">Support needs are required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantMedicalNotes" class="form-label">Medical Notes</label>
+                    <textarea class="form-control" id="userParticipantMedicalNotes" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantSensoryNotes" class="form-label">Sensory Notes</label>
+                    <textarea class="form-control" id="userParticipantSensoryNotes" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantGuardianNotes" class="form-label">Guardian / Admin Notes</label>
+                    <textarea class="form-control" id="userParticipantGuardianNotes" rows="3"></textarea>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div class="col-md-6 d-none" id="userVolunteerLinkWrap">
-              <label for="userVolunteerLinkId" class="form-label">Link To Existing Volunteer Profile</label>
-              <select class="form-select" id="userVolunteerLinkId">
-                <option value="" selected>No volunteer profile link</option>
-              </select>
+            <div class="col-12 d-none" id="userVolunteerProfileWrap">
+              <div class="border rounded p-3 bg-light">
+                <h6 class="fw-semibold mb-3 text-info">Volunteer Profile</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="userVolunteerPhone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="userVolunteerPhone" placeholder="e.g. (555) 555-0101">
+                    <div class="invalid-feedback">Phone number is required.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="userVolunteerPronounsSubject" class="form-label">Pronouns (Subject)</label>
+                    <select class="form-select" id="userVolunteerPronounsSubject">
+                      <option value="">Prefer not to say</option>
+                      <option value="he">he</option>
+                      <option value="she">she</option>
+                      <option value="they">they</option>
+                      <option value="ze">ze</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="userVolunteerPronounsObject" class="form-label">Pronouns (Object)</label>
+                    <select class="form-select" id="userVolunteerPronounsObject">
+                      <option value="">Prefer not to say</option>
+                      <option value="him">him</option>
+                      <option value="her">her</option>
+                      <option value="them">them</option>
+                      <option value="zir">zir</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Interests</label>
+                    <div id="userVolunteerInterestsChips"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Languages Spoken</label>
+                    <div id="userVolunteerLanguagesChips"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerAvailability" class="form-label">Schedule Preferences</label>
+                    <textarea class="form-control" id="userVolunteerAvailability" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerPreferredLocation" class="form-label">Preferred Location</label>
+                    <input type="text" class="form-control" id="userVolunteerPreferredLocation">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerBackgroundCheck" class="form-label">Background Check Status</label>
+                    <select class="form-select" id="userVolunteerBackgroundCheck">
+                      <option value="Not Started">Not Started</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Cleared">Cleared</option>
+                      <option value="Revoked">Revoked</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="col-12">

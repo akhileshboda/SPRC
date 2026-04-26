@@ -27,6 +27,8 @@ const Auth = (() => {
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
+  const ACCESS_STATUSES = ['ACTIVE', 'REVOKED'];
+  const RECORD_STATUSES = ['ACTIVE', 'INACTIVE'];
   const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals', 'bio', 'dateOfBirth'];
 
   const SEED_EVENTS = [
@@ -336,6 +338,16 @@ const Auth = (() => {
     return ROLES.includes(upper) ? upper : fallback;
   }
 
+  function normalizeAccessStatus(value) {
+    const upper = String(value || 'ACTIVE').trim().toUpperCase();
+    return ACCESS_STATUSES.includes(upper) ? upper : 'ACTIVE';
+  }
+
+  function normalizeRecordStatus(value, fallback = 'ACTIVE') {
+    const upper = String(value || fallback).trim().toUpperCase();
+    return RECORD_STATUSES.includes(upper) ? upper : fallback;
+  }
+
   function normalizeUser(user) {
     const normalizedEmail = normalizeEmail(user.email);
     const name = String(user.name || '').trim();
@@ -347,6 +359,7 @@ const Auth = (() => {
       email: normalizedEmail,
       password: String(user.password || ''),
       role,
+      accessStatus: normalizeAccessStatus(user.accessStatus),
       dateAdded
     };
   }
@@ -356,10 +369,11 @@ const Auth = (() => {
     SEED_USERS.forEach((seed) => {
       const email = normalizeEmail(seed.email);
       if (!byEmail.has(email)) {
-        users.push({ ...seed });
+        users.push(normalizeUser(seed));
       } else {
         const existing = byEmail.get(email);
         if (!existing.id) existing.id = seed.id;
+        if (!existing.accessStatus) existing.accessStatus = 'ACTIVE';
       }
     });
     return users;
@@ -435,17 +449,21 @@ const Auth = (() => {
         jobGoals: String(participant.jobGoals || '').trim(),
         bio: String(participant.bio || '').trim(),
         createdAtMs: Number(participant.createdAtMs) || Date.now(),
+        recordStatus: normalizeRecordStatus(participant.recordStatus, linkedParticipantUser ? 'ACTIVE' : 'INACTIVE'),
         dateAdded: participant.dateAdded || formatDateLabel(new Date())
       };
     });
 
     const validParticipantIds = new Set(participantUsers.map((user) => String(user.id)));
-    const result = normalized.filter((participant) => participant.participantUserId && validParticipantIds.has(String(participant.participantUserId)));
+    const result = normalized.filter((participant) =>
+      participant.recordStatus === 'INACTIVE'
+      || (participant.participantUserId && validParticipantIds.has(String(participant.participantUserId)))
+    );
 
     if (!result.length && SEED_PARTICIPANTS.length) {
       return SEED_PARTICIPANTS
         .filter((participant) => users.some((user) => String(user.id) === String(participant.participantUserId)))
-        .map((participant) => ({ ...participant }));
+        .map((participant) => ({ recordStatus: 'ACTIVE', ...participant }));
     }
 
     return result;
@@ -461,13 +479,16 @@ const Auth = (() => {
         const linkedUser = profile.userId
           ? volunteerUsers.find((user) => String(user.id) === String(profile.userId))
           : usersByEmail.get(email);
-        if (!linkedUser || linkedUser.role !== 'VOLUNTEER') return null;
+        const isInactiveOrphan = normalizeRecordStatus(profile.recordStatus, 'ACTIVE') === 'INACTIVE';
+        if ((!linkedUser || linkedUser.role !== 'VOLUNTEER') && !isInactiveOrphan) return null;
+        const fallbackName = linkedUser ? splitName(linkedUser.name) : splitName(`${profile.firstName || ''} ${profile.lastName || ''}`.trim());
         return {
-          userId: String(linkedUser.id),
-          firstName: String(profile.firstName || splitName(linkedUser.name).firstName || '').trim(),
-          lastName: String(profile.lastName || splitName(linkedUser.name).lastName || '').trim(),
+          id: String(profile.id || makeId('vp')),
+          userId: linkedUser ? String(linkedUser.id) : '',
+          firstName: String(profile.firstName || fallbackName.firstName || '').trim(),
+          lastName: String(profile.lastName || fallbackName.lastName || '').trim(),
           phone: String(profile.phone || '').trim(),
-          email: linkedUser.email,
+          email: linkedUser ? linkedUser.email : email,
           interests: normalizeParticipantInterests(profile.interests),
           availability: String(profile.availability || '').trim(),
           preferredLocation: String(profile.preferredLocation || '').trim(),
@@ -477,6 +498,7 @@ const Auth = (() => {
             ? profile.languagesSpoken.map((item) => String(item).trim()).filter(Boolean)
             : [],
           backgroundCheckStatus: String(profile.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
+          recordStatus: normalizeRecordStatus(profile.recordStatus, linkedUser ? 'ACTIVE' : 'INACTIVE'),
           updatedAt: Number(profile.updatedAt) || Date.now(),
           updatedAtLabel: profile.updatedAtLabel || new Date(Number(profile.updatedAt) || Date.now()).toLocaleString('en-US', {
             year: 'numeric',
@@ -492,7 +514,11 @@ const Auth = (() => {
     if (!result.length && SEED_VOLUNTEER_PROFILES.length) {
       return SEED_VOLUNTEER_PROFILES
         .filter((profile) => volunteerUsers.some((user) => String(user.id) === String(profile.userId)))
-        .map((profile) => ({ ...profile }));
+        .map((profile) => ({
+          id: String(profile.id || makeId('vp')),
+          recordStatus: 'ACTIVE',
+          ...profile
+        }));
     }
 
     return result;
@@ -667,15 +693,21 @@ const Auth = (() => {
   }
 
   function getVolunteerProfileByUserIdInternal(userId) {
-    return getRawVolunteerProfiles().find((profile) => String(profile.userId) === String(userId)) || null;
+    return getRawVolunteerProfiles().find((profile) =>
+      String(profile.userId) === String(userId) && profile.recordStatus === 'ACTIVE'
+    ) || null;
   }
 
   function getParticipantRecordByUserIdInternal(userId) {
-    return getRawParticipants().find((participant) => String(participant.participantUserId) === String(userId)) || null;
+    return getRawParticipants().find((participant) =>
+      String(participant.participantUserId) === String(userId) && participant.recordStatus === 'ACTIVE'
+    ) || null;
   }
 
   function getLinkedParticipantsForGuardianUserIdInternal(userId) {
-    return getRawParticipants().filter((participant) => (participant.guardianUserIds || []).map(String).includes(String(userId)));
+    return getRawParticipants().filter((participant) =>
+      participant.recordStatus === 'ACTIVE' && (participant.guardianUserIds || []).map(String).includes(String(userId))
+    );
   }
 
   function participantDisplayName(participant) {
@@ -728,7 +760,7 @@ const Auth = (() => {
         return null;
       }
       const user = getUserByIdInternal(session.userId);
-      if (!user) {
+      if (!user || normalizeAccessStatus(user.accessStatus) === 'REVOKED') {
         localStorage.removeItem(SESSION_KEY);
         return null;
       }
@@ -748,6 +780,21 @@ const Auth = (() => {
     const user = getRawUsers().find((candidate) => candidate.email === normalizeEmail(email) && candidate.password === String(password || ''));
     if (!user) {
       return { success: false, message: 'Invalid email or password. Please try again.' };
+    }
+    if (normalizeAccessStatus(user.accessStatus) === 'REVOKED') {
+      return { success: false, message: 'This account has been revoked. Contact an administrator to restore access.' };
+    }
+    if (user.role === 'PARTICIPANT') {
+      const participant = getParticipantRecordByUserIdInternal(user.id);
+      if (!participant || participant.recordStatus !== 'ACTIVE') {
+        return { success: false, message: 'This participant account is not linked to an active participant record.' };
+      }
+    }
+    if (user.role === 'VOLUNTEER') {
+      const profile = getVolunteerProfileByUserIdInternal(user.id);
+      if (!profile || profile.recordStatus !== 'ACTIVE') {
+        return { success: false, message: 'This volunteer account is not linked to an active volunteer profile.' };
+      }
     }
     const session = { userId: user.id, name: user.name, email: user.email, role: user.role };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -798,11 +845,15 @@ const Auth = (() => {
   }
 
   async function getUsers() {
-    return getRawUsers().map(({ id, name, email, role, dateAdded }) => ({
+    return getRawUsers().map(({ id, name, email, role, accessStatus, dateAdded }) => ({
       id,
       name,
       email,
       role: normalizeRole(role),
+      accessStatus: (
+        (normalizeRole(role) === 'PARTICIPANT' && !getParticipantRecordByUserIdInternal(id))
+        || (normalizeRole(role) === 'VOLUNTEER' && !getVolunteerProfileByUserIdInternal(id))
+      ) ? 'REVOKED' : normalizeAccessStatus(accessStatus),
       dateAdded
     }));
   }
@@ -812,6 +863,14 @@ const Auth = (() => {
     if (!user) return null;
     const { password, ...safe } = user;
     return safe;
+  }
+
+  function activateUserAccess(userId) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(userId));
+    if (idx === -1) return;
+    users[idx] = { ...users[idx], accessStatus: 'ACTIVE' };
+    setJson(USERS_KEY, users);
   }
 
   function syncParticipantUserLink(userId, participantId) {
@@ -833,9 +892,11 @@ const Auth = (() => {
     }
     participants[targetIdx] = {
       ...participants[targetIdx],
-      participantUserId: String(userId)
+      participantUserId: String(userId),
+      recordStatus: 'ACTIVE'
     };
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(userId);
     return { success: true };
   }
 
@@ -846,7 +907,11 @@ const Auth = (() => {
       return { success: false, message: 'Only volunteer users can link to volunteer profiles.' };
     }
     const profiles = getRawVolunteerProfiles();
-    const targetIdx = profiles.findIndex((profile) => String(profile.userId) === String(volunteerProfileId) || normalizeEmail(profile.email) === normalizeEmail(volunteerProfileId));
+    const targetIdx = profiles.findIndex((profile) =>
+      String(profile.id) === String(volunteerProfileId)
+      || String(profile.userId) === String(volunteerProfileId)
+      || normalizeEmail(profile.email) === normalizeEmail(volunteerProfileId)
+    );
     if (targetIdx === -1) {
       return { success: false, message: 'Volunteer profile not found for linking.' };
     }
@@ -859,13 +924,15 @@ const Auth = (() => {
     profiles[targetIdx] = {
       ...profiles[targetIdx],
       userId: String(userId),
-      email: user.email
+      email: user.email,
+      recordStatus: 'ACTIVE'
     };
     setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    activateUserAccess(userId);
     return { success: true };
   }
 
-  async function addUser(user) {
+  function createRawUser(user) {
     const users = getRawUsers();
     const email = normalizeEmail(user.email);
     if (!email) return { success: false, message: 'Email is required.' };
@@ -880,10 +947,25 @@ const Auth = (() => {
       email,
       password: String(user.password || ''),
       role,
+      accessStatus: normalizeAccessStatus(user.accessStatus),
       dateAdded: formatDateLabel(new Date())
     };
     users.push(newUser);
     setJson(USERS_KEY, users);
+    return {
+      success: true,
+      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, accessStatus: newUser.accessStatus }
+    };
+  }
+
+  async function addUser(user) {
+    const role = normalizeRole(user.role);
+    if ((role === 'PARTICIPANT' || role === 'VOLUNTEER') && !user.linkParticipantId && !user.linkVolunteerProfileId) {
+      return { success: false, message: `${role === 'PARTICIPANT' ? 'Participant' : 'Volunteer'} users must be created with a linked record.` };
+    }
+    const result = createRawUser(user);
+    if (!result.success) return result;
+    const newUser = result.user;
 
     const participantLinkResult = syncParticipantUserLink(newUser.id, user.linkParticipantId);
     if (!participantLinkResult.success) {
@@ -899,8 +981,37 @@ const Auth = (() => {
 
     return {
       success: true,
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role }
+      user: newUser
     };
+  }
+
+  async function createUserWithLinkedRecord(payload) {
+    const role = normalizeRole(payload.role);
+    if (role !== 'PARTICIPANT' && role !== 'VOLUNTEER') {
+      return addUser(payload);
+    }
+    const userResult = createRawUser({ ...payload, role, accessStatus: 'ACTIVE' });
+    if (!userResult.success) return userResult;
+    const userId = userResult.user.id;
+    const rollback = () => {
+      setJson(USERS_KEY, getRawUsers().filter((candidate) => String(candidate.id) !== String(userId)));
+    };
+
+    if (role === 'PARTICIPANT') {
+      const result = await addParticipant({ ...(payload.participantRecord || {}), participantUserId: userId });
+      if (!result.success) {
+        rollback();
+        return result;
+      }
+      return { success: true, user: userResult.user };
+    }
+
+    const result = await saveVolunteerProfile({ ...(payload.volunteerProfile || {}), userId });
+    if (!result.success) {
+      rollback();
+      return result;
+    }
+    return { success: true, user: userResult.user };
   }
 
   async function updateUser(originalEmail, payload) {
@@ -924,6 +1035,7 @@ const Auth = (() => {
     users[idx].name = String(payload.name || '').trim();
     users[idx].email = nextEmail;
     users[idx].role = nextRole;
+    users[idx].accessStatus = normalizeAccessStatus(payload.accessStatus || users[idx].accessStatus);
     if (String(payload.password || '').trim()) users[idx].password = String(payload.password);
     setJson(USERS_KEY, users);
     initStores();
@@ -944,15 +1056,60 @@ const Auth = (() => {
     ) || volunteerProfiles.some((profile) => String(profile.userId) === String(userId));
   }
 
-  async function removeUser(email) {
+  async function revokeUserAccess(identifier) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(identifier) || user.email === normalizeEmail(identifier));
+    if (idx === -1) return { success: false, message: 'User not found.' };
+    users[idx] = { ...users[idx], accessStatus: 'REVOKED' };
+    setJson(USERS_KEY, users);
+    return { success: true };
+  }
+
+  async function restoreUserAccess(identifier) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(identifier) || user.email === normalizeEmail(identifier));
+    if (idx === -1) return { success: false, message: 'User not found.' };
+    const user = users[idx];
+    if (user.role === 'PARTICIPANT' && !getParticipantRecordByUserIdInternal(user.id)) {
+      return { success: false, message: 'Link this participant user to an active participant record before restoring access.' };
+    }
+    if (user.role === 'VOLUNTEER' && !getVolunteerProfileByUserIdInternal(user.id)) {
+      return { success: false, message: 'Link this volunteer user to an active volunteer profile before restoring access.' };
+    }
+    users[idx] = { ...user, accessStatus: 'ACTIVE' };
+    setJson(USERS_KEY, users);
+    return { success: true };
+  }
+
+  async function removeUser(identifier, options = {}) {
     const session = await getSession();
-    const user = getUserByEmailInternal(email);
+    const user = getUserByIdInternal(identifier) || getUserByEmailInternal(identifier);
     if (!user) return { success: false, message: 'User not found.' };
     if (session && session.userId === user.id) {
       return { success: false, message: 'You cannot delete your own account.' };
     }
-    if (userHasLinkedData(user.id)) {
+    const preserveLinkedRecords = options.preserveLinkedRecords !== false;
+    if (userHasLinkedData(user.id) && !preserveLinkedRecords && !options.deleteLinkedRecords) {
       return { success: false, message: 'This account is linked to participant or volunteer data. Unlink it first.' };
+    }
+    if (preserveLinkedRecords) {
+      setJson(PARTICIPANTS_KEY, getRawParticipants().map((participant) =>
+        String(participant.participantUserId) === String(user.id)
+          ? { ...participant, participantUserId: '', recordStatus: 'INACTIVE' }
+          : { ...participant, guardianUserIds: (participant.guardianUserIds || []).filter((guardianId) => String(guardianId) !== String(user.id)) }
+      ));
+      setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().map((profile) =>
+        String(profile.userId) === String(user.id)
+          ? { ...profile, userId: '', email: '', recordStatus: 'INACTIVE' }
+          : profile
+      ));
+    } else if (options.deleteLinkedRecords) {
+      getRawParticipants()
+        .filter((participant) => String(participant.participantUserId) === String(user.id))
+        .forEach((participant) => removeParticipant(participant.id, { deleteLinkedUser: false }));
+      getRawVolunteerProfiles()
+        .filter((profile) => String(profile.userId) === String(user.id))
+        .forEach((profile) => removeVolunteerProfile(profile.id || profile.userId, { deleteLinkedUser: false }));
     }
     setJson(USERS_KEY, getRawUsers().filter((candidate) => candidate.id !== user.id));
     return { success: true };
@@ -976,7 +1133,8 @@ const Auth = (() => {
       participantInterests: normalizeParticipantInterests(payload.participantInterests),
       jobGoals: String(payload.jobGoals || '').trim(),
       bio: String(payload.bio || '').trim(),
-      dateOfBirth: String(payload.dateOfBirth || '').trim()
+      dateOfBirth: String(payload.dateOfBirth || '').trim(),
+      recordStatus: normalizeRecordStatus(payload.recordStatus, 'ACTIVE')
     };
   }
 
@@ -1025,10 +1183,12 @@ const Auth = (() => {
     participants.push({
       id: makeId('p'),
       ...normalized,
+      recordStatus: 'ACTIVE',
       createdAtMs: Date.now(),
       dateAdded: formatDateLabel(new Date())
     });
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(normalized.participantUserId);
     return { success: true };
   }
 
@@ -1044,17 +1204,27 @@ const Auth = (() => {
     }
     participants[idx] = {
       ...participants[idx],
-      ...normalized
+      ...normalized,
+      recordStatus: 'ACTIVE'
     };
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(normalized.participantUserId);
     return { success: true };
   }
 
-  async function removeParticipant(id) {
+  async function removeParticipant(id, options = {}) {
     const participants = getRawParticipants();
+    const target = participants.find((participant) => String(participant.id) === String(id));
     const filtered = participants.filter((participant) => String(participant.id) !== String(id));
     if (filtered.length === participants.length) {
       return { success: false, message: 'Participant record not found.' };
+    }
+    if (target?.participantUserId) {
+      if (options.deleteLinkedUser) {
+        setJson(USERS_KEY, getRawUsers().filter((user) => String(user.id) !== String(target.participantUserId)));
+      } else {
+        await revokeUserAccess(target.participantUserId);
+      }
     }
     setJson(PARTICIPANTS_KEY, filtered);
     setJson(EVENT_SIGNUPS_KEY, getRawEventSignups().filter((entry) => String(entry.participantId) !== String(id)));
@@ -1092,7 +1262,7 @@ const Auth = (() => {
     const session = await getSession();
     if (!session || session.role !== 'GUARDIAN') return false;
     const participant = getRawParticipants().find((entry) => String(entry.id) === String(participantId));
-    return Boolean(participant && (participant.guardianUserIds || []).map(String).includes(String(session.userId)));
+    return Boolean(participant && participant.recordStatus === 'ACTIVE' && (participant.guardianUserIds || []).map(String).includes(String(session.userId)));
   }
 
   async function updateMyParticipantProfile(payload) {
@@ -1118,7 +1288,11 @@ const Auth = (() => {
     const profiles = getRawVolunteerProfiles();
     const normalizedId = String(identifier || '').trim();
     const normalizedEmail = normalizeEmail(identifier);
-    const profile = profiles.find((entry) => String(entry.userId) === normalizedId || entry.email === normalizedEmail);
+    const profile = profiles.find((entry) =>
+      String(entry.id) === normalizedId
+      || String(entry.userId) === normalizedId
+      || (entry.email && entry.email === normalizedEmail)
+    );
     return profile ? decorateVolunteerProfile(profile) : null;
   }
 
@@ -1137,6 +1311,7 @@ const Auth = (() => {
     }
 
     const record = {
+      id: String(payload.id || makeId('vp')),
       userId: volunteerUser.id,
       firstName: String(payload.firstName || '').trim(),
       lastName: String(payload.lastName || '').trim(),
@@ -1151,6 +1326,7 @@ const Auth = (() => {
         ? payload.languagesSpoken.map(l => String(l).trim()).filter(Boolean)
         : [],
       backgroundCheckStatus: String(payload.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
+      recordStatus: 'ACTIVE',
       updatedAt: Date.now(),
       updatedAtLabel: new Date().toLocaleString('en-US', {
         year: 'numeric',
@@ -1162,7 +1338,8 @@ const Auth = (() => {
     };
 
     const idx = profiles.findIndex((profile) =>
-      String(profile.userId) === String(volunteerUser.id)
+      (payload.id && String(profile.id) === String(payload.id))
+      || String(profile.userId) === String(volunteerUser.id)
       || normalizeEmail(profile.email) === volunteerUser.email
     );
     if (idx >= 0) {
@@ -1172,7 +1349,7 @@ const Auth = (() => {
       if (conflicting) {
         return { success: false, message: 'That volunteer login is already linked to another volunteer profile.' };
       }
-      profiles[idx] = { ...profiles[idx], ...record };
+      profiles[idx] = { ...profiles[idx], ...record, id: profiles[idx].id || record.id };
     } else {
       const conflicting = profiles.find((profile) => String(profile.userId) === String(volunteerUser.id));
       if (conflicting) {
@@ -1181,13 +1358,23 @@ const Auth = (() => {
       profiles.push(record);
     }
     setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    activateUserAccess(volunteerUser.id);
     return { success: true };
   }
 
-  async function removeVolunteerProfile(identifier) {
+  async function removeVolunteerProfile(identifier, options = {}) {
     const profile = await getVolunteerProfile(identifier);
     if (!profile) return { success: false, message: 'Volunteer profile not found.' };
-    setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().filter((entry) => String(entry.userId) !== String(profile.userId)));
+    if (profile.userId) {
+      if (options.deleteLinkedUser) {
+        setJson(USERS_KEY, getRawUsers().filter((user) => String(user.id) !== String(profile.userId)));
+      } else {
+        await revokeUserAccess(profile.userId);
+      }
+    }
+    setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().filter((entry) =>
+      String(entry.id || entry.userId) !== String(profile.id || profile.userId)
+    ));
     return { success: true };
   }
 
@@ -1202,7 +1389,7 @@ const Auth = (() => {
     if (!events.find((e) => String(e.id) === String(eventId))) {
       return { success: false, message: 'Event not found.' };
     }
-    const profile = getRawVolunteerProfiles().find((p) => normalizeEmail(p.email) === normalizeEmail(volunteerEmail));
+    const profile = getRawVolunteerProfiles().find((p) => p.recordStatus === 'ACTIVE' && normalizeEmail(p.email) === normalizeEmail(volunteerEmail));
     if (!profile) return { success: false, message: 'Volunteer profile not found.' };
 
     const assignments = getRawVolunteerEventAssignments();
@@ -1251,7 +1438,7 @@ const Auth = (() => {
     if (!events.find((e) => String(e.id) === String(eventId))) {
       return { success: false, message: 'Event not found.' };
     }
-    const profile = getRawVolunteerProfiles().find((p) => String(p.userId) === String(session.userId));
+    const profile = getRawVolunteerProfiles().find((p) => p.recordStatus === 'ACTIVE' && String(p.userId) === String(session.userId));
     if (!profile) return { success: false, message: 'Please complete your volunteer profile before signing up for events.' };
 
     const assignments = getRawVolunteerEventAssignments();
@@ -3163,7 +3350,10 @@ const Auth = (() => {
     getUsers,
     getUserById,
     addUser,
+    createUserWithLinkedRecord,
     updateUser,
+    revokeUserAccess,
+    restoreUserAccess,
     removeUser,
     getParticipants,
     getParticipantById,

@@ -151,6 +151,7 @@
               <div class="col-8"><span id="modalSummaryRole" class="badge"></span></div>
             </div>
           </div>
+          <div id="modalSummaryLinkedDetails" class="bg-light rounded p-3 mb-3 d-none"></div>
           <div class="alert alert-info mb-0 small" role="alert">
             <strong>A welcome email will be sent</strong> to <strong id="modalSummaryEmailTarget"></strong> containing
             their temporary password and step-by-step instructions to reset it before their first login.
@@ -159,6 +160,31 @@
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="confirmCreateBtn">Yes, Create Account</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete User / Record Confirm Modal -->
+  <div class="modal fade" id="deleteIdentityModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-semibold" id="deleteIdentityTitle">Confirm Delete</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2" id="deleteIdentityMessage"></p>
+          <div class="alert alert-warning small mb-0" role="alert" id="deleteIdentityWarning">
+            This action cannot be undone.
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0 flex-wrap justify-content-between">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-danger" id="deleteIdentityPreserveBtn">Delete only</button>
+            <button type="button" class="btn btn-danger" id="deleteIdentityCascadeBtn">Delete both</button>
+          </div>
         </div>
       </div>
     </div>

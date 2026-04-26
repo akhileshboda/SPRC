@@ -21,6 +21,11 @@ document.addEventListener('sections:ready', async (e) => {
     VOLUNTEER: 'Volunteer'
   };
 
+  const ACCESS_BADGE = {
+    ACTIVE: 'bg-success',
+    REVOKED: 'bg-secondary'
+  };
+
   function canonicalRole(role) {
     const normalized = String(role || '').trim().toUpperCase();
     if (normalized === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
@@ -57,6 +62,18 @@ document.addEventListener('sections:ready', async (e) => {
   const participantInterestChips = _participantInterestsEl
     ? renderInterestChips(_participantInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
     : null;
+  const _userParticipantInterestsEl = document.getElementById('userParticipantInterestsChips');
+  const userParticipantInterestChips = _userParticipantInterestsEl
+    ? renderInterestChips(_userParticipantInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const _userVolInterestsEl = document.getElementById('userVolunteerInterestsChips');
+  const _userVolLanguagesEl = document.getElementById('userVolunteerLanguagesChips');
+  const userVolInterestChips = _userVolInterestsEl
+    ? renderInterestChips(_userVolInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const userVolLangChips = _userVolLanguagesEl
+    ? renderLanguageChips(_userVolLanguagesEl, [])
+    : null;
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const jobForm = document.getElementById('jobForm');
@@ -72,10 +89,13 @@ document.addEventListener('sections:ready', async (e) => {
   const confirmParticipantModalEl = document.getElementById('confirmSaveParticipantModal');
   const confirmParticipantModal = confirmParticipantModalEl ? bootstrap.Modal.getOrCreateInstance(confirmParticipantModalEl) : null;
   const confirmParticipantBtn = document.getElementById('confirmSaveParticipantBtn');
+  const deleteIdentityModalEl = document.getElementById('deleteIdentityModal');
+  const deleteIdentityModal = deleteIdentityModalEl ? bootstrap.Modal.getOrCreateInstance(deleteIdentityModalEl) : null;
 
   let editingUserEmail = null;
   let editingParticipantId = null;
   let editingVolunteerUserId = null;
+  let editingVolunteerProfileId = null;
   let editingEventId = null;
   let editingJobId = null;
   let eventsEditOrigin = null; // 'urgent-notifications' when editing from dispatcher
@@ -83,6 +103,7 @@ document.addEventListener('sections:ready', async (e) => {
   let participantsViewOrigin = null; // section to return to when closing participant form
   let pendingUser = null;
   let pendingParticipant = null;
+  let pendingDeleteIdentity = null;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -163,10 +184,26 @@ document.addEventListener('sections:ready', async (e) => {
 
   function syncUserLinkVisibility() {
     const role = canonicalRole(document.getElementById('regRole')?.value);
-    document.getElementById('userParticipantLinkWrap')?.classList.toggle('d-none', role !== 'PARTICIPANT');
-    document.getElementById('userVolunteerLinkWrap')?.classList.toggle('d-none', role !== 'VOLUNTEER');
-    if (role !== 'PARTICIPANT') document.getElementById('userParticipantLinkId').value = '';
-    if (role !== 'VOLUNTEER') document.getElementById('userVolunteerLinkId').value = '';
+    const showParticipant = role === 'PARTICIPANT' && !editingUserEmail;
+    const showVolunteer = role === 'VOLUNTEER' && !editingUserEmail;
+    document.getElementById('userParticipantRecordWrap')?.classList.toggle('d-none', !showParticipant);
+    document.getElementById('userVolunteerProfileWrap')?.classList.toggle('d-none', !showVolunteer);
+    [
+      ['userParticipantGuardianIds', showParticipant],
+      ['userParticipantContactEmail', showParticipant],
+      ['userParticipantContactPhone', showParticipant],
+      ['userParticipantSpecialNeeds', showParticipant],
+      ['userVolunteerPhone', showVolunteer]
+    ].forEach(([id, required]) => {
+      const el = document.getElementById(id);
+      if (el) el.required = required;
+    });
+    if (!showParticipant) userParticipantInterestChips?.setSelected([]);
+    if (!showVolunteer) {
+      userVolInterestChips?.setSelected([]);
+      userVolLangChips?.setSelected([]);
+    }
+    window.KindredRequiredMarkers?.sync();
   }
 
   function populateModalSummary({ name, email, role }) {
@@ -178,6 +215,78 @@ document.addEventListener('sections:ready', async (e) => {
     badgeEl.textContent = roleName;
     badgeEl.className = `badge ${badgeCls}`;
     document.getElementById('modalSummaryEmailTarget').textContent = email.trim().toLowerCase();
+    const detailEl = document.getElementById('modalSummaryLinkedDetails');
+    if (detailEl) {
+      detailEl.classList.add('d-none');
+      detailEl.innerHTML = '';
+    }
+  }
+
+  function populateLinkedCreateSummary(payload) {
+    const detailEl = document.getElementById('modalSummaryLinkedDetails');
+    if (!detailEl) return;
+    const role = canonicalRole(payload.role);
+    if (role === 'PARTICIPANT') {
+      const record = payload.participantRecord || {};
+      detailEl.innerHTML = `
+        <div class="small fw-semibold text-success mb-2">Participant record will also be created</div>
+        <div class="row g-2 small">
+          <div class="col-4 text-muted fw-semibold">Guardians</div>
+          <div class="col-8">${escapeHtml(record.guardianUserIds?.length || 0)} linked</div>
+          <div class="col-4 text-muted fw-semibold">Contact</div>
+          <div class="col-8">${escapeHtml(record.contactEmail || '—')} · ${escapeHtml(record.contactPhone || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Interests</div>
+          <div class="col-8">${escapeHtml((record.participantInterests || []).join(', ') || '—')}</div>
+        </div>`;
+      detailEl.classList.remove('d-none');
+    } else if (role === 'VOLUNTEER') {
+      const profile = payload.volunteerProfile || {};
+      detailEl.innerHTML = `
+        <div class="small fw-semibold text-info mb-2">Volunteer profile will also be created</div>
+        <div class="row g-2 small">
+          <div class="col-4 text-muted fw-semibold">Phone</div>
+          <div class="col-8">${escapeHtml(profile.phone || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Interests</div>
+          <div class="col-8">${escapeHtml((profile.interests || []).join(', ') || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Availability</div>
+          <div class="col-8">${escapeHtml(profile.availability || '—')}</div>
+        </div>`;
+      detailEl.classList.remove('d-none');
+    }
+  }
+
+  function getUserParticipantRecordPayload() {
+    return {
+      firstName: document.getElementById('regFirstName').value,
+      lastName: document.getElementById('regLastName').value,
+      age: deriveAgeFromDateOfBirth(document.getElementById('userParticipantDateOfBirth')?.value || ''),
+      dateOfBirth: document.getElementById('userParticipantDateOfBirth')?.value || '',
+      guardianUserIds: getSelectedValues(document.getElementById('userParticipantGuardianIds')),
+      contactEmail: document.getElementById('userParticipantContactEmail')?.value || '',
+      contactPhone: document.getElementById('userParticipantContactPhone')?.value || '',
+      participantInterests: userParticipantInterestChips?.getSelected() || [],
+      jobGoals: document.getElementById('userParticipantJobGoals')?.value || '',
+      bio: document.getElementById('userParticipantBio')?.value || '',
+      specialNeeds: document.getElementById('userParticipantSpecialNeeds')?.value || '',
+      medicalNotes: document.getElementById('userParticipantMedicalNotes')?.value || '',
+      sensoryNotes: document.getElementById('userParticipantSensoryNotes')?.value || '',
+      guardianNotes: document.getElementById('userParticipantGuardianNotes')?.value || ''
+    };
+  }
+
+  function getUserVolunteerProfilePayload() {
+    return {
+      firstName: document.getElementById('regFirstName').value,
+      lastName: document.getElementById('regLastName').value,
+      phone: document.getElementById('userVolunteerPhone')?.value || '',
+      interests: userVolInterestChips?.getSelected() || [],
+      availability: document.getElementById('userVolunteerAvailability')?.value || '',
+      preferredLocation: document.getElementById('userVolunteerPreferredLocation')?.value || '',
+      pronounsSubject: document.getElementById('userVolunteerPronounsSubject')?.value || '',
+      pronounsObject: document.getElementById('userVolunteerPronounsObject')?.value || '',
+      languagesSpoken: userVolLangChips?.getSelected() || [],
+      backgroundCheckStatus: document.getElementById('userVolunteerBackgroundCheck')?.value || 'Not Started'
+    };
   }
 
   async function populateParticipantModalSummary(payload) {
@@ -284,9 +393,8 @@ document.addEventListener('sections:ready', async (e) => {
     ]);
     const participantUserSelect = document.getElementById('participantUserId');
     const guardianSelect = document.getElementById('participantGuardianIds');
+    const userGuardianSelect = document.getElementById('userParticipantGuardianIds');
     const volunteerUserSelect = document.getElementById('adminVolUserId');
-    const userParticipantLinkSelect = document.getElementById('userParticipantLinkId');
-    const userVolunteerLinkSelect = document.getElementById('userVolunteerLinkId');
     const participantUsers = users.filter((user) => user.role === 'PARTICIPANT');
     const guardianUsers = users.filter((user) => user.role === 'GUARDIAN');
     const volunteerUsers = users.filter((user) => user.role === 'VOLUNTEER');
@@ -303,23 +411,18 @@ document.addEventListener('sections:ready', async (e) => {
       ).join('');
     }
 
+    if (userGuardianSelect) {
+      userGuardianSelect.innerHTML = guardianUsers.map((user) =>
+        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
+      ).join('');
+    }
+
     if (volunteerUserSelect) {
       volunteerUserSelect.innerHTML = `<option value="" disabled selected>Select volunteer login...</option>${volunteerUsers.map((user) =>
         `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
       ).join('')}`;
     }
 
-    if (userParticipantLinkSelect) {
-      userParticipantLinkSelect.innerHTML = `<option value="">No participant record link</option>${participants.map((participant) =>
-        `<option value="${escapeHtml(participant.id)}">${escapeHtml(participant.fullName)}${participant.participantUser ? ` (${escapeHtml(participant.participantUser.email)})` : ' (unlinked)'}</option>`
-      ).join('')}`;
-    }
-
-    if (userVolunteerLinkSelect) {
-      userVolunteerLinkSelect.innerHTML = `<option value="">No volunteer profile link</option>${volunteerProfiles.map((profile) =>
-        `<option value="${escapeHtml(profile.userId)}">${escapeHtml(profile.fullName)} (${escapeHtml(profile.email || profile.linkedUser?.email || 'unlinked')})</option>`
-      ).join('')}`;
-    }
   }
 
   function resetUserFormState() {
@@ -335,8 +438,9 @@ document.addEventListener('sections:ready', async (e) => {
     window.KindredRequiredMarkers?.sync();
     const submitBtn = document.getElementById('userSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Create Account';
-    document.getElementById('userParticipantLinkId').value = '';
-    document.getElementById('userVolunteerLinkId').value = '';
+    userParticipantInterestChips?.setSelected([]);
+    userVolInterestChips?.setSelected([]);
+    userVolLangChips?.setSelected([]);
     syncUserLinkVisibility();
   }
 
@@ -375,6 +479,7 @@ document.addEventListener('sections:ready', async (e) => {
     volunteerAdminForm?.classList.remove('was-validated');
     volunteerAdminError?.classList.add('d-none');
     editingVolunteerUserId = null;
+    editingVolunteerProfileId = null;
     adminVolInterestChips?.setSelected([]);
     adminVolLangChips?.setSelected([]);
     const submitBtn = document.getElementById('volunteerAdminSubmitBtn');
@@ -598,21 +703,27 @@ document.addEventListener('sections:ready', async (e) => {
     if (!tbody) return;
     const users = await Auth.getUsers();
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted px-3">No users found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users found.</td></tr>';
       return;
     }
 
     tbody.innerHTML = users.map((user) => {
       const isSelf = session.userId === user.id;
       const canEdit = user.role !== 'ADMIN';
+      const accessStatus = user.accessStatus || 'ACTIVE';
+      const accessAction = accessStatus === 'REVOKED'
+        ? `<button class="btn btn-outline-success btn-sm me-1" data-user-restore-email="${escapeHtml(user.email)}">Restore</button>`
+        : `<button class="btn btn-outline-secondary btn-sm me-1" data-user-revoke-email="${escapeHtml(user.email)}" ${isSelf ? 'disabled title="You cannot revoke your own access"' : ''}>Revoke</button>`;
       return `
         <tr>
           <td class="ps-3">${escapeHtml(user.name)}</td>
           <td class="text-muted small">${escapeHtml(user.email)}</td>
           <td><span class="badge ${ROLE_BADGE[canonicalRole(user.role)] || 'bg-secondary'}">${escapeHtml(ROLE_LABEL[canonicalRole(user.role)] || user.role)}</span></td>
+          <td><span class="badge ${ACCESS_BADGE[accessStatus] || 'bg-secondary'}">${escapeHtml(accessStatus)}</span></td>
           <td class="text-muted small">${escapeHtml(user.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
             ${canEdit ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(user.email)}">Edit</button>` : ''}
+            ${accessAction}
             ${isSelf
               ? '<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>'
               : `<button class="btn btn-outline-danger btn-sm" data-user-email="${escapeHtml(user.email)}">Delete</button>`}
@@ -635,11 +746,6 @@ document.addEventListener('sections:ready', async (e) => {
         passwordEl.required = false;
         passwordEl.placeholder = 'Leave blank to keep current password';
         window.KindredRequiredMarkers?.sync();
-        const participants = await Auth.getParticipants();
-        const linkedParticipant = participants.find((participant) => String(participant.participantUserId) === String(user.id));
-        const volunteerProfile = await Auth.getVolunteerProfile(user.id);
-        document.getElementById('userParticipantLinkId').value = linkedParticipant?.id || '';
-        document.getElementById('userVolunteerLinkId').value = volunteerProfile?.userId || '';
         editingUserEmail = user.email;
         document.getElementById('userSubmitBtn').textContent = 'Update Account';
         registerError.classList.add('d-none');
@@ -651,16 +757,73 @@ document.addEventListener('sections:ready', async (e) => {
 
     tbody.querySelectorAll('[data-user-email]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeUser(button.dataset.userEmail);
+        await openDeleteIdentityModal('user', button.dataset.userEmail);
+      });
+    });
+
+    tbody.querySelectorAll('[data-user-revoke-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.revokeUserAccess(button.dataset.userRevokeEmail);
         if (!result.success) {
           registerError.textContent = result.message;
           registerError.classList.remove('d-none');
           return;
         }
         await renderUsersTable();
-        await populateLinkedUserOptions();
+        showToast('User access revoked.');
       });
     });
+
+    tbody.querySelectorAll('[data-user-restore-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.restoreUserAccess(button.dataset.userRestoreEmail);
+        if (!result.success) {
+          registerError.textContent = result.message;
+          registerError.classList.remove('d-none');
+          return;
+        }
+        await renderUsersTable();
+        showToast('User access restored.');
+      });
+    });
+  }
+
+  async function openDeleteIdentityModal(kind, identifier) {
+    if (!deleteIdentityModal) return;
+    const titleEl = document.getElementById('deleteIdentityTitle');
+    const messageEl = document.getElementById('deleteIdentityMessage');
+    const preserveBtn = document.getElementById('deleteIdentityPreserveBtn');
+    const cascadeBtn = document.getElementById('deleteIdentityCascadeBtn');
+
+    pendingDeleteIdentity = { kind, identifier };
+
+    if (kind === 'user') {
+      const users = await Auth.getUsers();
+      const user = users.find((entry) => entry.email === identifier || String(entry.id) === String(identifier));
+      const linkedParticipant = (await Auth.getParticipants()).find((participant) => String(participant.participantUserId) === String(user?.id));
+      const linkedVolunteer = await Auth.getVolunteerProfile(user?.id);
+      titleEl.textContent = 'Delete User';
+      messageEl.textContent = `Delete ${user?.name || 'this user'}? You can preserve linked records as inactive/unlinked data or delete linked data too.`;
+      preserveBtn.textContent = linkedParticipant || linkedVolunteer ? 'Delete user only' : 'Delete user';
+      cascadeBtn.textContent = 'Delete user and linked data';
+      cascadeBtn.classList.toggle('d-none', !(linkedParticipant || linkedVolunteer));
+    } else if (kind === 'participant') {
+      const participant = await Auth.getParticipantById(identifier);
+      titleEl.textContent = 'Delete Participant Record';
+      messageEl.textContent = `Delete the participant record for ${participant?.fullName || 'this participant'}? You can keep the linked user revoked, or delete both.`;
+      preserveBtn.textContent = 'Delete record only';
+      cascadeBtn.textContent = 'Delete record and user';
+      cascadeBtn.classList.toggle('d-none', !participant?.participantUser);
+    } else {
+      const profile = await Auth.getVolunteerProfile(identifier);
+      titleEl.textContent = 'Delete Volunteer Profile';
+      messageEl.textContent = `Delete the volunteer profile for ${profile?.fullName || 'this volunteer'}? You can keep the linked user revoked, or delete both.`;
+      preserveBtn.textContent = 'Delete profile only';
+      cascadeBtn.textContent = 'Delete profile and user';
+      cascadeBtn.classList.toggle('d-none', !profile?.linkedUser);
+    }
+
+    deleteIdentityModal.show();
   }
 
   async function renderParticipantsTable() {
@@ -677,6 +840,7 @@ document.addEventListener('sections:ready', async (e) => {
         <td class="ps-3">
           <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
           <div class="text-muted small">Age ${escapeHtml(participant.age || '—')}</div>
+          ${participant.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}
         </td>
         <td class="small text-muted">${participant.participantUser ? `${escapeHtml(participant.participantUser.name)}<div>${escapeHtml(participant.participantUser.email)}</div>` : '<span class="text-danger">Missing login</span>'}</td>
         <td class="small">${participant.guardians.length
@@ -711,13 +875,7 @@ document.addEventListener('sections:ready', async (e) => {
 
     tbody.querySelectorAll('[data-participant-id]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeParticipant(button.dataset.participantId);
-        if (!result.success) {
-          participantError.textContent = result.message;
-          participantError.classList.remove('d-none');
-          return;
-        }
-        await renderParticipantsTable();
+        await openDeleteIdentityModal('participant', button.dataset.participantId);
       });
     });
   }
@@ -805,7 +963,7 @@ document.addEventListener('sections:ready', async (e) => {
 
       return `
       <tr>
-        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || '')}</div></td>
+        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || 'Unlinked')}</div>${profile.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}</td>
         <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
         <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
@@ -822,8 +980,8 @@ document.addEventListener('sections:ready', async (e) => {
         </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">View</button>
-          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId)}">Delete</button>
+          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId || profile.id)}">View</button>
+          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId || profile.id)}">Delete</button>
         </td>
       </tr>`;
     }).join('');
@@ -885,7 +1043,8 @@ document.addEventListener('sections:ready', async (e) => {
 
         document.getElementById('adminVolCreateUserToggle').checked = false;
         toggleInlineVolunteerUserFields();
-        editingVolunteerUserId = profile.userId;
+        editingVolunteerUserId = profile.userId || '';
+        editingVolunteerProfileId = profile.id || '';
         document.getElementById('volunteerAdminSubmitBtn').textContent = 'Save Changes';
         volunteerAdminError.classList.add('d-none');
         volunteerAdminForm.classList.remove('was-validated');
@@ -895,13 +1054,7 @@ document.addEventListener('sections:ready', async (e) => {
 
     tbody.querySelectorAll('[data-volunteer-user-id]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeVolunteerProfile(button.dataset.volunteerUserId);
-        if (!result.success) {
-          volunteerAdminError.textContent = result.message;
-          volunteerAdminError.classList.remove('d-none');
-          return;
-        }
-        await renderVolunteersTable();
+        await openDeleteIdentityModal('volunteer', button.dataset.volunteerUserId);
       });
     });
 
@@ -1347,16 +1500,31 @@ document.addEventListener('sections:ready', async (e) => {
   registerForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     registerForm.classList.add('was-validated');
-    if (!registerForm.checkValidity()) return;
+    const role = canonicalRole(document.getElementById('regRole').value);
+    const collectLinkedRecord = !editingUserEmail;
+    const collectParticipantRecord = collectLinkedRecord && role === 'PARTICIPANT';
+    const collectVolunteerProfile = collectLinkedRecord && role === 'VOLUNTEER';
+    const participantInterestsValid = collectParticipantRecord ? (userParticipantInterestChips?.validate() ?? true) : true;
+    const volunteerInterestsValid = collectVolunteerProfile ? (userVolInterestChips?.validate() ?? true) : true;
+    const guardianIds = collectParticipantRecord ? getSelectedValues(document.getElementById('userParticipantGuardianIds')) : [];
+    document.getElementById('userParticipantGuardianIds')?.setCustomValidity(
+      collectParticipantRecord && !guardianIds.length ? 'Select at least one guardian.' : ''
+    );
+    if (!registerForm.checkValidity() || !participantInterestsValid || !volunteerInterestsValid || (collectParticipantRecord && !guardianIds.length)) {
+      registerForm.reportValidity();
+      return;
+    }
+    document.getElementById('userParticipantGuardianIds')?.setCustomValidity('');
     const fullName = `${document.getElementById('regFirstName').value} ${document.getElementById('regLastName').value}`.trim();
     const payload = {
       name: fullName,
       email: document.getElementById('regEmail').value,
       password: document.getElementById('regPassword').value,
-      role: document.getElementById('regRole').value,
-      linkParticipantId: document.getElementById('userParticipantLinkId').value,
-      linkVolunteerProfileId: document.getElementById('userVolunteerLinkId').value
+      role
     };
+
+    if (collectParticipantRecord) payload.participantRecord = getUserParticipantRecordPayload();
+    if (collectVolunteerProfile) payload.volunteerProfile = getUserVolunteerProfilePayload();
 
     if (editingUserEmail) {
       const result = await Auth.updateUser(editingUserEmail, payload);
@@ -1375,6 +1543,7 @@ document.addEventListener('sections:ready', async (e) => {
 
     pendingUser = payload;
     populateModalSummary(payload);
+    populateLinkedCreateSummary(payload);
     confirmModal?.show();
   });
 
@@ -1411,18 +1580,24 @@ document.addEventListener('sections:ready', async (e) => {
     };
 
     if (document.getElementById('participantCreateUserToggle')?.checked) {
-      const createResult = await Auth.addUser({
+      const newUserPayload = {
         name: `${payload.firstName} ${payload.lastName}`.trim(),
         email: document.getElementById('participantNewUserEmail').value,
         password: document.getElementById('participantNewUserPassword').value,
         role: 'PARTICIPANT'
-      });
-      if (!createResult.success) {
-        participantError.textContent = createResult.message;
-        participantError.classList.remove('d-none');
-        return;
+      };
+      if (!editingParticipantId) {
+        payload._newUser = newUserPayload;
+        payload.participantUserId = '';
+      } else {
+        const createResult = await Auth.addUser({ ...newUserPayload, linkParticipantId: editingParticipantId });
+        if (!createResult.success) {
+          participantError.textContent = createResult.message;
+          participantError.classList.remove('d-none');
+          return;
+        }
+        payload.participantUserId = createResult.user.id;
       }
-      payload.participantUserId = createResult.user.id;
     }
 
     if (editingParticipantId) {
@@ -1468,13 +1643,38 @@ document.addEventListener('sections:ready', async (e) => {
       languagesSpoken: adminVolLangChips?.getSelected() || [],
       backgroundCheckStatus: document.getElementById('adminVolBackgroundCheck').value
     };
+    if (editingVolunteerProfileId) payload.id = editingVolunteerProfileId;
 
     if (document.getElementById('adminVolCreateUserToggle')?.checked) {
-      const createResult = await Auth.addUser({
+      const newUserPayload = {
         name: `${payload.firstName} ${payload.lastName}`.trim(),
         email: document.getElementById('adminVolNewUserEmail').value,
         password: document.getElementById('adminVolNewUserPassword').value,
         role: 'VOLUNTEER'
+      };
+      if (!editingVolunteerUserId && !editingVolunteerProfileId) {
+        const result = await Auth.createUserWithLinkedRecord({
+          ...newUserPayload,
+          volunteerProfile: payload
+        });
+        if (!result.success) {
+          volunteerAdminError.textContent = result.message || 'Unable to create linked volunteer profile.';
+          volunteerAdminError.classList.remove('d-none');
+          return;
+        }
+        if (payload.backgroundCheckStatus && payload.backgroundCheckStatus !== 'Not Started') {
+          await Auth.updateBgCheckStatus(result.user.id, payload.backgroundCheckStatus, 'Updated by admin via volunteer profile form');
+        }
+        resetVolunteerFormState();
+        await renderVolunteersTable();
+        await populateLinkedUserOptions();
+        showVolunteersListView();
+        showToast('Volunteer profile saved successfully.');
+        return;
+      }
+      const createResult = await Auth.addUser({
+        ...newUserPayload,
+        linkVolunteerProfileId: editingVolunteerProfileId || editingVolunteerUserId
       });
       if (!createResult.success) {
         volunteerAdminError.textContent = createResult.message || 'Unable to create linked volunteer user.';
@@ -1495,7 +1695,7 @@ document.addEventListener('sections:ready', async (e) => {
       await Auth.updateBgCheckStatus(payload.userId, newBgStatus, 'Updated by admin via volunteer profile form');
     }
 
-    const wasEditing = Boolean(editingVolunteerUserId);
+    const wasEditing = Boolean(editingVolunteerUserId || editingVolunteerProfileId);
     resetVolunteerFormState();
     await renderVolunteersTable();
     showVolunteersListView();
@@ -1597,7 +1797,9 @@ document.addEventListener('sections:ready', async (e) => {
 
   confirmBtn?.addEventListener('click', async () => {
     if (!pendingUser) return;
-    const result = await Auth.addUser(pendingUser);
+    const result = pendingUser.role === 'PARTICIPANT' || pendingUser.role === 'VOLUNTEER'
+      ? await Auth.createUserWithLinkedRecord(pendingUser)
+      : await Auth.addUser(pendingUser);
     confirmModal?.hide();
     if (!result.success) {
       registerError.textContent = result.message;
@@ -1606,6 +1808,9 @@ document.addEventListener('sections:ready', async (e) => {
       return;
     }
     const createdRoleLabel = ROLE_LABEL[pendingUser.role] || pendingUser.role;
+    if (pendingUser.role === 'VOLUNTEER' && pendingUser.volunteerProfile?.backgroundCheckStatus && pendingUser.volunteerProfile.backgroundCheckStatus !== 'Not Started') {
+      await Auth.updateBgCheckStatus(result.user.id, pendingUser.volunteerProfile.backgroundCheckStatus, 'Updated by admin via user creation form');
+    }
     resetUserFormState();
     await renderUsersTable();
     await populateLinkedUserOptions();
@@ -1620,7 +1825,13 @@ document.addEventListener('sections:ready', async (e) => {
 
   confirmParticipantBtn?.addEventListener('click', async () => {
     if (!pendingParticipant) return;
-    const result = await Auth.addParticipant(pendingParticipant);
+    const result = pendingParticipant._newUser
+      ? await Auth.createUserWithLinkedRecord({
+          ...pendingParticipant._newUser,
+          role: 'PARTICIPANT',
+          participantRecord: pendingParticipant
+        })
+      : await Auth.addParticipant(pendingParticipant);
     confirmParticipantModal?.hide();
     if (!result.success) {
       participantError.textContent = result.message;
@@ -1637,6 +1848,47 @@ document.addEventListener('sections:ready', async (e) => {
 
   confirmParticipantModalEl?.addEventListener('hidden.bs.modal', () => {
     pendingParticipant = null;
+  });
+
+  async function runPendingDelete(cascade) {
+    if (!pendingDeleteIdentity) return;
+    const pending = pendingDeleteIdentity;
+    let result = { success: false, message: 'Nothing selected to delete.' };
+    if (pending.kind === 'user') {
+      result = await Auth.removeUser(pending.identifier, {
+        preserveLinkedRecords: !cascade,
+        deleteLinkedRecords: cascade
+      });
+    } else if (pending.kind === 'participant') {
+      result = await Auth.removeParticipant(pending.identifier, { deleteLinkedUser: cascade });
+    } else if (pending.kind === 'volunteer') {
+      result = await Auth.removeVolunteerProfile(pending.identifier, { deleteLinkedUser: cascade });
+    }
+
+    deleteIdentityModal?.hide();
+    if (!result.success) {
+      const targetError = pending.kind === 'participant'
+        ? participantError
+        : (pending.kind === 'volunteer' ? volunteerAdminError : registerError);
+      if (targetError) {
+        targetError.textContent = result.message;
+        targetError.classList.remove('d-none');
+      }
+      pendingDeleteIdentity = null;
+      return;
+    }
+    pendingDeleteIdentity = null;
+    await renderUsersTable();
+    await renderParticipantsTable();
+    await renderVolunteersTable();
+    await populateLinkedUserOptions();
+    showToast(cascade ? 'Linked user data deleted.' : 'Item deleted and linked data preserved.');
+  }
+
+  document.getElementById('deleteIdentityPreserveBtn')?.addEventListener('click', () => runPendingDelete(false));
+  document.getElementById('deleteIdentityCascadeBtn')?.addEventListener('click', () => runPendingDelete(true));
+  deleteIdentityModalEl?.addEventListener('hidden.bs.modal', () => {
+    pendingDeleteIdentity = null;
   });
 
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
@@ -2911,7 +3163,6 @@ document.addEventListener('sections:ready', async (e) => {
   await hydrateNewsletterDraft();
   await renderNewsletterHistory();
   renderNewsletterPreview();
-  setAdminVolunteerOtherInterestInputState();
   toggleInlineParticipantUserFields();
   toggleInlineVolunteerUserFields();
   syncUserLinkVisibility();
