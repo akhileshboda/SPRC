@@ -38,6 +38,20 @@ document.addEventListener('sections:ready', async (e) => {
     Vocational: 'badge-event-vocational'
   };
 
+  function formatAgeReqLabel(val) {
+    const min = Auth.minAgeForRequirement(val);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
+  }
+
+  function setGuardianAccountDobMax() {
+    const el = document.getElementById('regGuardianDateOfBirth');
+    if (!el) return;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    el.max = d.toISOString().slice(0, 10);
+  }
+
   const { renderProfileHeader, renderInterestChips, renderLanguageChips,
           VOLUNTEER_INTERESTS, renderCompletenessMeter, calcCompleteness,
           linkedRowHTML, adminNoteHTML, fieldAttrBadge } = await import('./profile-ui.js');
@@ -186,8 +200,15 @@ document.addEventListener('sections:ready', async (e) => {
     const role = canonicalRole(document.getElementById('regRole')?.value);
     const showParticipant = role === 'PARTICIPANT' && !editingUserEmail;
     const showVolunteer = role === 'VOLUNTEER' && !editingUserEmail;
+    const showGuardianDob = role === 'GUARDIAN';
     document.getElementById('userParticipantRecordWrap')?.classList.toggle('d-none', !showParticipant);
     document.getElementById('userVolunteerProfileWrap')?.classList.toggle('d-none', !showVolunteer);
+    document.getElementById('userGuardianDobWrap')?.classList.toggle('d-none', !showGuardianDob);
+    const gDob = document.getElementById('regGuardianDateOfBirth');
+    if (gDob) {
+      gDob.required = showGuardianDob;
+      setGuardianAccountDobMax();
+    }
     [
       ['userParticipantGuardianIds', showParticipant],
       ['userParticipantContactEmail', showParticipant],
@@ -203,6 +224,7 @@ document.addEventListener('sections:ready', async (e) => {
       userVolInterestChips?.setSelected([]);
       userVolLangChips?.setSelected([]);
     }
+    if (!showGuardianDob && gDob) gDob.value = '';
     window.KindredRequiredMarkers?.sync();
   }
 
@@ -430,6 +452,8 @@ document.addEventListener('sections:ready', async (e) => {
     registerForm?.classList.remove('was-validated');
     registerError?.classList.add('d-none');
     editingUserEmail = null;
+    const gDob = document.getElementById('regGuardianDateOfBirth');
+    if (gDob) gDob.value = '';
     const passwordEl = document.getElementById('regPassword');
     if (passwordEl) {
       passwordEl.required = true;
@@ -510,6 +534,8 @@ document.addEventListener('sections:ready', async (e) => {
     eventForm?.classList.remove('was-validated');
     eventError?.classList.add('d-none');
     editingEventId = null;
+    const ageReq = document.getElementById('eventAgeRequirement');
+    if (ageReq) ageReq.value = 'ALL';
     const submitBtn = document.getElementById('eventSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Publish Event';
     const urgentCheck = document.getElementById('eventIsUrgent');
@@ -692,6 +718,8 @@ document.addEventListener('sections:ready', async (e) => {
     jobForm?.classList.remove('was-validated');
     jobError?.classList.add('d-none');
     editingJobId = null;
+    const ageReq = document.getElementById('jobAgeRequirement');
+    if (ageReq) ageReq.value = 'ALL';
     const submitBtn = document.getElementById('jobSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Save Opportunity';
     const urgentCheck = document.getElementById('jobIsUrgent');
@@ -701,13 +729,26 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
+    const q = document.getElementById('usersTableSearch')?.value?.trim().toLowerCase() || '';
     const users = await Auth.getUsers();
     if (!users.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users found.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = users.map((user) => {
+    const usersFiltered = !q
+      ? users
+      : users.filter((user) => {
+        const roleLabel = (ROLE_LABEL[canonicalRole(user.role)] || user.role || '').toLowerCase();
+        const hay = [user.name, user.email, roleLabel, String(user.accessStatus || '')].map((s) => String(s).toLowerCase()).join(' ');
+        return hay.includes(q);
+      });
+    if (!usersFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users match this filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = usersFiltered.map((user) => {
       const isSelf = session.userId === user.id;
       const canEdit = user.role !== 'ADMIN';
       const accessStatus = user.accessStatus || 'ACTIVE';
@@ -741,6 +782,8 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('regLastName').value = nameParts.lastName;
         document.getElementById('regEmail').value = user.email;
         document.getElementById('regRole').value = canonicalRole(user.role);
+        const gDob = document.getElementById('regGuardianDateOfBirth');
+        if (gDob) gDob.value = user.dateOfBirth || '';
         const passwordEl = document.getElementById('regPassword');
         passwordEl.value = '';
         passwordEl.required = false;
@@ -829,13 +872,26 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
+    const q = document.getElementById('participantsTableSearch')?.value?.trim().toLowerCase() || '';
     const participants = await Auth.getParticipants();
     if (!participants.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = participants.map((participant) => `
+    const participantsFiltered = !q
+      ? participants
+      : participants.filter((p) => {
+        const gBlob = (p.guardians || []).map((g) => `${g.name} ${g.email}`).join(' ');
+        const hay = [p.fullName, p.participantUser?.name, p.participantUser?.email, gBlob, String(p.age || ''), (p.participantInterests || []).join(' ')].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    if (!participantsFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records match this filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = participantsFiltered.map((participant) => `
       <tr>
         <td class="ps-3">
           <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
@@ -907,6 +963,26 @@ document.addEventListener('sections:ready', async (e) => {
       return;
     }
 
+    const q = document.getElementById('volunteersTableSearch')?.value?.trim().toLowerCase() || '';
+    const profilesFiltered = !q
+      ? profiles
+      : profiles.filter((profile) => {
+        const hay = [
+          profile.fullName,
+          profile.email,
+          profile.phone,
+          (profile.interests || []).join(' '),
+          profile.availability,
+          profile.preferredLocation,
+          profile.backgroundCheckStatus
+        ].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    if (!profilesFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles match this filter.</td></tr>';
+      return;
+    }
+
     const allBgRecords = await Auth.getAllBgCheckRecords();
 
     const openBgCheckUpdateModal = async (userId) => {
@@ -944,7 +1020,7 @@ document.addEventListener('sections:ready', async (e) => {
       }, { once: true });
     };
 
-    tbody.innerHTML = profiles.map((profile) => {
+    tbody.innerHTML = profilesFiltered.map((profile) => {
       const bgStatus = profile.backgroundCheckStatus || 'Not Started';
       const bgRecord = allBgRecords.find((r) => String(r.volunteerUserId) === String(profile.userId));
       const isLocked = bgStatus === 'Cleared' && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
@@ -1079,6 +1155,7 @@ document.addEventListener('sections:ready', async (e) => {
             <div class="mb-3">
               <h6 class="fw-semibold">Current Status</h6>
               <p class="mb-1"><strong>Status:</strong> ${bgCheckBadge(record.status)}</p>
+              ${record.submitterDateOfBirth ? `<p class="mb-1"><strong>DOB on consent:</strong> ${escapeHtml(record.submitterDateOfBirth)}</p>` : ''}
               ${record.expiresAtLabel ? `<p class="mb-1"><strong>Expires:</strong> ${escapeHtml(record.expiresAtLabel)}</p>` : ''}
               ${record.notes ? `<p class="mb-1"><strong>Notes:</strong> ${escapeHtml(record.notes)}</p>` : ''}
             </div>
@@ -1140,7 +1217,7 @@ document.addEventListener('sections:ready', async (e) => {
     if (!tbody) return;
     const events = await Auth.getEvents();
     if (!events.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No live events yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted px-3">No live events yet.</td></tr>';
       return;
     }
 
@@ -1152,6 +1229,7 @@ document.addEventListener('sections:ready', async (e) => {
       <tr>
         <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(event.title)}</div></td>
         <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
+        <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(event.ageRequirement))}</td>
         <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
         <td class="small">${escapeHtml(event.location)}</td>
         <td class="small">
@@ -1174,6 +1252,8 @@ document.addEventListener('sections:ready', async (e) => {
         if (!event) return;
         document.getElementById('eventTitle').value = event.title || '';
         document.getElementById('eventCategory').value = event.category || '';
+        const evAgeEl = document.getElementById('eventAgeRequirement');
+        if (evAgeEl) evAgeEl.value = String(Auth.normalizeAgeRequirement(event.ageRequirement) || 'ALL');
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
         document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
@@ -1207,7 +1287,7 @@ document.addEventListener('sections:ready', async (e) => {
     if (!tbody) return;
     const [jobs, appSummary] = await Promise.all([Auth.getJobs(), Auth.getJobApplicationSummary()]);
     if (!jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3 py-4">No job opportunities logged yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3 py-4">No job opportunities logged yet.</td></tr>';
       return;
     }
 
@@ -1245,6 +1325,7 @@ document.addEventListener('sections:ready', async (e) => {
           </td>
           <td>${job.jobType ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>` : '<span class="text-muted small">—</span>'}</td>
           <td><span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span></td>
+          <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(job.ageRequirement))}</td>
           <td class="small">
             ${job.payRate != null && job.payRate > 0 ? `<span class="fw-semibold text-success">$${Number(job.payRate).toFixed(2)}/hr</span>` : `<span class="text-muted">Unpaid</span>`}
             ${job.programFee > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Fee $${Number(job.programFee).toFixed(2)}</div>` : ''}
@@ -1270,6 +1351,8 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || 'Open';
+        const jAge = document.getElementById('jobAgeRequirement');
+        if (jAge) jAge.value = String(Auth.normalizeAgeRequirement(job.ageRequirement) || 'ALL');
         document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
         document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
         document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
@@ -1523,6 +1606,16 @@ document.addEventListener('sections:ready', async (e) => {
       role
     };
 
+    if (role === 'GUARDIAN') {
+      const gdob = document.getElementById('regGuardianDateOfBirth')?.value?.trim();
+      if (!gdob) {
+        registerError.textContent = 'Date of birth is required for guardian accounts. Account holders must be 18 or older.';
+        registerError.classList.remove('d-none');
+        return;
+      }
+      payload.dateOfBirth = gdob;
+    }
+
     if (collectParticipantRecord) payload.participantRecord = getUserParticipantRecordPayload();
     if (collectVolunteerProfile) payload.volunteerProfile = getUserVolunteerProfilePayload();
 
@@ -1726,6 +1819,7 @@ document.addEventListener('sections:ready', async (e) => {
       programFee: programFeeInput.value,
       materialsCost: materialsCostInput.value,
       accommodations: document.getElementById('eventAccommodations').value,
+      ageRequirement: document.getElementById('eventAgeRequirement')?.value || 'ALL',
       isUrgent: Boolean(document.getElementById('eventIsUrgent')?.checked)
     };
     const result = editingEventId ? await Auth.updateEvent(editingEventId, payload) : await Auth.addEvent(payload);
@@ -1773,6 +1867,7 @@ document.addEventListener('sections:ready', async (e) => {
       location: document.getElementById('jobLocation').value,
       jobType: document.getElementById('jobType').value,
       status: document.getElementById('jobStatus').value,
+      ageRequirement: document.getElementById('jobAgeRequirement')?.value || 'ALL',
       salary,
       payRate: jobPayRateInput.value,
       programFee: jobProgramFeeInput.value,
@@ -2256,6 +2351,8 @@ document.addEventListener('sections:ready', async (e) => {
         if (!event) return;
         document.getElementById('eventTitle').value = event.title || '';
         document.getElementById('eventCategory').value = event.category || '';
+        const evAgeEl2 = document.getElementById('eventAgeRequirement');
+        if (evAgeEl2) evAgeEl2.value = String(Auth.normalizeAgeRequirement(event.ageRequirement) || 'ALL');
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
         document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
@@ -2283,6 +2380,8 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || '';
+        const ujAge = document.getElementById('jobAgeRequirement');
+        if (ujAge) ujAge.value = String(Auth.normalizeAgeRequirement(job.ageRequirement) || 'ALL');
         document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
         document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
         document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
@@ -3169,4 +3268,8 @@ document.addEventListener('sections:ready', async (e) => {
   document.getElementById('regRole')?.addEventListener('change', syncUserLinkVisibility);
   document.getElementById('participantCreateUserToggle')?.addEventListener('change', toggleInlineParticipantUserFields);
   document.getElementById('adminVolCreateUserToggle')?.addEventListener('change', toggleInlineVolunteerUserFields);
+
+  document.getElementById('usersTableSearch')?.addEventListener('input', () => { renderUsersTable(); });
+  document.getElementById('participantsTableSearch')?.addEventListener('input', () => { renderParticipantsTable(); });
+  document.getElementById('volunteersTableSearch')?.addEventListener('input', () => { renderVolunteersTable(); });
 });

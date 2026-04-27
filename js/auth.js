@@ -941,6 +941,16 @@ const Auth = (() => {
     }
     const role = normalizeRole(user.role);
     if (!ROLES.includes(role)) return { success: false, message: 'Invalid role.' };
+    if (role === 'GUARDIAN') {
+      const dob = String(user.dateOfBirth || user.guardianDateOfBirth || '').trim();
+      if (!dob) {
+        return { success: false, message: 'Date of birth is required for guardian accounts. Account holders must be 18 or older.' };
+      }
+      const ageY = ageFromDateOfBirth(dob);
+      if (ageY == null || ageY < 18) {
+        return { success: false, message: 'Guardian accounts are only available to users who are 18 or older. Please contact an administrator if you need help.' };
+      }
+    }
     const newUser = {
       id: makeId('u'),
       name: String(user.name || '').trim(),
@@ -948,7 +958,11 @@ const Auth = (() => {
       password: String(user.password || ''),
       role,
       accessStatus: normalizeAccessStatus(user.accessStatus),
-      dateAdded: formatDateLabel(new Date())
+      dateAdded: formatDateLabel(new Date()),
+      ...((() => {
+        if (role !== 'GUARDIAN') return {};
+        return { dateOfBirth: String(user.dateOfBirth || user.guardianDateOfBirth || '').trim() };
+      })())
     };
     users.push(newUser);
     setJson(USERS_KEY, users);
@@ -1037,6 +1051,18 @@ const Auth = (() => {
     users[idx].role = nextRole;
     users[idx].accessStatus = normalizeAccessStatus(payload.accessStatus || users[idx].accessStatus);
     if (String(payload.password || '').trim()) users[idx].password = String(payload.password);
+    if (nextRole === 'GUARDIAN') {
+      const dobIn = String(payload.dateOfBirth || payload.guardianDateOfBirth || '').trim();
+      const finalDob = dobIn || String(users[idx].dateOfBirth || '').trim();
+      if (!finalDob) {
+        return { success: false, message: 'Guardian accounts require a date of birth. Account holders must be 18 or older.' };
+      }
+      const ageY = ageFromDateOfBirth(finalDob);
+      if (ageY == null || ageY < 18) {
+        return { success: false, message: 'Guardian accounts are only available to users who are 18 or older.' };
+      }
+      users[idx].dateOfBirth = finalDob;
+    }
     setJson(USERS_KEY, users);
     initStores();
     const updatedUser = getRawUsers().find((user) => String(user.id) === String(users[idx].id));
@@ -1553,6 +1579,59 @@ const Auth = (() => {
     return total === 0 ? 'Free' : `$${total.toFixed(2)}`;
   }
 
+  const AGE_REQUIREMENT = { ALL: 'ALL', MIN_16: '16', MIN_18: '18' };
+
+  function normalizeAgeRequirement(val) {
+    const s = String(val == null ? 'ALL' : val).toUpperCase().trim();
+    if (s === '16' || s === '16+' || s === 'MIN_16') return AGE_REQUIREMENT.MIN_16;
+    if (s === '18' || s === '18+' || s === 'MIN_18') return AGE_REQUIREMENT.MIN_18;
+    return AGE_REQUIREMENT.ALL;
+  }
+
+  function minAgeForRequirement(req) {
+    const n = normalizeAgeRequirement(req);
+    if (n === AGE_REQUIREMENT.MIN_16) return 16;
+    if (n === AGE_REQUIREMENT.MIN_18) return 18;
+    return 0;
+  }
+
+  function parseParticipantAge(ageVal) {
+    if (ageVal === '' || ageVal == null) return null;
+    const n = parseInt(String(ageVal).trim(), 10);
+    return Number.isFinite(n) && n >= 0 && n < 150 ? n : null;
+  }
+
+  function ageFromDateOfBirth(isoYmd) {
+    const raw = String(isoYmd || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+    const d = new Date(`${raw}T12:00:00`);
+    if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let age = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age -= 1;
+    return age;
+  }
+
+  function assertParticipantMeetsAgeRequirement(participant, req) {
+    const min = minAgeForRequirement(req);
+    if (min === 0) return { ok: true };
+    const age = parseParticipantAge(participant?.age);
+    if (age == null) {
+      return {
+        ok: false,
+        message: 'This opportunity has a minimum age. Your profile must list your age — ask a guardian or administrator to update your participant record if needed.'
+      };
+    }
+    if (age < min) {
+      return {
+        ok: false,
+        message: `This opportunity is only available to participants age ${min}+.`
+      };
+    }
+    return { ok: true };
+  }
+
   async function addEvent(payload) {
     const events = getRawEvents();
     if (eventDuplicate(events, payload)) {
@@ -1570,6 +1649,7 @@ const Auth = (() => {
       programFee,
       materialsCost,
       cost: buildCostSummary(programFee, materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent),
       createdAtMs: Date.now(),
@@ -1598,6 +1678,7 @@ const Auth = (() => {
       programFee,
       materialsCost,
       cost: buildCostSummary(programFee, materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent)
     };
@@ -1655,6 +1736,12 @@ const Auth = (() => {
     const participant = getParticipantForActor(session, options.participantId);
     if (!participant) {
       return { success: false, message: session.role === 'GUARDIAN' ? 'Choose a linked participant first.' : 'No participant profile is linked to this account.' };
+    }
+
+    const ev = getRawEvents().find((e) => String(e.id) === String(eventId));
+    if (ev) {
+      const ageCheck = assertParticipantMeetsAgeRequirement(participant, ev.ageRequirement);
+      if (!ageCheck.ok) return { success: false, message: ageCheck.message };
     }
 
     const signups = getRawEventSignups();
@@ -1737,6 +1824,7 @@ const Auth = (() => {
       payRate,
       programFee: parseNonNegativeNumber(payload.programFee),
       materialsCost: parseNonNegativeNumber(payload.materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent),
@@ -1765,6 +1853,7 @@ const Auth = (() => {
       payRate,
       programFee: parseNonNegativeNumber(payload.programFee),
       materialsCost: parseNonNegativeNumber(payload.materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent)
@@ -1836,14 +1925,47 @@ const Auth = (() => {
     getRawJobApplications()
       .filter((app) => String(app.participantId) === String(participantId))
       .sort((a, b) => a.appliedAtMs - b.appliedAtMs)
-      .forEach((app) => { statusMap[String(app.jobId)] = app.status; });
+      .forEach((app) => {
+        if (app.status === 'WITHDRAWN' || app.status === 'REJECTED') return;
+        statusMap[String(app.jobId)] = app.status;
+      });
 
     return statusMap;
   }
 
   async function getInterestedJobIds() {
     const statuses = await getMyJobInterestStatuses();
-    return Object.keys(statuses).filter((jobId) => !['REJECTED', 'PENDING'].includes(statuses[jobId]));
+    return Object.keys(statuses).filter((jobId) => !['REJECTED', 'PENDING', 'WITHDRAWN'].includes(statuses[jobId]));
+  }
+
+  function withdrawJobApplication(session, participant, jobId) {
+    const normalizedJobId = String(jobId || '').trim();
+    const applications = getRawJobApplications();
+    const idx = applications.findIndex((app) =>
+      String(app.participantId) === String(participant.id)
+      && String(app.jobId) === normalizedJobId
+      && !['REJECTED', 'WITHDRAWN'].includes(app.status)
+    );
+    if (idx === -1) return { success: false, message: 'No active application to withdraw for this job.' };
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+    const app = applications[idx];
+    app.status = 'WITHDRAWN';
+    app.updatedAtMs = now;
+    app.updatedAtLabel = dateLabel;
+    app.updatedByUserId = String(session.userId);
+    app.statusHistory = Array.isArray(app.statusHistory) ? app.statusHistory : [];
+    app.statusHistory.push({
+      status: 'WITHDRAWN',
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      changedByUserId: String(session.userId),
+      changedByRole: session.role,
+      note: 'Participant or guardian withdrew from this opportunity'
+    });
+    applications[idx] = app;
+    setJson(JOB_APPLICATIONS_KEY, applications);
+    return { success: true, status: 'WITHDRAWN' };
   }
 
   async function toggleJobInterest(jobId, options = {}) {
@@ -1860,18 +1982,9 @@ const Auth = (() => {
 
     const normalizedJobId = String(jobId || '').trim();
     const jobs = getRawJobs();
-    if (!jobs.some((job) => String(job.id) === normalizedJobId)) {
+    const job = jobs.find((j) => String(j.id) === normalizedJobId);
+    if (!job) {
       return { success: false, message: 'Job opportunity not found.' };
-    }
-
-    // Block if there is already an active application in the pipeline
-    const existingApplication = getRawJobApplications().find((app) =>
-      String(app.participantId) === String(participant.id)
-      && String(app.jobId) === normalizedJobId
-      && !['REJECTED'].includes(app.status)
-    );
-    if (existingApplication) {
-      return { success: false, message: 'This participant already has an active application for this job.' };
     }
 
     const pendingApproval = getRawApprovals().find((entry) =>
@@ -1883,6 +1996,20 @@ const Auth = (() => {
     if (pendingApproval) {
       setJson(APPROVALS_KEY, getRawApprovals().filter((entry) => String(entry.id) !== String(pendingApproval.id)));
       return { success: true, status: 'REMOVED_PENDING' };
+    }
+
+    const existingApplication = getRawJobApplications().find((app) =>
+      String(app.participantId) === String(participant.id)
+      && String(app.jobId) === normalizedJobId
+      && !['REJECTED', 'WITHDRAWN'].includes(app.status)
+    );
+    if (existingApplication) {
+      return withdrawJobApplication(session, participant, normalizedJobId);
+    }
+
+    const ageCheck = assertParticipantMeetsAgeRequirement(participant, job.ageRequirement);
+    if (!ageCheck.ok) {
+      return { success: false, message: ageCheck.message };
     }
 
     if (session.role === 'GUARDIAN') {
@@ -2023,7 +2150,9 @@ const Auth = (() => {
 
     const summary = {};
     const ensure = (jobId) => {
-      if (!summary[jobId]) summary[jobId] = { pending: [], applied: [], interview: [], offer: [], started: [], rejected: [] };
+      if (!summary[jobId]) {
+        summary[jobId] = { pending: [], applied: [], interview: [], offer: [], started: [], rejected: [], withdrawn: [] };
+      }
     };
     const entryFor = (participantId) => {
       const p = participantMap.get(String(participantId));
@@ -2038,7 +2167,11 @@ const Auth = (() => {
     getRawJobApplications().forEach((app) => {
       ensure(String(app.jobId));
       const key = app.status.toLowerCase();
-      if (summary[String(app.jobId)][key]) summary[String(app.jobId)][key].push(entryFor(app.participantId));
+      if (summary[String(app.jobId)][key]) {
+        summary[String(app.jobId)][key].push(entryFor(app.participantId));
+      } else if (key === 'withdrawn' && summary[String(app.jobId)].withdrawn) {
+        summary[String(app.jobId)].withdrawn.push(entryFor(app.participantId));
+      }
     });
 
     return summary;
@@ -2373,10 +2506,22 @@ const Auth = (() => {
     return getBgCheckRecordInternal(session.userId);
   }
 
-  async function submitBgCheckConsent() {
+  async function submitBgCheckConsent(options = {}) {
     const session = await getSession();
     if (!session || session.role !== 'VOLUNTEER') {
       return { success: false, message: 'Only volunteers can submit background check consent.' };
+    }
+
+    const dob = String(options.dateOfBirth || options.volunteerDateOfBirth || '').trim();
+    if (!dob) {
+      return { success: false, message: 'Date of birth is required for background check consent. You must be 18 or older to participate as a volunteer.' };
+    }
+    const volAge = ageFromDateOfBirth(dob);
+    if (volAge == null) {
+      return { success: false, message: 'Please enter a valid date of birth (YYYY-MM-DD).' };
+    }
+    if (volAge < 18) {
+      return { success: false, message: 'Volunteers must be at least 18 years old. Your application cannot be processed until you meet this requirement.' };
     }
 
     const records = getRawBgChecks();
@@ -2402,12 +2547,14 @@ const Auth = (() => {
       existing.consentSubmitted = true;
       existing.consentSubmittedAtMs = now;
       existing.consentSubmittedAtLabel = dateLabel;
+      existing.submitterDateOfBirth = dob;
       existing.status = 'Pending';
       existing.statusHistory.push(historyEntry);
     } else {
       records.push({
         id: makeId('bgc'),
         volunteerUserId: session.userId,
+        submitterDateOfBirth: dob,
         consentSubmitted: true,
         consentSubmittedAtMs: now,
         consentSubmittedAtLabel: dateLabel,
@@ -3342,6 +3489,11 @@ const Auth = (() => {
 
   return {
     ROLES,
+    AGE_REQUIREMENT,
+    normalizeAgeRequirement,
+    minAgeForRequirement,
+    parseParticipantAge,
+    assertParticipantMeetsAgeRequirement,
     getSession,
     login,
     requireAuth,

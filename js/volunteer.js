@@ -600,18 +600,37 @@ document.addEventListener('sections:ready', async (e) => {
 
   const consentCheckbox = document.getElementById('bgCheckConsentCheckbox');
   const consentSubmitBtn = document.getElementById('bgCheckSubmitConsentBtn');
+  const consentDobInput = document.getElementById('bgCheckVolunteerDob');
   const consentErrorEl = document.getElementById('bgCheckConsentError');
   const consentSuccessEl = document.getElementById('bgCheckConsentSuccess');
   const revokeBtn = document.getElementById('bgCheckRevokeBtn');
 
+  function setBgCheckDobMax() {
+    if (!consentDobInput) return;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    consentDobInput.max = d.toISOString().slice(0, 10);
+  }
+  setBgCheckDobMax();
+
   if (consentCheckbox && consentSubmitBtn) {
-    consentCheckbox.addEventListener('change', () => {
+    const syncConsentBtn = () => {
       consentSubmitBtn.disabled = !consentCheckbox.checked;
-    });
+    };
+    consentCheckbox.addEventListener('change', syncConsentBtn);
+    consentDobInput?.addEventListener('input', syncConsentBtn);
 
     consentSubmitBtn.addEventListener('click', async () => {
       consentErrorEl?.classList.add('d-none');
       consentSuccessEl?.classList.add('d-none');
+
+      if (!consentDobInput?.value?.trim()) {
+        if (consentErrorEl) {
+          consentErrorEl.textContent = 'Date of birth is required before submitting background check consent.';
+          consentErrorEl.classList.remove('d-none');
+        }
+        return;
+      }
 
       if (!consentCheckbox.checked) {
         if (consentErrorEl) {
@@ -622,7 +641,7 @@ document.addEventListener('sections:ready', async (e) => {
       }
 
       consentSubmitBtn.disabled = true;
-      const result = await Auth.submitBgCheckConsent();
+      const result = await Auth.submitBgCheckConsent({ dateOfBirth: consentDobInput.value.trim() });
 
       if (!result.success) {
         if (consentErrorEl) {

@@ -78,10 +78,17 @@ document.addEventListener('sections:ready', async (e) => {
     return total > 0 ? money(total) : 'No listed cost';
   }
 
+  function jobMinAgeLabel(job) {
+    const min = Auth.minAgeForRequirement(job.ageRequirement);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
+  }
+
   function buildJobExpectationLine(job) {
     return `
       <div class="small mt-1">
-        <span class="text-success fw-semibold"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
+        <span class="text-muted"><i class="bi bi-person-bounding-box me-1"></i>Age: ${escHtml(jobMinAgeLabel(job))}</span>
+        <span class="text-success fw-semibold ms-2"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
         <span class="text-muted ms-2"><i class="bi bi-tag me-1"></i>Cost: ${escHtml(jobCostText(job))}</span>
       </div>`;
   }
@@ -90,6 +97,12 @@ document.addEventListener('sections:ready', async (e) => {
   const participantInterestChips = participantInterestChipsEl
     ? renderInterestChips(participantInterestChipsEl, VOLUNTEER_INTERESTS, [], { required: true })
     : null;
+
+  function eventMinAgeLabel(event) {
+    const min = Auth.minAgeForRequirement(event.ageRequirement);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
+  }
 
   function buildEventCard(event, options = {}) {
     const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
@@ -105,6 +118,7 @@ document.addEventListener('sections:ready', async (e) => {
           <div class="portal-card-meta">
             <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}</span>
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
+            <span><i class="bi bi-person-bounding-box me-1"></i>${escHtml(eventMinAgeLabel(event))}</span>
           </div>
           <div class="portal-card-body">
             <p class="portal-card-accommodations">${escHtml(event.accommodations || '')}</p>
@@ -266,6 +280,7 @@ document.addEventListener('sections:ready', async (e) => {
     const jobs = await Auth.getJobs();
     const statuses = await Auth.getMyJobInterestStatuses();
     const savedJobCount = jobs.filter((j) => statuses[String(j.id)]).length;
+    const pendingGuardianJobs = Object.values(statuses).filter((s) => s === 'PENDING').length;
     const nextEvent = upcomingSubscribed
       .slice()
       .sort((a, b) => (a.eventTimestamp ?? 0) - (b.eventTimestamp ?? 0))[0];
@@ -277,12 +292,14 @@ document.addEventListener('sections:ready', async (e) => {
               <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
               <div class="d-flex flex-wrap gap-3 small">
                 <div><span class="text-muted">Subscribed events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
-                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> saved</div>
+                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> in pipeline</div>
+                <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
                 ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
               </div>
             </div>
             <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
               <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">Subscribed events</button>
+              <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My jobs</button>
               <a href="events.html" class="btn btn-sm btn-outline-success">Browse events</a>
               <a href="jobs.html" class="btn btn-sm btn-outline-primary">Browse jobs</a>
             </div>
@@ -313,7 +330,13 @@ document.addEventListener('sections:ready', async (e) => {
       </div>
       ${interestingJobs.map((job) => {
         const status = statuses[String(job.id)];
-        const badgeClass = status === 'APPROVED' ? 'text-bg-success' : (status === 'REJECTED' ? 'text-bg-danger' : 'text-bg-warning');
+        const DASH_STATUS_BADGE = {
+          PENDING: 'text-bg-warning', APPLIED: 'text-bg-primary', INTERVIEW: 'text-bg-info',
+          OFFER: 'text-bg-success', STARTED: 'text-bg-success', REJECTED: 'text-bg-danger', WITHDRAWN: 'text-bg-secondary', APPROVED: 'text-bg-success'
+        };
+        const badgeClass = DASH_STATUS_BADGE[status] || 'text-bg-secondary';
+        const canLeave = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
+        const leaveLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw';
         return `
           <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -325,9 +348,11 @@ document.addEventListener('sections:ready', async (e) => {
               </div>
               <div class="text-end">
                 <div>${jobTypeBadge(job.jobType)}</div>
-                <button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
-                  <i class="bi bi-x-circle me-1"></i>Remove
-                </button>
+                ${canLeave && status !== 'REJECTED' && status !== 'WITHDRAWN'
+        ? `<button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
+                  <i class="bi bi-x-circle me-1"></i>${escHtml(leaveLabel)}
+                </button>`
+        : ''}
               </div>
             </div>
           </div>`;
@@ -370,6 +395,7 @@ document.addEventListener('sections:ready', async (e) => {
       OFFER:     'text-bg-success',
       STARTED:   'text-bg-success',
       REJECTED:  'text-bg-danger',
+      APPROVED:  'text-bg-success',
     };
 
     function buildPipeline(status) {
@@ -391,7 +417,8 @@ document.addEventListener('sections:ready', async (e) => {
       ${myJobs.map((job) => {
         const status = statuses[String(job.id)];
         const badgeCls = STATUS_BADGE[status] || 'text-bg-secondary';
-        const canRemove = status === 'PENDING';
+        const canToggleOff = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
+        const btnLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw from job';
         return `
           <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -401,11 +428,10 @@ document.addEventListener('sections:ready', async (e) => {
                 ${buildJobExpectationLine(job)}
                 <div class="mt-2"><span class="badge ${badgeCls}">${escHtml(status)}</span></div>
                 ${buildPipeline(status)}
-                ${!canRemove && status !== 'REJECTED' ? `<div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Contact an admin to withdraw this application.</div>` : ''}
               </div>
               <div class="text-end flex-shrink-0">
                 <div>${jobTypeBadge(job.jobType)}</div>
-                ${canRemove ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>Remove</button>` : ''}
+                ${canToggleOff && status !== 'REJECTED' && status !== 'WITHDRAWN' ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>${escHtml(btnLabel)}</button>` : ''}
               </div>
             </div>
           </div>`;

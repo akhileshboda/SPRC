@@ -609,6 +609,12 @@
                 .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
+        function eventMinAgeLabel(event) {
+            const min = Auth.minAgeForRequirement(event.ageRequirement);
+            if (min === 0) return 'All ages';
+            return min + '+';
+        }
+
         function isUpcoming(event) {
             try {
                 const ts = new Date(String(event.dateTime || '')).getTime();
@@ -675,8 +681,9 @@
             ${escapeHtml(event.accommodations || '—')}
           </div>
 
-          <div class="event-card-footer">
+            <div class="event-card-footer">
             <div class="event-card-footer-meta">
+              <span class="event-cost-chip" title="Minimum participant age"><i class="bi bi-person-bounding-box"></i>${escapeHtml(eventMinAgeLabel(event))}</span>
               ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span class="event-cost-chip"><i class="bi bi-tag"></i>Free</span>'}
               ${(event.programFee != null && event.programFee > 0) || (event.materialsCost != null && event.materialsCost > 0) ? `<span class="text-muted" style="font-size:0.72rem;">(${event.programFee > 0 ? 'Fee: $' + Number(event.programFee).toFixed(2) : ''}${event.programFee > 0 && event.materialsCost > 0 ? ' + ' : ''}${event.materialsCost > 0 ? 'Materials: $' + Number(event.materialsCost).toFixed(2) : ''})</span>` : ''}
               <span class="event-added-date">Added ${escapeHtml(event.dateAdded || '')}</span>
