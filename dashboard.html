@@ -65,6 +65,8 @@
 
 <body class="d-flex flex-column" style="min-height: 100vh;">
 
+  <a class="visually-hidden-focusable position-fixed top-0 start-0 z-3 m-2 btn btn-sm btn-primary" href="#mainContent" style="z-index:1080;">Skip to main content</a>
+
   <!-- ════════════ SHARED TOP NAV ════════════ -->
   <div id="nav-root"></div>
 
@@ -106,7 +108,7 @@
     </div>
 
     <!-- ─── MAIN CONTENT AREA (sections injected here by sections.js) ─── -->
-    <main id="mainContent" class="flex-grow-1"></main>
+    <main id="mainContent" class="flex-grow-1" tabindex="-1"></main>
 
   </div>
 

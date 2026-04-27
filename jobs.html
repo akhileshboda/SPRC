@@ -64,6 +64,7 @@
   </style>
 </head>
 <body>
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#main-jobs" style="z-index:2000;">Skip to main content</a>
   <div id="nav-root"></div>
 
   <header class="border-bottom bg-light">
@@ -73,7 +74,7 @@
     </div>
   </header>
 
-  <main class="container py-4">
+  <main id="main-jobs" class="container py-4" tabindex="-1">
     <section id="guardianTargetPanel" class="mb-4 d-none">
       <div class="card border-primary-subtle">
         <div class="card-body">
@@ -96,21 +97,34 @@
       </div>
     </section>
 
-    <div class="row g-3 align-items-center mb-3">
-      <div class="col-md-6">
-        <input type="search" id="jobSearchInput" class="form-control" placeholder="Search title, employer, location...">
-      </div>
-      <div class="col-md-3">
-        <select id="jobTypeFilter" class="form-select">
-          <option value="All">All Types</option>
-          <option value="Full-time">Full-time</option>
-          <option value="Part-time">Part-time</option>
-          <option value="Casual">Casual</option>
-          <option value="Gig">Gig</option>
-        </select>
-      </div>
-      <div class="col-md-3 text-md-end">
-        <small id="jobsCountText" class="text-muted"></small>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+          <div>
+            <h2 class="h6 text-dark mb-0"><i class="bi bi-funnel me-1 text-primary" aria-hidden="true"></i>Find a job</h2>
+            <p class="text-muted small mb-0">Search and filter the same way as on the Events page—refine the list, then open a card for full details.</p>
+          </div>
+        </div>
+        <div class="row g-3 align-items-center">
+          <div class="col-md-6">
+            <label for="jobSearchInput" class="form-label small text-muted mb-1">Search</label>
+            <input type="search" id="jobSearchInput" class="form-control" placeholder="Search title, employer, location..." aria-describedby="jobSearchHelp">
+            <p id="jobSearchHelp" class="visually-hidden">Filters job cards by matching title, employer, location, or requirements</p>
+          </div>
+          <div class="col-md-3">
+            <label for="jobTypeFilter" class="form-label small text-muted mb-1">Job type</label>
+            <select id="jobTypeFilter" class="form-select" aria-label="Filter by job type">
+              <option value="All">All Types</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Casual">Casual</option>
+              <option value="Gig">Gig</option>
+            </select>
+          </div>
+          <div class="col-md-3 text-md-end d-flex align-items-end justify-content-md-end min-h-100">
+            <p class="small text-muted mb-0" id="jobsCountText" aria-live="polite"></p>
+          </div>
+        </div>
       </div>
     </div>
 

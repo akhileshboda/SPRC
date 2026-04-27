@@ -291,14 +291,14 @@ document.addEventListener('sections:ready', async (e) => {
             <div class="col-md-8">
               <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
               <div class="d-flex flex-wrap gap-3 small">
-                <div><span class="text-muted">Subscribed events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
+                <div><span class="text-muted">Saved events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
                 <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> in pipeline</div>
                 <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
                 ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
               </div>
             </div>
             <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
-              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">Subscribed events</button>
+              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">My saved events</button>
               <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My jobs</button>
               <a href="events.html" class="btn btn-sm btn-outline-success">Browse events</a>
               <a href="jobs.html" class="btn btn-sm btn-outline-primary">Browse jobs</a>
@@ -461,7 +461,7 @@ document.addEventListener('sections:ready', async (e) => {
     const subscribed = events.filter((event) => subscribedIds.has(String(event.id)));
 
     if (!subscribed.length) {
-      container.innerHTML = emptyState('bi-calendar2-check', 'No subscribed events yet. Browse Events and click "I\'m Interested" to add one.');
+      container.innerHTML = emptyState('bi-calendar2-check', 'No saved events yet. Browse the public Events page and click "I\'m interested" to add one to your list.');
       return;
     }
 

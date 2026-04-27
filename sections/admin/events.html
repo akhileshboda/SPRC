@@ -111,11 +111,14 @@
 
             <div class="col-12">
               <label for="eventAccommodations" class="form-label">Participant Requirements &amp; Accommodations</label>
+              <p id="eventAccHelpBlock" class="form-text small mb-1">
+                <strong>Cover when relevant (plain language is fine):</strong> sensory or noise; mobility and access; one-to-one or staff support; age or eligibility; fees, materials, and what to bring.
+              </p>
               <textarea class="form-control" id="eventAccommodations" rows="5"
-                placeholder="Describe accessibility details, support needs, staff assistance, sensory considerations, age requirements, or participation expectations..."
-                required></textarea>
+                placeholder="Example: Wheelchair-accessible venue; low-noise break room available; staff assist with transitions; parent/guardian must stay for ages under 12; $5 program fee and $2 materials…"
+                required aria-describedby="eventAccHelpBlock"></textarea>
               <div class="form-text">
-                Include any information families need to decide whether this event matches participant needs.
+                Families use this to decide if the event fits the participant. Avoid unexplained acronyms.
               </div>
               <div class="invalid-feedback">Participant requirements and accommodations are required.</div>
             </div>

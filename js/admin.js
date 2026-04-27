@@ -1236,7 +1236,14 @@ document.addEventListener('sections:ready', async (e) => {
           <div class="fw-semibold">${totalCost}</div>
           <div class="text-muted" style="font-size:0.75rem;">Fee: ${fee} · Materials: ${mat}</div>
         </td>
-        <td class="small text-muted"><div class="event-accommodations">${escapeHtml(event.accommodations)}</div></td>
+        <td class="small text-muted" style="max-width: 14rem;">
+          ${!event.accommodations
+            ? '—'
+            : `<details class="event-acc-details small">
+            <summary class="fw-semibold" style="cursor:pointer;">View requirements <span class="text-muted">(${escapeHtml(String(event.accommodations).length)} characters)</span></summary>
+            <div class="mt-2 p-2 bg-light rounded border" style="white-space: pre-wrap; max-height: 12rem; overflow: auto;">${escapeHtml(event.accommodations)}</div>
+          </details>`}
+        </td>
         <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
           <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">View</button>

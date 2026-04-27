@@ -59,7 +59,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         return r.text();
       }))
     );
-    mainContent.innerHTML = htmlParts.join('\n');
+    mainContent.innerHTML = [
+      `<div id="dashboardLocationBar" class="mb-3 pb-2 border-bottom" style="border-color: var(--k-border, #e2e6f3) !important;" role="navigation" aria-label="Current place in the portal">
+        <p class="small text-muted mb-0">
+          <span class="visually-hidden">You are in: </span>
+          <span>Portal</span>
+          <span aria-hidden="true" class="text-muted"> · </span>
+          <span class="text-body fw-semibold" id="dashboardLocationTitle">Dashboard</span>
+        </p>
+      </div>`,
+      htmlParts.join('\n')
+    ].join('\n');
   } catch (err) {
     mainContent.innerHTML = `
       <div class="alert alert-danger m-4" role="alert">

@@ -74,9 +74,9 @@
                       <button class="btn btn-link position-relative p-1"
                               type="button" id="nav-bell-btn"
                               data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                              aria-expanded="false" title="Notifications"
+                              aria-expanded="false" title="Notifications" aria-label="Open notifications"
                               style="font-size:1.2rem;line-height:1;color:inherit;text-decoration:none;">
-                        <i class="bi bi-bell" id="nav-bell-icon"></i>
+                        <i class="bi bi-bell" id="nav-bell-icon" aria-hidden="true"></i>
                         <span id="nav-bell-badge"
                               class="d-none position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                               style="font-size:0.6rem;min-width:1.1em;"></span>

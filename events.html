@@ -518,6 +518,8 @@
 
 <body>
 
+    <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#page-header" style="z-index:2000;">Skip to main content</a>
+
     <!-- ════════════ STICKY HEADER (nav + filter bar) ════════════ -->
     <div id="page-top">
         <div id="nav-root"></div>
@@ -577,15 +579,21 @@
     </main>
 
     <!-- ════════════ FOOTER ════════════ -->
-    <footer>
-        <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
-            <div>
-                <div class="footer-logo">Kindred<span>.</span></div>
-                <small class="d-block mt-1" style="color:#6b7280;">Special Population Resource Connection</small>
+    <footer class="border-top bg-white">
+        <div class="container py-3">
+            <div class="d-flex flex-wrap justify-content-center gap-3 small mb-2">
+                <a href="index.html">Home</a>
+                <a href="jobs.html">Jobs</a>
+                <a href="privacy.html">Privacy</a>
+                <a href="login.html">Sign in</a>
             </div>
-            <small style="color:#6b7280;" class="text-center text-md-end">
-                CNIT 280 Term Project &mdash; Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan
-            </small>
+            <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 text-center text-md-start">
+                <div>
+                    <div class="footer-logo">Kindred<span>.</span></div>
+                    <small class="d-block" style="color:#6b7280;">Special Population Resource Connection</small>
+                </div>
+                <small class="text-muted">CNIT 280 Term Project &mdash; Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan</small>
+            </div>
         </div>
     </footer>
 

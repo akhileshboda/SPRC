@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { id: 'g-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['GUARDIAN'] },
   // PARTICIPANT discovery sections
   { id: 'p-profile',    label: 'My Profile', icon: 'bi-person-vcard', roles: ['PARTICIPANT'] },
-  { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
+  { id: 'p-events',     label: 'My saved events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
   { id: 'v-profile',    label: 'My Profile',       icon: 'bi-person-circle', roles: ['VOLUNTEER'] },
@@ -109,6 +109,11 @@ function navigateTo(sectionId) {
   const mobileTitle = document.getElementById('mobileDashboardTitle');
   if (mobileTitle && navItem) {
     mobileTitle.textContent = navItem.label;
+  }
+
+  const locTitle = document.getElementById('dashboardLocationTitle');
+  if (locTitle && navItem) {
+    locTitle.textContent = navItem.label;
   }
 
   // Scroll the main content area back to the top
