@@ -822,6 +822,55 @@ const Auth = (() => {
       .filter((approval) => approval && approval.jobId);
   }
 
+  /** Append built-in seed rows missing from localStorage (mirrors mergeSeedUsers for other stores). */
+  function mergeSeedParticipantsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((p) => String(p.id || '')).filter(Boolean));
+    SEED_PARTICIPANTS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ recordStatus: 'ACTIVE', ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedVolunteerProfilesRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenUserIds = new Set(merged.map((p) => String(p.userId || '')).filter(Boolean));
+    SEED_VOLUNTEER_PROFILES.forEach((seed) => {
+      const uid = String(seed.userId || '');
+      if (!uid || seenUserIds.has(uid)) return;
+      seenUserIds.add(uid);
+      merged.push({ recordStatus: 'ACTIVE', ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedEventsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((e) => String(e.id || '')).filter(Boolean));
+    SEED_EVENTS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedJobsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((j) => String(j.id || '')).filter(Boolean));
+    SEED_JOBS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ ...seed });
+    });
+    return merged;
+  }
+
   function refreshSeedEventDates(events) {
     const seedEventsById = new Map(SEED_EVENTS.map((event) => [event.id, event]));
     const staleSeedDateTimesById = new Map([
@@ -857,22 +906,23 @@ const Auth = (() => {
     const normalizedUsers = normalizeUsers(getRawUsers());
     setJson(USERS_KEY, normalizedUsers);
 
-    const normalizedParticipants = normalizeParticipants(getRawParticipants(), normalizedUsers);
+    const normalizedParticipants = normalizeParticipants(
+      mergeSeedParticipantsRaw(getRawParticipants()),
+      normalizedUsers
+    );
     setJson(PARTICIPANTS_KEY, normalizedParticipants);
 
-    const normalizedVolunteerProfiles = normalizeVolunteerProfiles(getRawVolunteerProfiles(), normalizedUsers);
+    const normalizedVolunteerProfiles = normalizeVolunteerProfiles(
+      mergeSeedVolunteerProfilesRaw(getRawVolunteerProfiles()),
+      normalizedUsers
+    );
     setJson(VOLUNTEER_PROFILES_KEY, normalizedVolunteerProfiles);
 
-    const events = getRawEvents();
-    if (!events.length) {
-      setJson(EVENTS_KEY, SEED_EVENTS);
-    } else {
-      const refreshedEvents = refreshSeedEventDates(events);
-      if (refreshedEvents !== events) setJson(EVENTS_KEY, refreshedEvents);
-    }
+    const mergedEvents = refreshSeedEventDates(mergeSeedEventsRaw(getRawEvents()));
+    setJson(EVENTS_KEY, mergedEvents);
 
-    const jobs = getRawJobs();
-    if (!jobs.length) setJson(JOBS_KEY, SEED_JOBS);
+    const mergedJobs = mergeSeedJobsRaw(getRawJobs());
+    setJson(JOBS_KEY, mergedJobs);
 
     setJson(EVENT_SIGNUPS_KEY, normalizeEventSignups(getRawEventSignups(), normalizedParticipants, normalizedUsers));
     setJson(JOB_INTERESTS_KEY, normalizeJobInterests(getRawJobInterests(), normalizedParticipants, normalizedUsers));
