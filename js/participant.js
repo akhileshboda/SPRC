@@ -286,7 +286,7 @@ document.addEventListener('sections:ready', async (e) => {
               <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
               <div class="d-flex flex-wrap gap-3 small">
                 <div><span class="text-muted">Saved events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
-                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> in pipeline</div>
+                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> ${savedJobCount === 1 ? 'job pending' : 'jobs pending'}</div>
                 <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
                 ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
               </div>
