@@ -939,6 +939,14 @@ const Auth = (() => {
     if (!localStorage.getItem(VOLUNTEER_EVENT_ASSIGNMENTS_KEY)) setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
   }
 
+  /** Run once per full page load; merges bundled seeds into localStorage before reads. */
+  let _storesHydrated = false;
+  function ensureStoresHydrated() {
+    if (_storesHydrated) return;
+    _storesHydrated = true;
+    initStores();
+  }
+
   function getUserByIdInternal(userId) {
     return getRawUsers().find((user) => String(user.id) === String(userId)) || null;
   }
@@ -1010,6 +1018,7 @@ const Auth = (() => {
   }
 
   async function getSession() {
+    ensureStoresHydrated();
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
@@ -3745,7 +3754,7 @@ const Auth = (() => {
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
-  initStores();
+  ensureStoresHydrated();
 
   return {
     ROLES,

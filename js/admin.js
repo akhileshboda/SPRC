@@ -3201,7 +3201,9 @@ document.addEventListener('sections:ready', async (e) => {
     const el = document.getElementById('adminDashboardStats');
     if (!el) return;
     try {
-      const [participants, events, jobs, approvals] = await Promise.all([
+      el.className = 'row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4';
+      const [users, participants, events, jobs, approvals] = await Promise.all([
+        Auth.getUsers(),
         Auth.getParticipants(),
         Auth.getEvents(),
         Auth.getJobs(),
@@ -3215,7 +3217,16 @@ document.addEventListener('sections:ready', async (e) => {
       const openJobs = jobs.filter((j) => (j.status || 'Open') === 'Open').length;
       const pendingApprovalCount = approvals.filter((a) => a.status === 'PENDING').length;
       el.innerHTML = `
-        <div class="col-6 col-lg-3">
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">User accounts</div>
+              <div class="h4 mb-1 fw-semibold">${users.filter((u) => u.accessStatus !== 'REVOKED').length}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('users')">Users</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3">
               <div class="text-muted text-uppercase small mb-1">Participants</div>
@@ -3224,7 +3235,7 @@ document.addEventListener('sections:ready', async (e) => {
             </div>
           </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3">
               <div class="text-muted text-uppercase small mb-1">Upcoming events</div>
@@ -3233,7 +3244,7 @@ document.addEventListener('sections:ready', async (e) => {
             </div>
           </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3">
               <div class="text-muted text-uppercase small mb-1">Open jobs</div>
@@ -3242,7 +3253,7 @@ document.addEventListener('sections:ready', async (e) => {
             </div>
           </div>
         </div>
-        <div class="col-6 col-lg-3">
+        <div class="col">
           <div class="card h-100 border-0 shadow-sm">
             <div class="card-body py-3">
               <div class="text-muted text-uppercase small mb-1">Pending job approvals</div>
