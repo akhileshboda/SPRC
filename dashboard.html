@@ -65,8 +65,6 @@
 
 <body class="d-flex flex-column" style="min-height: 100vh;">
 
-  <a class="visually-hidden-focusable position-fixed top-0 start-0 z-3 m-2 btn btn-sm btn-primary" href="#mainContent" style="z-index:1080;">Skip to main content</a>
-
   <!-- ════════════ SHARED TOP NAV ════════════ -->
   <div id="nav-root"></div>
 
@@ -80,35 +78,23 @@
     </nav>
 
     <!-- ─── MOBILE OFFCANVAS SIDEBAR ─── -->
-    <div class="offcanvas offcanvas-start dashboard-sidebar-offcanvas"
+    <div class="offcanvas offcanvas-start bg-dark text-white"
          tabindex="-1"
          id="sidebarOffcanvas"
-         aria-labelledby="sidebarOffcanvasLabel">
-      <div class="offcanvas-header">
-        <span class="fw-bold fs-5" id="sidebarOffcanvasLabel">Dashboard</span>
+         aria-labelledby="sidebarOffcanvasLabel"
+         style="width: 260px;">
+      <div class="offcanvas-header border-bottom border-secondary">
+        <span class="fw-bold text-white fs-5" id="sidebarOffcanvasLabel">Kindred</span>
         <button type="button"
-                class="btn-close"
+                class="btn-close btn-close-white"
                 data-bs-dismiss="offcanvas"
                 aria-label="Close navigation"></button>
       </div>
       <div class="offcanvas-body d-flex flex-column p-0"></div>
     </div>
 
-    <!-- ─── MOBILE DASHBOARD NAV ─── -->
-    <div id="mobileDashboardBar" class="d-md-none" aria-label="Dashboard navigation">
-      <button class="mobile-dashboard-menu-btn"
-              type="button"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#sidebarOffcanvas"
-              aria-controls="sidebarOffcanvas">
-        <i class="bi bi-list" aria-hidden="true"></i>
-        <span class="visually-hidden">Open dashboard navigation</span>
-      </button>
-      <span id="mobileDashboardTitle">Dashboard</span>
-    </div>
-
     <!-- ─── MAIN CONTENT AREA (sections injected here by sections.js) ─── -->
-    <main id="mainContent" class="flex-grow-1" tabindex="-1"></main>
+    <main id="mainContent" class="flex-grow-1"></main>
 
   </div>
 
@@ -165,7 +151,6 @@
               <div class="col-8"><span id="modalSummaryRole" class="badge"></span></div>
             </div>
           </div>
-          <div id="modalSummaryLinkedDetails" class="bg-light rounded p-3 mb-3 d-none"></div>
           <div class="alert alert-info mb-0 small" role="alert">
             <strong>A welcome email will be sent</strong> to <strong id="modalSummaryEmailTarget"></strong> containing
             their temporary password and step-by-step instructions to reset it before their first login.
@@ -174,31 +159,6 @@
         <div class="modal-footer border-0 pt-0">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="confirmCreateBtn">Yes, Create Account</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete User / Record Confirm Modal -->
-  <div class="modal fade" id="deleteIdentityModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="modal-title fw-semibold" id="deleteIdentityTitle">Confirm Delete</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cancel"></button>
-        </div>
-        <div class="modal-body">
-          <p class="mb-2" id="deleteIdentityMessage"></p>
-          <div class="alert alert-warning small mb-0" role="alert" id="deleteIdentityWarning">
-            This action cannot be undone.
-          </div>
-        </div>
-        <div class="modal-footer border-0 pt-0 flex-wrap justify-content-between">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-danger" id="deleteIdentityPreserveBtn">Delete only</button>
-            <button type="button" class="btn btn-danger" id="deleteIdentityCascadeBtn">Delete both</button>
-          </div>
         </div>
       </div>
     </div>
@@ -554,14 +514,14 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js?v=3"></script>
-  <script src="js/auth.js?v=22"></script>
+  <script src="js/auth.js?v=14"></script>
   <script src="js/notifications-ui.js?v=2"></script>
   <script src="js/required-markers.js"></script>
-  <script src="js/sidebar.js?v=7"></script>
-  <script src="js/sections.js?v=6"></script>
-  <script src="js/admin.js?v=7"></script>
-  <script src="js/volunteer.js?v=7"></script>
-  <script src="js/participant.js?v=9"></script>
+  <script src="js/sidebar.js?v=6"></script>
+  <script src="js/sections.js?v=4"></script>
+  <script src="js/admin.js?v=6"></script>
+  <script src="js/volunteer.js?v=6"></script>
+  <script src="js/participant.js?v=5"></script>
 </body>
 
 </html>

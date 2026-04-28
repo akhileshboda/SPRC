@@ -11,6 +11,7 @@ document.addEventListener('sections:ready', async (e) => {
     escHtml,
     renderProfileHeader,
     renderInterestChips,
+    readOnlyPanelHTML,
     linkedRowHTML,
     renderCompletenessMeter,
     calcCompleteness,
@@ -77,17 +78,10 @@ document.addEventListener('sections:ready', async (e) => {
     return total > 0 ? money(total) : 'No listed cost';
   }
 
-  function jobMinAgeLabel(job) {
-    const min = Auth.minAgeForRequirement(job.ageRequirement);
-    if (min === 0) return 'All ages';
-    return `${min}+`;
-  }
-
   function buildJobExpectationLine(job) {
     return `
       <div class="small mt-1">
-        <span class="text-muted"><i class="bi bi-person-bounding-box me-1"></i>Age: ${escHtml(jobMinAgeLabel(job))}</span>
-        <span class="text-success fw-semibold ms-2"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
+        <span class="text-success fw-semibold"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
         <span class="text-muted ms-2"><i class="bi bi-tag me-1"></i>Cost: ${escHtml(jobCostText(job))}</span>
       </div>`;
   }
@@ -96,12 +90,6 @@ document.addEventListener('sections:ready', async (e) => {
   const participantInterestChips = participantInterestChipsEl
     ? renderInterestChips(participantInterestChipsEl, VOLUNTEER_INTERESTS, [], { required: true })
     : null;
-
-  function eventMinAgeLabel(event) {
-    const min = Auth.minAgeForRequirement(event.ageRequirement);
-    if (min === 0) return 'All ages';
-    return `${min}+`;
-  }
 
   function buildEventCard(event, options = {}) {
     const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
@@ -117,7 +105,6 @@ document.addEventListener('sections:ready', async (e) => {
           <div class="portal-card-meta">
             <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}</span>
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
-            <span><i class="bi bi-person-bounding-box me-1"></i>${escHtml(eventMinAgeLabel(event))}</span>
           </div>
           <div class="portal-card-body">
             <p class="portal-card-accommodations">${escHtml(event.accommodations || '')}</p>
@@ -211,10 +198,15 @@ document.addEventListener('sections:ready', async (e) => {
     document.getElementById('participantBioInput').value = participant.bio || '';
     document.getElementById('participantDateOfBirthInput').value = participant.dateOfBirth || '';
     document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
-    document.getElementById('participantSpecialNeedsInput').value = participant.specialNeeds || '';
-    document.getElementById('participantMedicalNotesInput').value = participant.medicalNotes || '';
-    document.getElementById('participantSensoryNotesInput').value = participant.sensoryNotes || '';
+    document.getElementById('participantSpecialNeedsReadonly').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalReadonly').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryReadonly').value = participant.sensoryNotes || '';
     participantInterestChips?.setSelected(participant.participantInterests || []);
+
+    const readonlyBanner = document.getElementById('participantSupportReadonlyBanner');
+    if (readonlyBanner) {
+      readonlyBanner.innerHTML = readOnlyPanelHTML('Care needs and support notes', 'Managed by guardian or admin');
+    }
 
     const contacts = document.getElementById('participantLinkedContacts');
     if (contacts) {
@@ -274,7 +266,6 @@ document.addEventListener('sections:ready', async (e) => {
     const jobs = await Auth.getJobs();
     const statuses = await Auth.getMyJobInterestStatuses();
     const savedJobCount = jobs.filter((j) => statuses[String(j.id)]).length;
-    const pendingGuardianJobs = Object.values(statuses).filter((s) => s === 'PENDING').length;
     const nextEvent = upcomingSubscribed
       .slice()
       .sort((a, b) => (a.eventTimestamp ?? 0) - (b.eventTimestamp ?? 0))[0];
@@ -285,15 +276,13 @@ document.addEventListener('sections:ready', async (e) => {
             <div class="col-md-8">
               <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
               <div class="d-flex flex-wrap gap-3 small">
-                <div><span class="text-muted">Saved events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
-                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> ${savedJobCount === 1 ? 'job pending' : 'jobs pending'}</div>
-                <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
+                <div><span class="text-muted">Subscribed events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
+                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> saved</div>
                 ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
               </div>
             </div>
             <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
-              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">My saved events</button>
-              <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My jobs</button>
+              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">Subscribed events</button>
               <a href="events.html" class="btn btn-sm btn-outline-success">Browse events</a>
               <a href="jobs.html" class="btn btn-sm btn-outline-primary">Browse jobs</a>
             </div>
@@ -324,13 +313,7 @@ document.addEventListener('sections:ready', async (e) => {
       </div>
       ${interestingJobs.map((job) => {
         const status = statuses[String(job.id)];
-        const DASH_STATUS_BADGE = {
-          PENDING: 'text-bg-warning', APPLIED: 'text-bg-primary', INTERVIEW: 'text-bg-info',
-          OFFER: 'text-bg-success', STARTED: 'text-bg-success', REJECTED: 'text-bg-danger', WITHDRAWN: 'text-bg-secondary', APPROVED: 'text-bg-success'
-        };
-        const badgeClass = DASH_STATUS_BADGE[status] || 'text-bg-secondary';
-        const canLeave = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
-        const leaveLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw';
+        const badgeClass = status === 'APPROVED' ? 'text-bg-success' : (status === 'REJECTED' ? 'text-bg-danger' : 'text-bg-warning');
         return `
           <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -342,11 +325,9 @@ document.addEventListener('sections:ready', async (e) => {
               </div>
               <div class="text-end">
                 <div>${jobTypeBadge(job.jobType)}</div>
-                ${canLeave && status !== 'REJECTED' && status !== 'WITHDRAWN'
-        ? `<button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
-                  <i class="bi bi-x-circle me-1"></i>${escHtml(leaveLabel)}
-                </button>`
-        : ''}
+                <button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
+                  <i class="bi bi-x-circle me-1"></i>Remove
+                </button>
               </div>
             </div>
           </div>`;
@@ -389,7 +370,6 @@ document.addEventListener('sections:ready', async (e) => {
       OFFER:     'text-bg-success',
       STARTED:   'text-bg-success',
       REJECTED:  'text-bg-danger',
-      APPROVED:  'text-bg-success',
     };
 
     function buildPipeline(status) {
@@ -411,8 +391,7 @@ document.addEventListener('sections:ready', async (e) => {
       ${myJobs.map((job) => {
         const status = statuses[String(job.id)];
         const badgeCls = STATUS_BADGE[status] || 'text-bg-secondary';
-        const canToggleOff = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
-        const btnLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw from job';
+        const canRemove = status === 'PENDING';
         return `
           <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -422,10 +401,11 @@ document.addEventListener('sections:ready', async (e) => {
                 ${buildJobExpectationLine(job)}
                 <div class="mt-2"><span class="badge ${badgeCls}">${escHtml(status)}</span></div>
                 ${buildPipeline(status)}
+                ${!canRemove && status !== 'REJECTED' ? `<div class="small text-muted mt-2"><i class="bi bi-info-circle me-1"></i>Contact an admin to withdraw this application.</div>` : ''}
               </div>
               <div class="text-end flex-shrink-0">
                 <div>${jobTypeBadge(job.jobType)}</div>
-                ${canToggleOff && status !== 'REJECTED' && status !== 'WITHDRAWN' ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>${escHtml(btnLabel)}</button>` : ''}
+                ${canRemove ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>Remove</button>` : ''}
               </div>
             </div>
           </div>`;
@@ -455,7 +435,7 @@ document.addEventListener('sections:ready', async (e) => {
     const subscribed = events.filter((event) => subscribedIds.has(String(event.id)));
 
     if (!subscribed.length) {
-      container.innerHTML = emptyState('bi-calendar2-check', 'No saved events yet. Browse the public Events page and click "I\'m interested" to add one to your list.');
+      container.innerHTML = emptyState('bi-calendar2-check', 'No subscribed events yet. Browse Events and click "I\'m Interested" to add one.');
       return;
     }
 
@@ -555,41 +535,19 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
         </div>
 
-        <div class="participant-guardian-edit border rounded p-3 mt-3 bg-body-tertiary" data-participant-id="${escHtml(participant.id)}">
-          <h4 class="h6 mb-2">Support &amp; health notes <span class="badge bg-secondary ms-1">Editable</span></h4>
-          <p class="text-muted small mb-3 mb-md-2">These fields are shared with program staff when relevant. Coordinators may also edit participant records elsewhere.</p>
-          <div class="row g-3">
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Support needs</label>
-              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
-                data-field="specialNeeds" aria-label="Support needs for ${escHtml(participantName)}"></textarea>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Medical notes</label>
-              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
-                data-field="medicalNotes" placeholder="Allergies, medications… (optional)"
-                aria-label="Medical notes for ${escHtml(participantName)}"></textarea>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label small mb-1">Sensory notes</label>
-              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
-                data-field="sensoryNotes" placeholder="Noise, lighting, transitions… (optional)"
-                aria-label="Sensory notes for ${escHtml(participantName)}"></textarea>
-            </div>
-            <div class="col-12">
-              <label class="form-label small mb-1">Guardian / family notes</label>
-              <textarea class="form-control form-control-sm guardian-needs-field" rows="2" maxlength="8000"
-                data-field="guardianNotes" aria-label="Guardian notes for ${escHtml(participantName)}"></textarea>
-            </div>
+        <div class="profile-support-grid">
+          <div class="profile-support-item">
+            <strong>Support Needs</strong>
+            <span>${escHtml(participant.specialNeeds || '—')}</span>
           </div>
-          <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
-            <button type="button" class="btn btn-primary btn-sm js-guardian-save-support">
-              <i class="bi bi-check-lg me-1"></i>Save notes
-            </button>
-            <span class="text-muted small js-g-support-feedback d-none" role="status" aria-live="polite"></span>
+          <div class="profile-support-item">
+            <strong>Medical Notes</strong>
+            <span>${escHtml(participant.medicalNotes || '—')}</span>
           </div>
-        </div>
-        <div class="profile-support-grid mt-3">
+          <div class="profile-support-item">
+            <strong>Sensory Notes</strong>
+            <span>${escHtml(participant.sensoryNotes || '—')}</span>
+          </div>
           <div class="profile-support-item">
             <strong>Participant Interests</strong>
             <span>${escHtml(participant.participantInterests.join(', ') || '—')}</span>
@@ -598,6 +556,10 @@ document.addEventListener('sections:ready', async (e) => {
             <strong>Job Goals</strong>
             <span>${escHtml(participant.jobGoals || '—')}</span>
           </div>
+          <div class="profile-support-item">
+            <strong>Guardian Notes</strong>
+            <span>${escHtml(participant.guardianNotes || '—')}</span>
+          </div>
         </div>
 
         <div class="profile-rail-block mt-3">
@@ -605,70 +567,6 @@ document.addEventListener('sections:ready', async (e) => {
           ${linkedContacts}
         </div>
       </div>`;
-  }
-
-  let guardianSupportSaveBound = false;
-
-  function fillGuardianParticipantTextareas(participants) {
-    const root = document.getElementById('guardianParticipantsList');
-    if (!root) return;
-    participants.forEach((participant) => {
-      const wrap = Array.from(root.querySelectorAll('.participant-guardian-edit')).find(
-        (el) => String(el.getAttribute('data-participant-id')) === String(participant.id)
-      );
-      if (!wrap) return;
-      [['specialNeeds', participant.specialNeeds],
-        ['medicalNotes', participant.medicalNotes],
-        ['sensoryNotes', participant.sensoryNotes],
-        ['guardianNotes', participant.guardianNotes]].forEach(([field, val]) => {
-        const ta = wrap.querySelector(`textarea[data-field="${field}"]`);
-        if (ta) ta.value = val || '';
-      });
-    });
-  }
-
-  function bindGuardianParticipantSupportSave() {
-    if (guardianSupportSaveBound) return;
-    const root = document.getElementById('guardianParticipantsList');
-    if (!root) return;
-    guardianSupportSaveBound = true;
-    root.addEventListener('click', async (e) => {
-      const btn = e.target.closest('.js-guardian-save-support');
-      if (!btn || !root.contains(btn)) return;
-      btn.disabled = true;
-      const wrap = btn.closest('.participant-guardian-edit');
-      const participantId = wrap?.getAttribute('data-participant-id');
-      if (!wrap || !participantId) {
-        btn.disabled = false;
-        return;
-      }
-      const read = (field) => wrap.querySelector(`textarea[data-field="${field}"]`)?.value ?? '';
-      const result = await Auth.updateLinkedParticipantSupportNotes(participantId, {
-        specialNeeds: read('specialNeeds'),
-        medicalNotes: read('medicalNotes'),
-        sensoryNotes: read('sensoryNotes'),
-        guardianNotes: read('guardianNotes')
-      });
-      btn.disabled = false;
-      const feed = wrap.querySelector('.js-g-support-feedback');
-      if (!result.success) {
-        if (feed) {
-          feed.textContent = result.message || 'Could not save.';
-          feed.classList.remove('d-none', 'text-muted', 'text-success');
-          feed.classList.add('text-danger');
-        } else {
-          alert(result.message || 'Could not save.');
-        }
-        return;
-      }
-      if (feed) {
-        feed.textContent = 'Notes saved.';
-        feed.classList.remove('d-none', 'text-danger');
-        feed.classList.add('text-muted', 'text-success');
-        clearTimeout(feed._hideT);
-        feed._hideT = setTimeout(() => feed.classList.add('d-none'), 4000);
-      }
-    });
   }
 
   async function renderGuardianDashboard() {
@@ -756,7 +654,6 @@ document.addEventListener('sections:ready', async (e) => {
       participantsContainer.innerHTML = participants.length
         ? participants.map(participantCard).join('')
         : emptyState('bi-people', 'No participants are linked to your guardian account yet.');
-      fillGuardianParticipantTextareas(participants);
     }
 
     const guardianParticipantsHeader = document.getElementById('guardianParticipantsHeader');
@@ -894,10 +791,7 @@ document.addEventListener('sections:ready', async (e) => {
         participantInterests: participantInterestChips?.getSelected() || [],
         jobGoals: document.getElementById('participantJobGoalsInput')?.value || '',
         bio: document.getElementById('participantBioInput')?.value || '',
-        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || '',
-        specialNeeds: document.getElementById('participantSpecialNeedsInput')?.value || '',
-        medicalNotes: document.getElementById('participantMedicalNotesInput')?.value || '',
-        sensoryNotes: document.getElementById('participantSensoryNotesInput')?.value || ''
+        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || ''
       });
 
       if (!result.success) {
@@ -1018,7 +912,6 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   if (session.role === 'GUARDIAN') {
-    bindGuardianParticipantSupportSave();
     const _gBellConfig = { notificationsSection: 'g-notifications', role: 'GUARDIAN' };
     await renderGuardianDashboard();
     await renderGuardianApprovals();

@@ -7,29 +7,10 @@
   <div id="panel-ADMIN" class="d-none">
     <div id="adminDashboardStats" class="row g-3 mb-4"></div>
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-danger text-white fw-semibold">Where to go next</div>
-      <div class="card-body">
-        <p class="text-muted small mb-3 mb-md-0">Open any area below or use the sidebar. Search boxes on list pages filter rows as you type.</p>
-        <div class="row g-2 mt-md-2">
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-outline-danger btn-sm" onclick="navigateTo('participants')"><i class="bi bi-people me-1"></i>Participants</button>
-          </div>
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-outline-info btn-sm text-dark" onclick="navigateTo('volunteers')"><i class="bi bi-hand-thumbs-up me-1"></i>Volunteers</button>
-          </div>
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-outline-primary btn-sm" onclick="navigateTo('events')"><i class="bi bi-calendar-event me-1"></i>Events</button>
-          </div>
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('jobs')"><i class="bi bi-briefcase me-1"></i>Jobs</button>
-          </div>
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="navigateTo('users')"><i class="bi bi-person-badge me-1"></i>Users</button>
-          </div>
-          <div class="col-6 col-md-4 col-lg-2 d-grid">
-            <button type="button" class="btn btn-outline-success btn-sm" onclick="navigateTo('communications')"><i class="bi bi-envelope-paper me-1"></i>Newsletter</button>
-          </div>
-        </div>
+      <div class="card-header bg-danger text-white fw-semibold">Management Console</div>
+      <div class="card-body text-muted">
+        Select <strong>Participants</strong>, <strong>Volunteers</strong>, <strong>Events</strong>, <strong>Jobs</strong>, <strong>Newsletters</strong>, or <strong>Users</strong> from the
+        sidebar to manage records.
       </div>
     </div>
     <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(79,98,176,0.08), rgba(43,181,160,0.10));">
@@ -91,8 +72,8 @@
     <div class="portal-section mb-5">
       <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-          <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-success" aria-hidden="true"></i>Upcoming events</h5>
-          <p class="text-muted small mb-0">A sample of what is published—open <strong>My saved events</strong> in the sidebar for the list you marked on the public board.</p>
+          <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-success"></i>Upcoming Events</h5>
+          <p class="text-muted small mb-0">Community programs and activities selected for you</p>
         </div>
         <button class="btn btn-outline-success btn-sm" type="button"
                 onclick="navigateTo('p-events')">
@@ -109,12 +90,9 @@
           <h5 class="portal-section-title mb-0"><i class="bi bi-briefcase me-2" style="color:#6f42c1"></i>Job Opportunities</h5>
           <p class="text-muted small mb-0">Browse all jobs on the public Jobs page and save interests while signed in.</p>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-          <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My pipeline</button>
-          <a href="jobs.html" class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;">
-            Browse jobs <i class="bi bi-box-arrow-up-right ms-1"></i>
-          </a>
-        </div>
+        <a href="jobs.html" class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;">
+          Browse jobs <i class="bi bi-box-arrow-up-right ms-1"></i>
+        </a>
       </div>
       <div id="p-saved-jobs"></div>
     </div>
@@ -125,10 +103,10 @@
   <div id="panel-VOLUNTEER-saved" class="d-none">
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-primary text-white fw-semibold">
-        <i class="bi bi-bookmark-heart me-2" aria-hidden="true"></i>My event sign-ups
+        <i class="bi bi-bookmark-heart me-2"></i>My Saved Events
       </div>
       <div class="card-body" id="volunteerSavedEvents">
-        <p class="text-muted small mb-0">Events where you have signed up as a volunteer. <a href="events.html">Browse events</a> and use the sign-up action on a card to add more.</p>
+        <p class="text-muted mb-0">You haven't saved any events yet. <a href="events.html">Browse events</a> and click "I'm Interested" to save them here.</p>
       </div>
     </div>
   </div>

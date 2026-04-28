@@ -23,7 +23,6 @@
             <tr>
               <th scope="col" class="ps-3">Event Title</th>
               <th scope="col">Category</th>
-              <th scope="col">Age</th>
               <th scope="col">Date / Time</th>
               <th scope="col">Location</th>
               <th scope="col">Cost</th>
@@ -74,16 +73,6 @@
             </div>
 
             <div class="col-md-3">
-              <label for="eventAgeRequirement" class="form-label">Minimum age</label>
-              <select class="form-select" id="eventAgeRequirement">
-                <option value="ALL">All ages (no minimum)</option>
-                <option value="16">16+</option>
-                <option value="18">18+</option>
-              </select>
-              <div class="form-text">Shown to families; under-age participants cannot save interest.</div>
-            </div>
-
-            <div class="col-md-3">
               <label for="eventProgramFee" class="form-label">Program Fee ($)</label>
               <input type="number" class="form-control" id="eventProgramFee" min="0" step="0.01" placeholder="0.00">
               <div class="form-text">Leave blank or 0 if free.</div>
@@ -111,14 +100,11 @@
 
             <div class="col-12">
               <label for="eventAccommodations" class="form-label">Participant Requirements &amp; Accommodations</label>
-              <p id="eventAccHelpBlock" class="form-text small mb-1">
-                <strong>Cover when relevant (plain language is fine):</strong> sensory or noise; mobility and access; one-to-one or staff support; age or eligibility; fees, materials, and what to bring.
-              </p>
               <textarea class="form-control" id="eventAccommodations" rows="5"
-                placeholder="Example: Wheelchair-accessible venue; low-noise break room available; staff assist with transitions; parent/guardian must stay for ages under 12; $5 program fee and $2 materials…"
-                required aria-describedby="eventAccHelpBlock"></textarea>
+                placeholder="Describe accessibility details, support needs, staff assistance, sensory considerations, age requirements, or participation expectations..."
+                required></textarea>
               <div class="form-text">
-                Families use this to decide if the event fits the participant. Avoid unexplained acronyms.
+                Include any information families need to decide whether this event matches participant needs.
               </div>
               <div class="invalid-feedback">Participant requirements and accommodations are required.</div>
             </div>

@@ -470,8 +470,6 @@
 
 <body>
 
-  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#hero" style="z-index:1080;">Skip to main content</a>
-
   <!-- ════════════ NAVBAR ════════════ -->
   <div id="nav-root"></div>
 
@@ -705,51 +703,22 @@
     </div>
   </section>
 
-  <!-- ════════════ FOOTER: trust, contact, legal ════════════ -->
-  <footer class="border-top" style="background:#fff;">
-    <div class="container py-4 py-lg-5">
-      <div class="row g-4 g-lg-5">
-        <div class="col-md-4">
-          <div class="footer-logo">Kindred<span>.</span></div>
-          <p class="small text-muted mt-2 mb-0" style="line-height:1.6;">
-            A role-based service platform for participants, guardians, volunteers, and coordinators—not only an information site. Browse public events and jobs; portal accounts are coordinator-managed.
-          </p>
-        </div>
-        <div class="col-md-4">
-          <h2 class="h6 text-uppercase" style="letter-spacing:0.06em;font-size:0.72rem;color:#6b7280;">Accounts &amp; trust</h2>
-          <p class="small text-muted mb-2" style="line-height:1.6;">
-            <strong>No public self-registration.</strong> Participant, guardian, and volunteer logins are created by a <strong>Kindred coordinator</strong> after your family or organization is onboarded. You can still explore events and jobs before you have an account.
-          </p>
-          <p class="small mb-0">
-            <a href="privacy.html" class="link-primary">Privacy &amp; data use</a>
-            <span class="text-muted" aria-hidden="true"> · </span>
-            <span class="text-muted">Update this footer with a real <strong>coordinator email</strong> and phone for your deployment.</span>
-          </p>
-        </div>
-        <div class="col-md-4">
-          <h2 class="h6 text-uppercase" style="letter-spacing:0.06em;font-size:0.72rem;color:#6b7280;">Contact &amp; service area</h2>
-          <p class="small text-muted mb-1">
-            <i class="bi bi-envelope me-1" aria-hidden="true"></i>
-            <span class="visually-hidden">Email: </span>
-            <a href="mailto:coordinator@example.org">coordinator@example.org</a> <span class="text-muted">(example — replace with your team)</span>
-          </p>
-          <p class="small text-muted mb-0">
-            <i class="bi bi-geo-alt me-1" aria-hidden="true"></i>
-            <span>Primary service area: <strong>Greater Indianapolis</strong> (example region—edit for your organization).</span>
-          </p>
-        </div>
+  <!-- ════════════ FOOTER ════════════ -->
+  <footer>
+    <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+      <div>
+        <div class="footer-logo">Kindred<span>.</span></div>
+        <small class="d-block mt-1" style="color:#6b7280;">Special Population Resource Connection</small>
       </div>
-      <hr class="my-4" style="border-color:var(--k-border);">
-      <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 text-center text-md-start">
-        <small class="text-muted mb-0">CNIT 280 Term Project — Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan</small>
-        <a href="login.html" class="small">Coordinator / staff sign in</a>
-      </div>
+      <small style="color:#6b7280;" class="text-center text-md-end">
+        CNIT 280 Term Project &mdash; Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan
+      </small>
     </div>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=22"></script>
+  <script src="js/auth.js?v=13"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 

@@ -5,7 +5,7 @@
 
 const ROLE_SECTIONS = {
   ADMIN: [
-    'sections/dashboard.html?v=3',
+    'sections/dashboard.html?v=1',
     'sections/admin/participants.html?v=1',
     'sections/admin/volunteers.html?v=1',
     'sections/admin/events.html?v=1',
@@ -17,14 +17,14 @@ const ROLE_SECTIONS = {
     'sections/admin/notifications.html?v=1',
   ],
   GUARDIAN: [
-    'sections/dashboard.html?v=3',
+    'sections/dashboard.html?v=1',
     'sections/guardian/participants.html?v=1',
     'sections/guardian/approvals.html?v=1',
     'sections/guardian/newsletter.html?v=1',
     'sections/guardian/notifications.html?v=1',
   ],
   PARTICIPANT: [
-    'sections/dashboard.html?v=3',
+    'sections/dashboard.html?v=1',
     'sections/participant/profile.html?v=1',
     'sections/participant/events.html?v=1',
     'sections/participant/newsletter.html?v=1',
@@ -33,11 +33,10 @@ const ROLE_SECTIONS = {
     'sections/participant/jobs.html?v=1',
   ],
   VOLUNTEER: [
-    'sections/dashboard.html?v=3',
+    'sections/dashboard.html?v=1',
     'sections/volunteer/profile.html?v=1',
     'sections/volunteer/bgcheck.html?v=1',
     'sections/volunteer/events.html?v=1',
-    'sections/volunteer/newsletter.html?v=1',
     'sections/volunteer/tasks.html?v=1',
     'sections/volunteer/notifications.html?v=1',
   ],
@@ -60,17 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return r.text();
       }))
     );
-    mainContent.innerHTML = [
-      `<div id="dashboardLocationBar" class="mb-3 pb-2 border-bottom" style="border-color: var(--k-border, #e2e6f3) !important;" role="navigation" aria-label="Current place in the portal">
-        <p class="small text-muted mb-0">
-          <span class="visually-hidden">You are in: </span>
-          <span>Portal</span>
-          <span aria-hidden="true" class="text-muted"> · </span>
-          <span class="text-body fw-semibold" id="dashboardLocationTitle">Dashboard</span>
-        </p>
-      </div>`,
-      htmlParts.join('\n')
-    ].join('\n');
+    mainContent.innerHTML = htmlParts.join('\n');
   } catch (err) {
     mainContent.innerHTML = `
       <div class="alert alert-danger m-4" role="alert">
