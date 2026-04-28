@@ -5,21 +5,59 @@
   <div id="view-events-list">
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
       <div>
-        <h5 class="text-dark fw-semibold mb-1">Event Management</h5>
-        <p class="text-muted mb-0">
-          Publish and maintain community events for families. Family-facing discovery remains a separate
-          next-phase view.
-        </p>
+        <h5 class="admin-section-title">Event Management</h5>
+        <p class="text-muted small mb-0">Publish and maintain community events for families.</p>
       </div>
-      <button id="newEventBtn" class="btn btn-primary btn-sm text-nowrap align-self-start align-self-lg-center" type="button">
-        <i class="bi bi-plus-lg me-1"></i>New Event
+      <button id="newEventBtn" class="btn btn-k-primary text-nowrap align-self-start align-self-lg-center" type="button">
+        <i class="bi bi-plus-lg"></i>New Event
       </button>
+    </div>
+
+    <div class="admin-search-wrap">
+      <i class="bi bi-search admin-search-icon"></i>
+      <input type="search" class="admin-search-input" id="eventsTableSearch"
+             placeholder="Filter by title, location, or accommodations"
+             autocomplete="off" aria-label="Filter events">
+    </div>
+
+    <div class="admin-filter-bar">
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Category</span>
+        <button class="admin-filter-chip active" data-events-filter="category" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-events-filter="category" data-value="Social" type="button">Social</button>
+        <button class="admin-filter-chip" data-events-filter="category" data-value="Educational" type="button">Educational</button>
+        <button class="admin-filter-chip" data-events-filter="category" data-value="Vocational" type="button">Vocational</button>
+      </div>
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Age</span>
+        <button class="admin-filter-chip active" data-events-filter="age" data-value="ALL" type="button">All ages</button>
+        <button class="admin-filter-chip" data-events-filter="age" data-value="ALL_ONLY" type="button">No min.</button>
+        <button class="admin-filter-chip" data-events-filter="age" data-value="16" type="button">16+</button>
+        <button class="admin-filter-chip" data-events-filter="age" data-value="18" type="button">18+</button>
+      </div>
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Timing</span>
+        <button class="admin-filter-chip active" data-events-filter="timing" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-events-filter="timing" data-value="UPCOMING" type="button">Upcoming</button>
+        <button class="admin-filter-chip" data-events-filter="timing" data-value="PAST" type="button">Past</button>
+      </div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="admin-filter-label">Sort</span>
+        <select class="admin-sort-select" id="eventsSortSelect">
+          <option value="date-asc">Date ↑ soonest</option>
+          <option value="date-desc">Date ↓ latest</option>
+          <option value="added-desc" selected>Newest added</option>
+          <option value="added-asc">Oldest added</option>
+          <option value="title-asc">Title A→Z</option>
+          <option value="title-desc">Title Z→A</option>
+        </select>
+      </div>
     </div>
 
     <div class="card shadow-sm">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0 event-log-table">
-          <thead class="table-light">
+          <thead class="admin-thead">
             <tr>
               <th scope="col" class="ps-3">Event Title</th>
               <th scope="col">Category</th>
@@ -44,7 +82,7 @@
       <button id="backToEventsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
         <i class="bi bi-arrow-left me-1"></i>Back
       </button>
-      <h5 class="text-dark fw-semibold mb-0" id="eventFormTitle">New Event</h5>
+      <h5 class="admin-section-title mb-0" id="eventFormTitle">New Event</h5>
       <button id="eventFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
         <i class="bi bi-pencil me-1"></i>Edit
       </button>
