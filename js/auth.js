@@ -936,6 +936,7 @@ const Auth = (() => {
     if (!localStorage.getItem(INQUIRIES_KEY)) setJson(INQUIRIES_KEY, []);
     if (!localStorage.getItem(TASKS_KEY)) setJson(TASKS_KEY, []);
     if (!localStorage.getItem(JOB_APPLICATIONS_KEY)) setJson(JOB_APPLICATIONS_KEY, []);
+    if (!localStorage.getItem(VOLUNTEER_EVENT_ASSIGNMENTS_KEY)) setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
   }
 
   function getUserByIdInternal(userId) {
@@ -1092,7 +1093,8 @@ const Auth = (() => {
       URGENT_NOTIFICATIONS_KEY,
       AUDIT_LOG_KEY,
       INQUIRIES_KEY,
-      TASKS_KEY
+      TASKS_KEY,
+      VOLUNTEER_EVENT_ASSIGNMENTS_KEY
     ].forEach((key) => localStorage.removeItem(key));
     if (reseed) initStores();
     return { success: true };
