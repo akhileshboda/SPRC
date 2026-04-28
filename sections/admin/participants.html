@@ -2,20 +2,43 @@
 <section id="section-participants" class="content-section d-none">
 
   <div id="view-participants-list">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <h5 class="text-success fw-semibold mb-0">Participant Records</h5>
-      <button id="newParticipantBtn" class="btn btn-success btn-sm" type="button">
-        <i class="bi bi-plus-lg me-1"></i>New Participant
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+      <div>
+        <h5 class="admin-section-title">Participant Records</h5>
+        <p class="text-muted small mb-0">Manage participant profiles, logins, and guardian links.</p>
+      </div>
+      <button id="newParticipantBtn" class="btn btn-k-primary align-self-start align-self-lg-center" type="button">
+        <i class="bi bi-plus-lg"></i>New Participant
       </button>
     </div>
-    <div class="input-group input-group-sm mb-3" style="max-width: 420px;">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input type="search" class="form-control" id="participantsTableSearch" placeholder="Filter by name, login, guardian, or interests" autocomplete="off" aria-label="Filter participants">
+    <div class="admin-search-wrap">
+      <i class="bi bi-search admin-search-icon"></i>
+      <input type="search" class="admin-search-input" id="participantsTableSearch" placeholder="Filter by name, login, guardian, or interests" autocomplete="off" aria-label="Filter participants">
     </div>
+    <div class="admin-filter-bar">
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Status</span>
+        <button class="admin-filter-chip active" data-participants-filter="status" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-participants-filter="status" data-value="ACTIVE" type="button">Active</button>
+        <button class="admin-filter-chip" data-participants-filter="status" data-value="INACTIVE" type="button">Inactive</button>
+      </div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="admin-filter-label">Sort</span>
+        <select class="admin-sort-select" id="participantsSortSelect">
+          <option value="added-desc" selected>Newest added</option>
+          <option value="added-asc">Oldest added</option>
+          <option value="name-asc">Name A→Z</option>
+          <option value="name-desc">Name Z→A</option>
+          <option value="age-asc">Age ↑ youngest</option>
+          <option value="age-desc">Age ↓ oldest</option>
+        </select>
+      </div>
+    </div>
+
     <div class="card shadow-sm">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
+          <thead class="admin-thead">
             <tr>
               <th scope="col" class="ps-3">Participant</th>
               <th scope="col">Participant Login</th>
@@ -36,7 +59,7 @@
       <button id="backToParticipantsBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
         <i class="bi bi-arrow-left me-1"></i>Back
       </button>
-      <h5 class="text-success fw-semibold mb-0" id="participantFormTitle">New Participant</h5>
+      <h5 class="admin-section-title mb-0" id="participantFormTitle">New Participant</h5>
       <button id="participantFormEditBtn" class="btn btn-primary btn-sm ms-auto d-none" type="button">
         <i class="bi bi-pencil me-1"></i>Edit
       </button>

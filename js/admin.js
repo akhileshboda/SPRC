@@ -128,6 +128,55 @@ document.addEventListener('sections:ready', async (e) => {
       .replace(/'/g, '&#39;');
   }
 
+  function adminAvatar(name, variant = 'indigo') {
+    const parts = String(name || '').trim().split(/\s+/);
+    const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
+    return `<span class="admin-avatar admin-avatar--${variant}" aria-hidden="true">${escapeHtml(initials.toUpperCase())}</span>`;
+  }
+
+  function adminInterestChips(interests) {
+    if (!interests || !interests.length)
+      return '<span class="text-muted small">Not provided</span>';
+    return `<div class="d-flex flex-wrap gap-1">${
+      interests.map((i) => `<span class="volunteer-match-chip">${escapeHtml(i)}</span>`).join('')
+    }</div>`;
+  }
+
+  function initAdminTooltips(container) {
+    container.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {
+      bootstrap.Tooltip.getOrCreateInstance(el, { trigger: 'hover focus' });
+    });
+  }
+
+  /** Read the active filter chip value for a given dimension, e.g. readChip('events', 'category') */
+  function readChip(section, dimension) {
+    return document.querySelector(
+      `.admin-filter-chip.active[data-${section}-filter="${dimension}"]`
+    )?.dataset.value ?? 'ALL';
+  }
+
+  /** Sort an array in-place copy by sortVal. Items may have fullName/name, title, createdAtMs, eventTimestamp, payRate, age, updatedAt. */
+  function applySort(array, sortVal) {
+    const a = [...array];
+    switch (sortVal) {
+      case 'name-asc':    a.sort((x, y) => (x.fullName || x.name || '').localeCompare(y.fullName || y.name || '')); break;
+      case 'name-desc':   a.sort((x, y) => (y.fullName || y.name || '').localeCompare(x.fullName || x.name || '')); break;
+      case 'title-asc':   a.sort((x, y) => (x.title || '').localeCompare(y.title || '')); break;
+      case 'title-desc':  a.sort((x, y) => (y.title || '').localeCompare(x.title || '')); break;
+      case 'added-asc':   a.sort((x, y) => (x.createdAtMs || 0) - (y.createdAtMs || 0)); break;
+      case 'added-desc':  a.sort((x, y) => (y.createdAtMs || 0) - (x.createdAtMs || 0)); break;
+      case 'date-asc':    a.sort((x, y) => (x.eventTimestamp || 0) - (y.eventTimestamp || 0)); break;
+      case 'date-desc':   a.sort((x, y) => (y.eventTimestamp || 0) - (x.eventTimestamp || 0)); break;
+      case 'pay-asc':     a.sort((x, y) => (x.payRate || 0) - (y.payRate || 0)); break;
+      case 'pay-desc':    a.sort((x, y) => (y.payRate || 0) - (x.payRate || 0)); break;
+      case 'age-asc':     a.sort((x, y) => Number(x.age || 0) - Number(y.age || 0)); break;
+      case 'age-desc':    a.sort((x, y) => Number(y.age || 0) - Number(x.age || 0)); break;
+      case 'updated-asc': a.sort((x, y) => (x.updatedAt || 0) - (y.updatedAt || 0)); break;
+      case 'updated-desc':a.sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0)); break;
+    }
+    return a;
+  }
+
   function showToast(message) {
     if (!toastEl || !toastMsgEl) return;
     toastMsgEl.textContent = message;
@@ -729,22 +778,30 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
-    const q = document.getElementById('usersTableSearch')?.value?.trim().toLowerCase() || '';
-    const users = await Auth.getUsers();
+    const q            = document.getElementById('usersTableSearch')?.value?.trim().toLowerCase() || '';
+    const roleFilter   = readChip('users', 'role');
+    const accessFilter = readChip('users', 'access');
+    const sortVal      = document.getElementById('usersSortSelect')?.value || 'added-desc';
+    let users = await Auth.getUsers();
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users found.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="admin-empty-state"><i class="bi bi-people"></i><p><strong>No users yet</strong>No accounts have been created.</p></div></td></tr>`;
       return;
     }
 
-    const usersFiltered = !q
-      ? users
-      : users.filter((user) => {
+    let usersFiltered = q
+      ? users.filter((user) => {
         const roleLabel = (ROLE_LABEL[canonicalRole(user.role)] || user.role || '').toLowerCase();
         const hay = [user.name, user.email, roleLabel, String(user.accessStatus || '')].map((s) => String(s).toLowerCase()).join(' ');
         return hay.includes(q);
-      });
+      })
+      : [...users];
+    if (roleFilter   !== 'ALL') usersFiltered = usersFiltered.filter((u) => canonicalRole(u.role) === roleFilter);
+    if (accessFilter !== 'ALL') usersFiltered = usersFiltered.filter((u) => (u.accessStatus || 'ACTIVE') === accessFilter);
+    // users lack createdAtMs — for date sort reverse natural (chronological) order
+    if      (sortVal === 'added-desc') usersFiltered.reverse();
+    else if (sortVal === 'name-asc' || sortVal === 'name-desc') usersFiltered = applySort(usersFiltered, sortVal);
     if (!usersFiltered.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users match this filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="admin-empty-state"><i class="bi bi-funnel"></i><p><strong>No matches</strong>Try a different name, email, or role.</p></div></td></tr>`;
       return;
     }
 
@@ -752,25 +809,33 @@ document.addEventListener('sections:ready', async (e) => {
       const isSelf = session.userId === user.id;
       const canEdit = user.role !== 'ADMIN';
       const accessStatus = user.accessStatus || 'ACTIVE';
-      const accessAction = accessStatus === 'REVOKED'
-        ? `<button class="btn btn-outline-success btn-sm me-1" data-user-restore-email="${escapeHtml(user.email)}">Restore</button>`
-        : `<button class="btn btn-outline-secondary btn-sm me-1" data-user-revoke-email="${escapeHtml(user.email)}" ${isSelf ? 'disabled title="You cannot revoke your own access"' : ''}>Revoke</button>`;
+      const revokeRestoreBtn = accessStatus === 'REVOKED'
+        ? `<button class="btn-admin-action btn-admin-success" data-user-restore-email="${escapeHtml(user.email)}" data-bs-toggle="tooltip" data-bs-title="Restore access" aria-label="Restore access for ${escapeHtml(user.name)}"><i class="bi bi-arrow-counterclockwise"></i></button>`
+        : `<button class="btn-admin-action" data-user-revoke-email="${escapeHtml(user.email)}" ${isSelf ? 'disabled' : ''} data-bs-toggle="tooltip" data-bs-title="Revoke access" aria-label="Revoke access for ${escapeHtml(user.name)}"><i class="bi bi-slash-circle"></i></button>`;
       return `
         <tr>
-          <td class="ps-3">${escapeHtml(user.name)}</td>
+          <td class="ps-3">
+            <div class="d-flex align-items-center gap-2">
+              ${adminAvatar(user.name, 'indigo')}
+              <div class="fw-semibold">${escapeHtml(user.name)}</div>
+            </div>
+          </td>
           <td class="text-muted small">${escapeHtml(user.email)}</td>
           <td><span class="badge ${ROLE_BADGE[canonicalRole(user.role)] || 'bg-secondary'}">${escapeHtml(ROLE_LABEL[canonicalRole(user.role)] || user.role)}</span></td>
           <td><span class="badge ${ACCESS_BADGE[accessStatus] || 'bg-secondary'}">${escapeHtml(accessStatus)}</span></td>
           <td class="text-muted small">${escapeHtml(user.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
-            ${canEdit ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(user.email)}">Edit</button>` : ''}
-            ${accessAction}
-            ${isSelf
-              ? '<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>'
-              : `<button class="btn btn-outline-danger btn-sm" data-user-email="${escapeHtml(user.email)}">Delete</button>`}
+            <div class="d-flex justify-content-end gap-1">
+              ${canEdit ? `<button class="btn-admin-action" data-user-edit-email="${escapeHtml(user.email)}" data-bs-toggle="tooltip" data-bs-title="Edit" aria-label="Edit ${escapeHtml(user.name)}"><i class="bi bi-pencil"></i></button>` : ''}
+              ${revokeRestoreBtn}
+              ${isSelf
+                ? `<button class="btn-admin-action btn-admin-danger" disabled aria-label="Cannot delete your own account"><i class="bi bi-trash"></i></button>`
+                : `<button class="btn-admin-action btn-admin-danger" data-user-email="${escapeHtml(user.email)}" data-bs-toggle="tooltip" data-bs-title="Delete" aria-label="Delete ${escapeHtml(user.name)}"><i class="bi bi-trash"></i></button>`}
+            </div>
           </td>
         </tr>`;
     }).join('');
+    initAdminTooltips(tbody);
 
     tbody.querySelectorAll('[data-user-edit-email]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -872,31 +937,40 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
-    const q = document.getElementById('participantsTableSearch')?.value?.trim().toLowerCase() || '';
-    const participants = await Auth.getParticipants();
+    const q            = document.getElementById('participantsTableSearch')?.value?.trim().toLowerCase() || '';
+    const statusFilter = readChip('participants', 'status');
+    const sortVal      = document.getElementById('participantsSortSelect')?.value || 'added-desc';
+    let participants = await Auth.getParticipants();
     if (!participants.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="admin-empty-state"><i class="bi bi-person-plus"></i><p><strong>No participant records yet</strong>Add the first participant using the button above.</p></div></td></tr>`;
       return;
     }
 
-    const participantsFiltered = !q
-      ? participants
-      : participants.filter((p) => {
+    let participantsFiltered = q
+      ? participants.filter((p) => {
         const gBlob = (p.guardians || []).map((g) => `${g.name} ${g.email}`).join(' ');
         const hay = [p.fullName, p.participantUser?.name, p.participantUser?.email, gBlob, String(p.age || ''), (p.participantInterests || []).join(' ')].join(' ').toLowerCase();
         return hay.includes(q);
-      });
+      })
+      : [...participants];
+    if (statusFilter !== 'ALL') participantsFiltered = participantsFiltered.filter((p) => (p.recordStatus || 'ACTIVE') === statusFilter);
+    participantsFiltered = applySort(participantsFiltered, sortVal);
     if (!participantsFiltered.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records match this filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="admin-empty-state"><i class="bi bi-funnel"></i><p><strong>No matches</strong>Try a different name, login, or interest.</p></div></td></tr>`;
       return;
     }
 
     tbody.innerHTML = participantsFiltered.map((participant) => `
       <tr>
         <td class="ps-3">
-          <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
-          <div class="text-muted small">Age ${escapeHtml(participant.age || '—')}</div>
-          ${participant.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}
+          <div class="d-flex align-items-center gap-2">
+            ${adminAvatar(participant.fullName, 'indigo')}
+            <div>
+              <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
+              <div class="text-muted small">Age ${escapeHtml(participant.age || '—')}</div>
+              ${participant.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}
+            </div>
+          </div>
         </td>
         <td class="small text-muted">${participant.participantUser ? `${escapeHtml(participant.participantUser.name)}<div>${escapeHtml(participant.participantUser.email)}</div>` : '<span class="text-danger">Missing login</span>'}</td>
         <td class="small">${participant.guardians.length
@@ -904,16 +978,19 @@ document.addEventListener('sections:ready', async (e) => {
           : '<span class="text-danger">No guardians linked</span>'}</td>
         <td class="small">
           <div><span class="fw-semibold">Support:</span> ${escapeHtml(participant.specialNeeds || '—')}</div>
-          <div class="text-muted mt-1">${escapeHtml(participant.participantInterests.join(', ') || 'No participant interests yet')}</div>
-          <div class="text-muted mt-1">${escapeHtml(participant.pendingApprovalCount)} pending approvals • ${escapeHtml(participant.approvedJobCount)} approved job interests</div>
+          <div class="mt-1">${adminInterestChips(participant.participantInterests)}</div>
+          <div class="text-muted mt-1">${escapeHtml(participant.pendingApprovalCount)} pending · ${escapeHtml(participant.approvedJobCount)} approved</div>
         </td>
         <td class="text-muted small">${escapeHtml(participant.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-participant-edit-id="${escapeHtml(participant.id)}">View</button>
-          <button class="btn btn-outline-danger btn-sm" data-participant-id="${escapeHtml(participant.id)}">Delete</button>
+          <div class="d-flex justify-content-end gap-1">
+            <button class="btn-admin-action" data-participant-edit-id="${escapeHtml(participant.id)}" data-bs-toggle="tooltip" data-bs-title="View / Edit" aria-label="View ${escapeHtml(participant.fullName)}"><i class="bi bi-eye"></i></button>
+            <button class="btn-admin-action btn-admin-danger" data-participant-id="${escapeHtml(participant.id)}" data-bs-toggle="tooltip" data-bs-title="Delete" aria-label="Delete ${escapeHtml(participant.fullName)}"><i class="bi bi-trash"></i></button>
+          </div>
         </td>
       </tr>
     `).join('');
+    initAdminTooltips(tbody);
 
     tbody.querySelectorAll('[data-participant-edit-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -959,14 +1036,16 @@ document.addEventListener('sections:ready', async (e) => {
 
     const profiles = await Auth.getVolunteerProfiles();
     if (!profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="admin-empty-state"><i class="bi bi-people"></i><p><strong>No volunteer profiles yet</strong>Add the first volunteer using the button above.</p></div></td></tr>`;
       return;
     }
 
-    const q = document.getElementById('volunteersTableSearch')?.value?.trim().toLowerCase() || '';
-    const profilesFiltered = !q
-      ? profiles
-      : profiles.filter((profile) => {
+    const q            = document.getElementById('volunteersTableSearch')?.value?.trim().toLowerCase() || '';
+    const bgFilter     = readChip('volunteers', 'bg');
+    const statusFilter = readChip('volunteers', 'status');
+    const sortVal      = document.getElementById('volunteersSortSelect')?.value || 'updated-desc';
+    let profilesFiltered = q
+      ? profiles.filter((profile) => {
         const hay = [
           profile.fullName,
           profile.email,
@@ -977,9 +1056,13 @@ document.addEventListener('sections:ready', async (e) => {
           profile.backgroundCheckStatus
         ].filter(Boolean).join(' ').toLowerCase();
         return hay.includes(q);
-      });
+      })
+      : [...profiles];
+    if (bgFilter     !== 'ALL') profilesFiltered = profilesFiltered.filter((p) => (p.backgroundCheckStatus || 'Not Started') === bgFilter);
+    if (statusFilter !== 'ALL') profilesFiltered = profilesFiltered.filter((p) => (p.recordStatus || 'ACTIVE') === statusFilter);
+    profilesFiltered = applySort(profilesFiltered, sortVal);
     if (!profilesFiltered.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles match this filter.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="admin-empty-state"><i class="bi bi-funnel"></i><p><strong>No matches</strong>Try a different name, email, phone, or interest.</p></div></td></tr>`;
       return;
     }
 
@@ -1039,9 +1122,18 @@ document.addEventListener('sections:ready', async (e) => {
 
       return `
       <tr>
-        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || 'Unlinked')}</div>${profile.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}</td>
+        <td class="ps-3">
+          <div class="d-flex align-items-center gap-2">
+            ${adminAvatar(profile.fullName, 'teal')}
+            <div>
+              <div class="fw-semibold">${escapeHtml(profile.fullName)}</div>
+              <div class="text-muted small">${escapeHtml(profile.linkedUser?.email || 'Unlinked')}</div>
+              ${profile.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}
+            </div>
+          </div>
+        </td>
         <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
-        <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
+        <td class="small">${adminInterestChips(profile.interests)}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
         <td class="small">
           <div class="d-flex align-items-center">
@@ -1049,18 +1141,21 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
           ${expiryMarkup}
           <div class="mt-2">
-            <button class="btn btn-outline-info btn-sm volunteer-bgcheck-details-btn" data-bgcheck-details-user-id="${escapeHtml(profile.userId)}" ${isLocked ? 'disabled' : ''}>
-              <i class="bi bi-eye"></i> Details
+            <button class="btn-admin-action btn-admin-info volunteer-bgcheck-details-btn" data-bgcheck-details-user-id="${escapeHtml(profile.userId)}" data-bs-toggle="tooltip" data-bs-title="Background check details" aria-label="Background check details for ${escapeHtml(profile.fullName)}" ${isLocked ? 'disabled' : ''}>
+              <i class="bi bi-eye"></i>
             </button>
           </div>
         </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId || profile.id)}">View</button>
-          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId || profile.id)}">Delete</button>
+          <div class="d-flex justify-content-end gap-1">
+            <button class="btn-admin-action" data-volunteer-edit-user-id="${escapeHtml(profile.userId || profile.id)}" data-bs-toggle="tooltip" data-bs-title="View / Edit" aria-label="View ${escapeHtml(profile.fullName)}"><i class="bi bi-eye"></i></button>
+            <button class="btn-admin-action btn-admin-danger" data-volunteer-user-id="${escapeHtml(profile.userId || profile.id)}" data-bs-toggle="tooltip" data-bs-title="Delete" aria-label="Delete ${escapeHtml(profile.fullName)}"><i class="bi bi-trash"></i></button>
+          </div>
         </td>
       </tr>`;
     }).join('');
+    initAdminTooltips(tbody);
 
     tbody.querySelectorAll('[data-volunteer-edit-user-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -1215,9 +1310,31 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderEventsTable() {
     const tbody = document.getElementById('eventsTableBody');
     if (!tbody) return;
-    const events = await Auth.getEvents();
+    const q             = document.getElementById('eventsTableSearch')?.value?.trim().toLowerCase() || '';
+    const catFilter     = readChip('events', 'category');
+    const ageFilter     = readChip('events', 'age');
+    const timingFilter  = readChip('events', 'timing');
+    const sortVal       = document.getElementById('eventsSortSelect')?.value || 'added-desc';
+    const now           = Date.now();
+
+    let events = await Auth.getEvents();
     if (!events.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted px-3">No live events yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="9"><div class="admin-empty-state"><i class="bi bi-calendar-event"></i><p><strong>No events yet</strong>Publish the first event using the button above.</p></div></td></tr>`;
+      return;
+    }
+
+    if (q)              events = events.filter((e) => [e.title, e.location, e.accommodations].filter(Boolean).join(' ').toLowerCase().includes(q));
+    if (catFilter !== 'ALL') events = events.filter((e) => e.category === catFilter);
+    if (ageFilter !== 'ALL') {
+      if (ageFilter === 'ALL_ONLY') events = events.filter((e) => String(Auth.normalizeAgeRequirement(e.ageRequirement)) === 'ALL');
+      else events = events.filter((e) => String(Auth.normalizeAgeRequirement(e.ageRequirement)) === ageFilter);
+    }
+    if (timingFilter === 'UPCOMING') events = events.filter((e) => (e.eventTimestamp || 0) >= now);
+    if (timingFilter === 'PAST')     events = events.filter((e) => (e.eventTimestamp || 0) < now);
+    events = applySort(events, sortVal);
+
+    if (!events.length) {
+      tbody.innerHTML = `<tr><td colspan="9"><div class="admin-empty-state"><i class="bi bi-funnel"></i><p><strong>No matches</strong>Try adjusting the filters or search term.</p></div></td></tr>`;
       return;
     }
 
@@ -1227,7 +1344,7 @@ document.addEventListener('sections:ready', async (e) => {
       const totalCost = escapeHtml(event.cost || 'Free');
       return `
       <tr>
-        <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(event.title)}</div></td>
+        <td class="ps-3"><div class="fw-semibold">${escapeHtml(event.title)}</div></td>
         <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
         <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(event.ageRequirement))}</td>
         <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
@@ -1246,11 +1363,14 @@ document.addEventListener('sections:ready', async (e) => {
         </td>
         <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">View</button>
-          <button class="btn btn-outline-danger btn-sm" data-event-id="${escapeHtml(event.id)}">Delete</button>
+          <div class="d-flex justify-content-end gap-1">
+            <button class="btn-admin-action" data-event-edit-id="${escapeHtml(event.id)}" data-bs-toggle="tooltip" data-bs-title="View / Edit" aria-label="View ${escapeHtml(event.title)}"><i class="bi bi-pencil"></i></button>
+            <button class="btn-admin-action btn-admin-danger" data-event-id="${escapeHtml(event.id)}" data-bs-toggle="tooltip" data-bs-title="Delete" aria-label="Delete ${escapeHtml(event.title)}"><i class="bi bi-trash"></i></button>
+          </div>
         </td>
       </tr>`;
     }).join('');
+    initAdminTooltips(tbody);
 
     tbody.querySelectorAll('[data-event-edit-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -1292,9 +1412,23 @@ document.addEventListener('sections:ready', async (e) => {
   async function renderJobsTable() {
     const tbody = document.getElementById('jobsTableBody');
     if (!tbody) return;
-    const [jobs, appSummary] = await Promise.all([Auth.getJobs(), Auth.getJobApplicationSummary()]);
+    const q            = document.getElementById('jobsTableSearch')?.value?.trim().toLowerCase() || '';
+    const statusFilter = readChip('jobs', 'status');
+    const typeFilter   = readChip('jobs', 'type');
+    const sortVal      = document.getElementById('jobsSortSelect')?.value || 'added-desc';
+    let [jobs, appSummary] = await Promise.all([Auth.getJobs(), Auth.getJobApplicationSummary()]);
     if (!jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3 py-4">No job opportunities logged yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="8"><div class="admin-empty-state"><i class="bi bi-briefcase"></i><p><strong>No job opportunities yet</strong>Log the first opportunity using the button above.</p></div></td></tr>`;
+      return;
+    }
+
+    if (q)              jobs = jobs.filter((j) => [j.title, j.employer, j.location].filter(Boolean).join(' ').toLowerCase().includes(q));
+    if (statusFilter !== 'ALL') jobs = jobs.filter((j) => (j.status || 'Open') === statusFilter);
+    if (typeFilter   !== 'ALL') jobs = jobs.filter((j) => j.jobType === typeFilter);
+    jobs = applySort(jobs, sortVal);
+
+    if (!jobs.length) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="admin-empty-state"><i class="bi bi-funnel"></i><p><strong>No matches</strong>Try adjusting the filters or search term.</p></div></td></tr>`;
       return;
     }
 
@@ -1312,7 +1446,6 @@ document.addEventListener('sections:ready', async (e) => {
 
     tbody.innerHTML = jobs.map((job) => {
       const s = appSummary[job.id] || {};
-      // Build compact pipeline count badges (skip empty stages, skip rejected)
       const pipelineParts = [
         s.pending?.length   ? `<span class="badge text-bg-warning">${s.pending.length} Pending</span>` : '',
         s.applied?.length   ? `<span class="badge text-bg-primary">${s.applied.length} Applied</span>` : '',
@@ -1327,7 +1460,7 @@ document.addEventListener('sections:ready', async (e) => {
       return `
         <tr>
           <td class="ps-3">
-            <div class="fw-semibold text-dark">${escapeHtml(job.title)}</div>
+            <div class="fw-semibold">${escapeHtml(job.title)}</div>
             <div class="small text-muted">${escapeHtml(job.employer)}${job.location ? ` · ${escapeHtml(job.location)}` : ''}</div>
           </td>
           <td>${job.jobType ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>` : '<span class="text-muted small">—</span>'}</td>
@@ -1341,12 +1474,15 @@ document.addEventListener('sections:ready', async (e) => {
           <td>${pipelineMarkup}</td>
           <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
-            <button class="btn btn-outline-secondary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">View</button>
-            <button class="btn btn-outline-primary btn-sm me-1 js-job-apps-btn" data-job-id="${escapeHtml(job.id)}" data-job-title="${escapeHtml(job.title)}" data-job-employer="${escapeHtml(job.employer)}">Applications</button>
-            <button class="btn btn-outline-danger btn-sm" data-job-delete-id="${escapeHtml(job.id)}">Delete</button>
+            <div class="d-flex justify-content-end gap-1">
+              <button class="btn-admin-action" data-job-edit-id="${escapeHtml(job.id)}" data-bs-toggle="tooltip" data-bs-title="View / Edit" aria-label="View ${escapeHtml(job.title)}"><i class="bi bi-eye"></i></button>
+              <button class="btn-admin-action btn-admin-info js-job-apps-btn" data-job-id="${escapeHtml(job.id)}" data-job-title="${escapeHtml(job.title)}" data-job-employer="${escapeHtml(job.employer)}" data-bs-toggle="tooltip" data-bs-title="Applications" aria-label="Applications for ${escapeHtml(job.title)}"><i class="bi bi-person-lines-fill"></i></button>
+              <button class="btn-admin-action btn-admin-danger" data-job-delete-id="${escapeHtml(job.id)}" data-bs-toggle="tooltip" data-bs-title="Delete" aria-label="Delete ${escapeHtml(job.title)}"><i class="bi bi-trash"></i></button>
+            </div>
           </td>
         </tr>`;
     }).join('');
+    initAdminTooltips(tbody);
 
     tbody.querySelectorAll('[data-job-edit-id]').forEach((button) => {
       button.addEventListener('click', async () => {
@@ -2076,6 +2212,9 @@ document.addEventListener('sections:ready', async (e) => {
     } else {
       showJobsListView();
     }
+  });
+  document.getElementById('backFromAppsBtn')?.addEventListener('click', () => {
+    showJobsListView();
   });
   document.getElementById('jobFormEditBtn')?.addEventListener('click', () => {
     document.getElementById('jobFormTitle').textContent = 'Edit Job Opportunity';
@@ -3279,4 +3418,30 @@ document.addEventListener('sections:ready', async (e) => {
   document.getElementById('usersTableSearch')?.addEventListener('input', () => { renderUsersTable(); });
   document.getElementById('participantsTableSearch')?.addEventListener('input', () => { renderParticipantsTable(); });
   document.getElementById('volunteersTableSearch')?.addEventListener('input', () => { renderVolunteersTable(); });
+  document.getElementById('eventsTableSearch')?.addEventListener('input', () => { renderEventsTable(); });
+  document.getElementById('jobsTableSearch')?.addEventListener('input', () => { renderJobsTable(); });
+
+  // Sort selects
+  document.getElementById('eventsSortSelect')?.addEventListener('change', () => { renderEventsTable(); });
+  document.getElementById('jobsSortSelect')?.addEventListener('change', () => { renderJobsTable(); });
+  document.getElementById('participantsSortSelect')?.addEventListener('change', () => { renderParticipantsTable(); });
+  document.getElementById('volunteersSortSelect')?.addEventListener('change', () => { renderVolunteersTable(); });
+  document.getElementById('usersSortSelect')?.addEventListener('change', () => { renderUsersTable(); });
+
+  // Filter chips — generic handler: deactivate siblings in same dimension, activate clicked, re-render
+  function wireFilterChips(attrBase, renderFn) {
+    document.querySelectorAll(`[data-${attrBase}-filter]`).forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dim = btn.dataset[`${attrBase}Filter`];
+        document.querySelectorAll(`[data-${attrBase}-filter="${dim}"]`).forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderFn();
+      });
+    });
+  }
+  wireFilterChips('events',       renderEventsTable);
+  wireFilterChips('jobs',         renderJobsTable);
+  wireFilterChips('participants', renderParticipantsTable);
+  wireFilterChips('volunteers',   renderVolunteersTable);
+  wireFilterChips('users',        renderUsersTable);
 });
