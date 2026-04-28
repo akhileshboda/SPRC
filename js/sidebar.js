@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { id: 'v-profile',    label: 'My Profile',       icon: 'bi-person-circle', roles: ['VOLUNTEER'] },
   { id: 'v-bgcheck',    label: 'Background Check', icon: 'bi-shield-lock', roles: ['VOLUNTEER'] },
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
+  { id: 'v-newsletter', label: 'Newsletter',   icon: 'bi-envelope-paper', roles: ['VOLUNTEER'] },
   { id: 'v-tasks',      label: 'My Tasks',     icon: 'bi-clipboard-check', roles: ['VOLUNTEER'] },
   // ADMIN task management
   { id: 'work-queue',   label: 'Work Queue',   icon: 'bi-kanban',          roles: ['ADMIN'] },
