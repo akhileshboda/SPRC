@@ -29,7 +29,15 @@ const Auth = (() => {
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
   const ACCESS_STATUSES = ['ACTIVE', 'REVOKED'];
   const RECORD_STATUSES = ['ACTIVE', 'INACTIVE'];
-  const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals', 'bio', 'dateOfBirth'];
+  const SELF_SERVICE_PARTICIPANT_FIELDS = [
+    'participantInterests',
+    'jobGoals',
+    'bio',
+    'dateOfBirth',
+    'specialNeeds',
+    'medicalNotes',
+    'sensoryNotes'
+  ];
 
   const SEED_EVENTS = [
     {

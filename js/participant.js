@@ -11,7 +11,6 @@ document.addEventListener('sections:ready', async (e) => {
     escHtml,
     renderProfileHeader,
     renderInterestChips,
-    readOnlyPanelHTML,
     linkedRowHTML,
     renderCompletenessMeter,
     calcCompleteness,
@@ -212,15 +211,10 @@ document.addEventListener('sections:ready', async (e) => {
     document.getElementById('participantBioInput').value = participant.bio || '';
     document.getElementById('participantDateOfBirthInput').value = participant.dateOfBirth || '';
     document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
-    document.getElementById('participantSpecialNeedsReadonly').value = participant.specialNeeds || '';
-    document.getElementById('participantMedicalReadonly').value = participant.medicalNotes || '';
-    document.getElementById('participantSensoryReadonly').value = participant.sensoryNotes || '';
+    document.getElementById('participantSpecialNeedsInput').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalNotesInput').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryNotesInput').value = participant.sensoryNotes || '';
     participantInterestChips?.setSelected(participant.participantInterests || []);
-
-    const readonlyBanner = document.getElementById('participantSupportReadonlyBanner');
-    if (readonlyBanner) {
-      readonlyBanner.innerHTML = readOnlyPanelHTML('Care needs and support notes', 'Managed by guardian or admin');
-    }
 
     const contacts = document.getElementById('participantLinkedContacts');
     if (contacts) {
@@ -817,7 +811,10 @@ document.addEventListener('sections:ready', async (e) => {
         participantInterests: participantInterestChips?.getSelected() || [],
         jobGoals: document.getElementById('participantJobGoalsInput')?.value || '',
         bio: document.getElementById('participantBioInput')?.value || '',
-        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || ''
+        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || '',
+        specialNeeds: document.getElementById('participantSpecialNeedsInput')?.value || '',
+        medicalNotes: document.getElementById('participantMedicalNotesInput')?.value || '',
+        sensoryNotes: document.getElementById('participantSensoryNotesInput')?.value || ''
       });
 
       if (!result.success) {
