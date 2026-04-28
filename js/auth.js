@@ -111,6 +111,54 @@ const Auth = (() => {
       accommodations: 'Ages 14+. Assistive technology stations available. Step-by-step printed guides provided. Caregiver or guardian welcome to attend alongside participant.',
       createdAtMs: 1776430805000,
       dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e7',
+      title: 'Community Garden Day',
+      category: 'Social',
+      dateTime: '2026-06-05T09:00',
+      eventTimestamp: new Date('2026-06-05T09:00').getTime(),
+      location: 'Riverside Park Greenhouse & Garden Plots',
+      cost: 'Free',
+      accommodations: 'Tools and adaptive grips provided. Raised beds and shaded rest area. Companion or staff support welcome.',
+      createdAtMs: 1776430806000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e8',
+      title: 'Music & Movement Circle',
+      category: 'Social',
+      dateTime: '2026-06-12T16:30',
+      eventTimestamp: new Date('2026-06-12T16:30').getTime(),
+      location: 'Harmony Studio, 410 Cedar Lane',
+      cost: '$5 suggested donation',
+      accommodations: 'Seated participation options, noise-reducing ear protection on request, lyric sheets with large print.',
+      createdAtMs: 1776430807000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e9',
+      title: 'Inclusive Career Fair',
+      category: 'Vocational',
+      dateTime: '2026-06-20T11:00',
+      eventTimestamp: new Date('2026-06-20T11:00').getTime(),
+      location: 'Convention Hall B, Civic Center',
+      cost: 'Free',
+      accommodations: 'Quiet interviewing booths, resumes accepted in multiple formats. Service animals welcome.',
+      createdAtMs: 1776430808000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e10',
+      title: 'Trail Morning Hike',
+      category: 'Social',
+      dateTime: '2026-07-06T08:30',
+      eventTimestamp: new Date('2026-07-06T08:30').getTime(),
+      location: 'Riverside Nature Trail — North Lot',
+      cost: 'Free',
+      accommodations: 'Paved and packed-gravel paths. Rest stops every half mile; portable seating available.',
+      createdAtMs: 1776430809000,
+      dateAdded: 'Apr 17, 2026'
     }
   ];
 
@@ -137,6 +185,54 @@ const Auth = (() => {
       requirements: 'Organizing materials, shelving support, and helping with simple front-desk tasks.',
       status: 'Open',
       createdAtMs: 1740000011000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j3',
+      title: 'Warehouse Sorting Assistant',
+      employer: 'Riverside Community Food Bank',
+      location: 'Industrial District — Dock 4',
+      jobType: 'Part-time',
+      salary: '$15/hr',
+      requirements: 'Following sorting guidelines, labeling, light lifting with team support, weekday morning availability.',
+      status: 'Open',
+      createdAtMs: 1740000012000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j4',
+      title: 'Front Desk Greeter',
+      employer: 'Kindred Outreach Center',
+      location: '120 Main St, Suite 300',
+      jobType: 'Part-time',
+      salary: '$16/hr',
+      requirements: 'Welcoming visitors, answering phones, routing inquiries, calm communication under occasional busy periods.',
+      status: 'Open',
+      createdAtMs: 1740000013000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j5',
+      title: 'Park Ambassador',
+      employer: 'Riverside Parks & Recreation',
+      location: 'Memorial Park Kiosk',
+      jobType: 'Seasonal',
+      salary: '$13/hr',
+      requirements: 'Sharing trail maps and event info, bilingual or ASL friendly a plus, weekend shifts.',
+      status: 'Open',
+      createdAtMs: 1740000014000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j6',
+      title: 'Learning Center Aide',
+      employer: 'Sunrise Transition Program',
+      location: 'Westside Campus, Bldg C',
+      jobType: 'Part-time',
+      salary: '$17/hr',
+      requirements: 'Supporting small classroom routines, prepping materials, and gentle redirection as directed by instructor.',
+      status: 'Open',
+      createdAtMs: 1740000015000,
       dateAdded: 'Mar 3, 2026'
     }
   ];
@@ -173,6 +269,46 @@ const Auth = (() => {
       password: 'jane123',
       role: 'VOLUNTEER',
       dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_guardian2',
+      name: 'Marcus Rivera',
+      email: 'marcus.guardian@kindred.org',
+      password: 'marcus123',
+      role: 'GUARDIAN',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_participant2',
+      name: 'Sam Chen',
+      email: 'samchen@email.com',
+      password: 'sam123',
+      role: 'PARTICIPANT',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_participant3',
+      name: 'Mia Ortiz',
+      email: 'miaortiz@email.com',
+      password: 'mia123',
+      role: 'PARTICIPANT',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_volunteer2',
+      name: 'Omar Patel',
+      email: 'omarpatel@kindred.org',
+      password: 'omar123',
+      role: 'VOLUNTEER',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_volunteer3',
+      name: 'Riley Brooks',
+      email: 'rileybrooks@kindred.org',
+      password: 'riley123',
+      role: 'VOLUNTEER',
+      dateAdded: 'Jan 1, 2025'
     }
   ];
 
@@ -194,6 +330,42 @@ const Auth = (() => {
       jobGoals: 'Would like part-time work with structured routines and supportive coaching.',
       createdAtMs: 1735689600000,
       dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_p2',
+      participantUserId: 'seed_u_participant2',
+      guardianUserIds: ['seed_u_guardian'],
+      firstName: 'Sam',
+      lastName: 'Chen',
+      dateOfBirth: '2009-06-02',
+      contactEmail: 'grace.guardian@kindred.org',
+      contactPhone: '(555) 555-0180',
+      specialNeeds: 'Benefits from written agendas and predictable transitions between activities.',
+      medicalNotes: 'EpiPen carried for severe nut allergy.',
+      sensoryNotes: 'Prefers quieter seating near exits in large gatherings.',
+      guardianNotes: 'Interested in vocational programs and social groups with peers.',
+      participantInterests: ['Basketball', 'Music', 'Gardening'],
+      jobGoals: 'Part-time stocking or café work with a consistent mentor.',
+      createdAtMs: 1735689600100,
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_p3',
+      participantUserId: 'seed_u_participant3',
+      guardianUserIds: ['seed_u_guardian2'],
+      firstName: 'Mia',
+      lastName: 'Ortiz',
+      dateOfBirth: '2011-11-18',
+      contactEmail: 'marcus.guardian@kindred.org',
+      contactPhone: '(555) 555-0275',
+      specialNeeds: 'Uses picture schedules for multi-step routines.',
+      medicalNotes: '',
+      sensoryNotes: 'Bright lights can be tiring; prefers natural light or dimmer rooms.',
+      guardianNotes: 'Exploring library jobs and welcoming-type roles.',
+      participantInterests: ['Reading', 'Theater', 'Library programs'],
+      jobGoals: 'Weekend shelving or greeting roles with predictable hours.',
+      createdAtMs: 1735689600200,
+      dateAdded: 'Jan 1, 2025'
     }
   ];
 
@@ -208,6 +380,30 @@ const Auth = (() => {
       availability: 'Weeknights after 6 PM, Saturday mornings',
       backgroundCheckStatus: 'Not Started',
       updatedAt: 1735689600000,
+      updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
+    },
+    {
+      userId: 'seed_u_volunteer2',
+      firstName: 'Omar',
+      lastName: 'Patel',
+      phone: '(555) 555-0412',
+      email: 'omarpatel@kindred.org',
+      interests: ['Event setup', 'Tech help', 'First aid'],
+      availability: 'Most Saturdays and Sunday afternoons',
+      backgroundCheckStatus: 'Pending',
+      updatedAt: 1735689600100,
+      updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
+    },
+    {
+      userId: 'seed_u_volunteer3',
+      firstName: 'Riley',
+      lastName: 'Brooks',
+      phone: '(555) 555-0588',
+      email: 'rileybrooks@kindred.org',
+      interests: ['Outdoor programs', 'Art night', 'Peer mentoring'],
+      availability: 'Flexible evenings; weekdays after 4 PM during summer',
+      backgroundCheckStatus: 'Cleared',
+      updatedAt: 1735689600200,
       updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
     }
   ];
@@ -634,7 +830,11 @@ const Auth = (() => {
       ['seed_e3', '2026-04-19T14:00'],
       ['seed_e4', '2026-04-26T11:00'],
       ['seed_e5', '2026-05-03T17:00'],
-      ['seed_e6', '2026-05-10T13:00']
+      ['seed_e6', '2026-05-10T13:00'],
+      ['seed_e7', '2026-05-17T09:00'],
+      ['seed_e8', '2026-05-24T16:30'],
+      ['seed_e9', '2026-06-01T11:00'],
+      ['seed_e10', '2026-06-17T08:30']
     ]);
     let changed = false;
     const refreshedEvents = events.map((event) => {
