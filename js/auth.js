@@ -1579,6 +1579,33 @@ const Auth = (() => {
     return { success: true };
   }
 
+  /** Guardian edits for linked minors: support/medical/sensory + guardian-visible notes only. */
+  const GUARDIAN_EDITABLE_NOTE_FIELDS = ['specialNeeds', 'medicalNotes', 'sensoryNotes', 'guardianNotes'];
+
+  async function updateLinkedParticipantSupportNotes(participantId, payload) {
+    const session = await getSession();
+    if (!session || session.role !== 'GUARDIAN') {
+      return { success: false, message: 'Only guardian accounts can update these fields from this screen.' };
+    }
+    const participants = getRawParticipants();
+    const idx = participants.findIndex((entry) => String(entry.id) === String(participantId));
+    if (idx === -1) return { success: false, message: 'Participant profile not found.' };
+    const record = participants[idx];
+    if (record.recordStatus !== 'ACTIVE') return { success: false, message: 'This participant record is not active.' };
+    const guardianIds = Array.isArray(record.guardianUserIds) ? record.guardianUserIds.map(String) : [];
+    if (!guardianIds.includes(String(session.userId))) {
+      return { success: false, message: 'You are not linked as a guardian for this participant.' };
+    }
+    const next = { ...record };
+    GUARDIAN_EDITABLE_NOTE_FIELDS.forEach((field) => {
+      if (!(field in payload)) return;
+      next[field] = String(payload[field] ?? '').trim();
+    });
+    participants[idx] = next;
+    setJson(PARTICIPANTS_KEY, participants);
+    return { success: true };
+  }
+
   async function getVolunteerProfile(identifier) {
     const profiles = getRawVolunteerProfiles();
     const normalizedId = String(identifier || '').trim();
@@ -3781,6 +3808,7 @@ const Auth = (() => {
     getMyParticipantRecord,
     getLinkedParticipantsForCurrentUser,
     canGuardianManageParticipant,
+    updateLinkedParticipantSupportNotes,
     addParticipant,
     updateParticipant,
     removeParticipant,

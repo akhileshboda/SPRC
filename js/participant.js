@@ -555,19 +555,41 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
         </div>
 
-        <div class="profile-support-grid">
-          <div class="profile-support-item">
-            <strong>Support Needs</strong>
-            <span>${escHtml(participant.specialNeeds || '—')}</span>
+        <div class="participant-guardian-edit border rounded p-3 mt-3 bg-body-tertiary" data-participant-id="${escHtml(participant.id)}">
+          <h4 class="h6 mb-2">Support &amp; health notes <span class="badge bg-secondary ms-1">Editable</span></h4>
+          <p class="text-muted small mb-3 mb-md-2">These fields are shared with program staff when relevant. Coordinators may also edit participant records elsewhere.</p>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small mb-1">Support needs</label>
+              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
+                data-field="specialNeeds" aria-label="Support needs for ${escHtml(participantName)}"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small mb-1">Medical notes</label>
+              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
+                data-field="medicalNotes" placeholder="Allergies, medications… (optional)"
+                aria-label="Medical notes for ${escHtml(participantName)}"></textarea>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small mb-1">Sensory notes</label>
+              <textarea class="form-control form-control-sm guardian-needs-field" rows="4" maxlength="8000"
+                data-field="sensoryNotes" placeholder="Noise, lighting, transitions… (optional)"
+                aria-label="Sensory notes for ${escHtml(participantName)}"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1">Guardian / family notes</label>
+              <textarea class="form-control form-control-sm guardian-needs-field" rows="2" maxlength="8000"
+                data-field="guardianNotes" aria-label="Guardian notes for ${escHtml(participantName)}"></textarea>
+            </div>
           </div>
-          <div class="profile-support-item">
-            <strong>Medical Notes</strong>
-            <span>${escHtml(participant.medicalNotes || '—')}</span>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+            <button type="button" class="btn btn-primary btn-sm js-guardian-save-support">
+              <i class="bi bi-check-lg me-1"></i>Save notes
+            </button>
+            <span class="text-muted small js-g-support-feedback d-none" role="status" aria-live="polite"></span>
           </div>
-          <div class="profile-support-item">
-            <strong>Sensory Notes</strong>
-            <span>${escHtml(participant.sensoryNotes || '—')}</span>
-          </div>
+        </div>
+        <div class="profile-support-grid mt-3">
           <div class="profile-support-item">
             <strong>Participant Interests</strong>
             <span>${escHtml(participant.participantInterests.join(', ') || '—')}</span>
@@ -576,10 +598,6 @@ document.addEventListener('sections:ready', async (e) => {
             <strong>Job Goals</strong>
             <span>${escHtml(participant.jobGoals || '—')}</span>
           </div>
-          <div class="profile-support-item">
-            <strong>Guardian Notes</strong>
-            <span>${escHtml(participant.guardianNotes || '—')}</span>
-          </div>
         </div>
 
         <div class="profile-rail-block mt-3">
@@ -587,6 +605,70 @@ document.addEventListener('sections:ready', async (e) => {
           ${linkedContacts}
         </div>
       </div>`;
+  }
+
+  let guardianSupportSaveBound = false;
+
+  function fillGuardianParticipantTextareas(participants) {
+    const root = document.getElementById('guardianParticipantsList');
+    if (!root) return;
+    participants.forEach((participant) => {
+      const wrap = Array.from(root.querySelectorAll('.participant-guardian-edit')).find(
+        (el) => String(el.getAttribute('data-participant-id')) === String(participant.id)
+      );
+      if (!wrap) return;
+      [['specialNeeds', participant.specialNeeds],
+        ['medicalNotes', participant.medicalNotes],
+        ['sensoryNotes', participant.sensoryNotes],
+        ['guardianNotes', participant.guardianNotes]].forEach(([field, val]) => {
+        const ta = wrap.querySelector(`textarea[data-field="${field}"]`);
+        if (ta) ta.value = val || '';
+      });
+    });
+  }
+
+  function bindGuardianParticipantSupportSave() {
+    if (guardianSupportSaveBound) return;
+    const root = document.getElementById('guardianParticipantsList');
+    if (!root) return;
+    guardianSupportSaveBound = true;
+    root.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.js-guardian-save-support');
+      if (!btn || !root.contains(btn)) return;
+      btn.disabled = true;
+      const wrap = btn.closest('.participant-guardian-edit');
+      const participantId = wrap?.getAttribute('data-participant-id');
+      if (!wrap || !participantId) {
+        btn.disabled = false;
+        return;
+      }
+      const read = (field) => wrap.querySelector(`textarea[data-field="${field}"]`)?.value ?? '';
+      const result = await Auth.updateLinkedParticipantSupportNotes(participantId, {
+        specialNeeds: read('specialNeeds'),
+        medicalNotes: read('medicalNotes'),
+        sensoryNotes: read('sensoryNotes'),
+        guardianNotes: read('guardianNotes')
+      });
+      btn.disabled = false;
+      const feed = wrap.querySelector('.js-g-support-feedback');
+      if (!result.success) {
+        if (feed) {
+          feed.textContent = result.message || 'Could not save.';
+          feed.classList.remove('d-none', 'text-muted', 'text-success');
+          feed.classList.add('text-danger');
+        } else {
+          alert(result.message || 'Could not save.');
+        }
+        return;
+      }
+      if (feed) {
+        feed.textContent = 'Notes saved.';
+        feed.classList.remove('d-none', 'text-danger');
+        feed.classList.add('text-muted', 'text-success');
+        clearTimeout(feed._hideT);
+        feed._hideT = setTimeout(() => feed.classList.add('d-none'), 4000);
+      }
+    });
   }
 
   async function renderGuardianDashboard() {
@@ -674,6 +756,7 @@ document.addEventListener('sections:ready', async (e) => {
       participantsContainer.innerHTML = participants.length
         ? participants.map(participantCard).join('')
         : emptyState('bi-people', 'No participants are linked to your guardian account yet.');
+      fillGuardianParticipantTextareas(participants);
     }
 
     const guardianParticipantsHeader = document.getElementById('guardianParticipantsHeader');
@@ -935,6 +1018,7 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   if (session.role === 'GUARDIAN') {
+    bindGuardianParticipantSupportSave();
     const _gBellConfig = { notificationsSection: 'g-notifications', role: 'GUARDIAN' };
     await renderGuardianDashboard();
     await renderGuardianApprovals();
