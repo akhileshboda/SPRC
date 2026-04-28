@@ -12,6 +12,7 @@ const Auth = (() => {
   const EVENT_SIGNUPS_KEY = 'kindredSignups';
   const JOBS_KEY = 'kindred_jobs';
   const JOB_INTERESTS_KEY = 'kindred_job_interests';
+  const JOB_APPLICATIONS_KEY = 'kindred_job_applications';
   const APPROVALS_KEY = 'kindred_approvals';
   const NEWSLETTERS_KEY = 'kindred_newsletters';
   const NEWSLETTER_DRAFT_KEY = 'kindred_newsletter_draft';
@@ -21,11 +22,22 @@ const Auth = (() => {
   const AUDIT_LOG_KEY = 'kindred_audit_log';
   const INQUIRIES_KEY = 'kindred_inquiries';
   const TASKS_KEY = 'kindred_tasks';
+  const VOLUNTEER_EVENT_ASSIGNMENTS_KEY = 'kindred_volunteer_event_assignments';
 
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
   const ROLES = ['ADMIN', 'GUARDIAN', 'PARTICIPANT', 'VOLUNTEER'];
-  const SELF_SERVICE_PARTICIPANT_FIELDS = ['participantInterests', 'jobGoals'];
+  const ACCESS_STATUSES = ['ACTIVE', 'REVOKED'];
+  const RECORD_STATUSES = ['ACTIVE', 'INACTIVE'];
+  const SELF_SERVICE_PARTICIPANT_FIELDS = [
+    'participantInterests',
+    'jobGoals',
+    'bio',
+    'dateOfBirth',
+    'specialNeeds',
+    'medicalNotes',
+    'sensoryNotes'
+  ];
 
   const SEED_EVENTS = [
     {
@@ -99,6 +111,54 @@ const Auth = (() => {
       accommodations: 'Ages 14+. Assistive technology stations available. Step-by-step printed guides provided. Caregiver or guardian welcome to attend alongside participant.',
       createdAtMs: 1776430805000,
       dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e7',
+      title: 'Community Garden Day',
+      category: 'Social',
+      dateTime: '2026-06-05T09:00',
+      eventTimestamp: new Date('2026-06-05T09:00').getTime(),
+      location: 'Riverside Park Greenhouse & Garden Plots',
+      cost: 'Free',
+      accommodations: 'Tools and adaptive grips provided. Raised beds and shaded rest area. Companion or staff support welcome.',
+      createdAtMs: 1776430806000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e8',
+      title: 'Music & Movement Circle',
+      category: 'Social',
+      dateTime: '2026-06-12T16:30',
+      eventTimestamp: new Date('2026-06-12T16:30').getTime(),
+      location: 'Harmony Studio, 410 Cedar Lane',
+      cost: '$5 suggested donation',
+      accommodations: 'Seated participation options, noise-reducing ear protection on request, lyric sheets with large print.',
+      createdAtMs: 1776430807000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e9',
+      title: 'Inclusive Career Fair',
+      category: 'Vocational',
+      dateTime: '2026-06-20T11:00',
+      eventTimestamp: new Date('2026-06-20T11:00').getTime(),
+      location: 'Convention Hall B, Civic Center',
+      cost: 'Free',
+      accommodations: 'Quiet interviewing booths, resumes accepted in multiple formats. Service animals welcome.',
+      createdAtMs: 1776430808000,
+      dateAdded: 'Apr 17, 2026'
+    },
+    {
+      id: 'seed_e10',
+      title: 'Trail Morning Hike',
+      category: 'Social',
+      dateTime: '2026-07-06T08:30',
+      eventTimestamp: new Date('2026-07-06T08:30').getTime(),
+      location: 'Riverside Nature Trail — North Lot',
+      cost: 'Free',
+      accommodations: 'Paved and packed-gravel paths. Rest stops every half mile; portable seating available.',
+      createdAtMs: 1776430809000,
+      dateAdded: 'Apr 17, 2026'
     }
   ];
 
@@ -125,6 +185,54 @@ const Auth = (() => {
       requirements: 'Organizing materials, shelving support, and helping with simple front-desk tasks.',
       status: 'Open',
       createdAtMs: 1740000011000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j3',
+      title: 'Warehouse Sorting Assistant',
+      employer: 'Riverside Community Food Bank',
+      location: 'Industrial District — Dock 4',
+      jobType: 'Part-time',
+      salary: '$15/hr',
+      requirements: 'Following sorting guidelines, labeling, light lifting with team support, weekday morning availability.',
+      status: 'Open',
+      createdAtMs: 1740000012000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j4',
+      title: 'Front Desk Greeter',
+      employer: 'Kindred Outreach Center',
+      location: '120 Main St, Suite 300',
+      jobType: 'Part-time',
+      salary: '$16/hr',
+      requirements: 'Welcoming visitors, answering phones, routing inquiries, calm communication under occasional busy periods.',
+      status: 'Open',
+      createdAtMs: 1740000013000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j5',
+      title: 'Park Ambassador',
+      employer: 'Riverside Parks & Recreation',
+      location: 'Memorial Park Kiosk',
+      jobType: 'Seasonal',
+      salary: '$13/hr',
+      requirements: 'Sharing trail maps and event info, bilingual or ASL friendly a plus, weekend shifts.',
+      status: 'Open',
+      createdAtMs: 1740000014000,
+      dateAdded: 'Mar 3, 2026'
+    },
+    {
+      id: 'seed_j6',
+      title: 'Learning Center Aide',
+      employer: 'Sunrise Transition Program',
+      location: 'Westside Campus, Bldg C',
+      jobType: 'Part-time',
+      salary: '$17/hr',
+      requirements: 'Supporting small classroom routines, prepping materials, and gentle redirection as directed by instructor.',
+      status: 'Open',
+      createdAtMs: 1740000015000,
       dateAdded: 'Mar 3, 2026'
     }
   ];
@@ -161,6 +269,46 @@ const Auth = (() => {
       password: 'jane123',
       role: 'VOLUNTEER',
       dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_guardian2',
+      name: 'Marcus Rivera',
+      email: 'marcus.guardian@kindred.org',
+      password: 'marcus123',
+      role: 'GUARDIAN',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_participant2',
+      name: 'Sam Chen',
+      email: 'samchen@email.com',
+      password: 'sam123',
+      role: 'PARTICIPANT',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_participant3',
+      name: 'Mia Ortiz',
+      email: 'miaortiz@email.com',
+      password: 'mia123',
+      role: 'PARTICIPANT',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_volunteer2',
+      name: 'Omar Patel',
+      email: 'omarpatel@kindred.org',
+      password: 'omar123',
+      role: 'VOLUNTEER',
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_u_volunteer3',
+      name: 'Riley Brooks',
+      email: 'rileybrooks@kindred.org',
+      password: 'riley123',
+      role: 'VOLUNTEER',
+      dateAdded: 'Jan 1, 2025'
     }
   ];
 
@@ -182,6 +330,42 @@ const Auth = (() => {
       jobGoals: 'Would like part-time work with structured routines and supportive coaching.',
       createdAtMs: 1735689600000,
       dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_p2',
+      participantUserId: 'seed_u_participant2',
+      guardianUserIds: ['seed_u_guardian'],
+      firstName: 'Sam',
+      lastName: 'Chen',
+      dateOfBirth: '2009-06-02',
+      contactEmail: 'grace.guardian@kindred.org',
+      contactPhone: '(555) 555-0180',
+      specialNeeds: 'Benefits from written agendas and predictable transitions between activities.',
+      medicalNotes: 'EpiPen carried for severe nut allergy.',
+      sensoryNotes: 'Prefers quieter seating near exits in large gatherings.',
+      guardianNotes: 'Interested in vocational programs and social groups with peers.',
+      participantInterests: ['Basketball', 'Music', 'Gardening'],
+      jobGoals: 'Part-time stocking or café work with a consistent mentor.',
+      createdAtMs: 1735689600100,
+      dateAdded: 'Jan 1, 2025'
+    },
+    {
+      id: 'seed_p3',
+      participantUserId: 'seed_u_participant3',
+      guardianUserIds: ['seed_u_guardian2'],
+      firstName: 'Mia',
+      lastName: 'Ortiz',
+      dateOfBirth: '2011-11-18',
+      contactEmail: 'marcus.guardian@kindred.org',
+      contactPhone: '(555) 555-0275',
+      specialNeeds: 'Uses picture schedules for multi-step routines.',
+      medicalNotes: '',
+      sensoryNotes: 'Bright lights can be tiring; prefers natural light or dimmer rooms.',
+      guardianNotes: 'Exploring library jobs and welcoming-type roles.',
+      participantInterests: ['Reading', 'Theater', 'Library programs'],
+      jobGoals: 'Weekend shelving or greeting roles with predictable hours.',
+      createdAtMs: 1735689600200,
+      dateAdded: 'Jan 1, 2025'
     }
   ];
 
@@ -196,6 +380,30 @@ const Auth = (() => {
       availability: 'Weeknights after 6 PM, Saturday mornings',
       backgroundCheckStatus: 'Not Started',
       updatedAt: 1735689600000,
+      updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
+    },
+    {
+      userId: 'seed_u_volunteer2',
+      firstName: 'Omar',
+      lastName: 'Patel',
+      phone: '(555) 555-0412',
+      email: 'omarpatel@kindred.org',
+      interests: ['Event setup', 'Tech help', 'First aid'],
+      availability: 'Most Saturdays and Sunday afternoons',
+      backgroundCheckStatus: 'Pending',
+      updatedAt: 1735689600100,
+      updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
+    },
+    {
+      userId: 'seed_u_volunteer3',
+      firstName: 'Riley',
+      lastName: 'Brooks',
+      phone: '(555) 555-0588',
+      email: 'rileybrooks@kindred.org',
+      interests: ['Outdoor programs', 'Art night', 'Peer mentoring'],
+      availability: 'Flexible evenings; weekdays after 4 PM during summer',
+      backgroundCheckStatus: 'Cleared',
+      updatedAt: 1735689600200,
       updatedAtLabel: 'Jan 1, 2025, 12:00 AM'
     }
   ];
@@ -280,12 +488,20 @@ const Auth = (() => {
     return parseJson(EVENT_SIGNUPS_KEY, []);
   }
 
+  function getRawVolunteerEventAssignments() {
+    return parseJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
+  }
+
   function getRawJobs() {
     return parseJson(JOBS_KEY, []);
   }
 
   function getRawJobInterests() {
     return parseJson(JOB_INTERESTS_KEY, []);
+  }
+
+  function getRawJobApplications() {
+    return parseJson(JOB_APPLICATIONS_KEY, []);
   }
 
   function getRawApprovals() {
@@ -326,6 +542,16 @@ const Auth = (() => {
     return ROLES.includes(upper) ? upper : fallback;
   }
 
+  function normalizeAccessStatus(value) {
+    const upper = String(value || 'ACTIVE').trim().toUpperCase();
+    return ACCESS_STATUSES.includes(upper) ? upper : 'ACTIVE';
+  }
+
+  function normalizeRecordStatus(value, fallback = 'ACTIVE') {
+    const upper = String(value || fallback).trim().toUpperCase();
+    return RECORD_STATUSES.includes(upper) ? upper : fallback;
+  }
+
   function normalizeUser(user) {
     const normalizedEmail = normalizeEmail(user.email);
     const name = String(user.name || '').trim();
@@ -337,6 +563,7 @@ const Auth = (() => {
       email: normalizedEmail,
       password: String(user.password || ''),
       role,
+      accessStatus: normalizeAccessStatus(user.accessStatus),
       dateAdded
     };
   }
@@ -346,10 +573,11 @@ const Auth = (() => {
     SEED_USERS.forEach((seed) => {
       const email = normalizeEmail(seed.email);
       if (!byEmail.has(email)) {
-        users.push({ ...seed });
+        users.push(normalizeUser(seed));
       } else {
         const existing = byEmail.get(email);
         if (!existing.id) existing.id = seed.id;
+        if (!existing.accessStatus) existing.accessStatus = 'ACTIVE';
       }
     });
     return users;
@@ -370,6 +598,18 @@ const Auth = (() => {
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  function deriveAgeFromDateOfBirth(dateOfBirth) {
+    const parsed = new Date(String(dateOfBirth || '').trim());
+    if (Number.isNaN(parsed.getTime())) return '';
+    const now = new Date();
+    let age = now.getFullYear() - parsed.getFullYear();
+    const monthDiff = now.getMonth() - parsed.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.getDate())) {
+      age -= 1;
+    }
+    return age >= 0 ? age : '';
   }
 
   function normalizeParticipants(participants, users) {
@@ -401,7 +641,8 @@ const Auth = (() => {
         guardianUserIds: selectedGuardianIds,
         firstName: String(participant.firstName || parts.firstName || '').trim(),
         lastName: String(participant.lastName || parts.lastName || '').trim(),
-        age: Number(participant.age) || '',
+        dateOfBirth: String(participant.dateOfBirth || '').trim(),
+        age: deriveAgeFromDateOfBirth(participant.dateOfBirth) || Number(participant.age) || '',
         contactEmail: legacyContactEmail,
         contactPhone: String(participant.contactPhone || '').trim(),
         specialNeeds: String(participant.specialNeeds || '').trim(),
@@ -410,18 +651,23 @@ const Auth = (() => {
         guardianNotes: String(participant.guardianNotes || '').trim(),
         participantInterests: normalizeParticipantInterests(participant.participantInterests),
         jobGoals: String(participant.jobGoals || '').trim(),
+        bio: String(participant.bio || '').trim(),
         createdAtMs: Number(participant.createdAtMs) || Date.now(),
+        recordStatus: normalizeRecordStatus(participant.recordStatus, linkedParticipantUser ? 'ACTIVE' : 'INACTIVE'),
         dateAdded: participant.dateAdded || formatDateLabel(new Date())
       };
     });
 
     const validParticipantIds = new Set(participantUsers.map((user) => String(user.id)));
-    const result = normalized.filter((participant) => participant.participantUserId && validParticipantIds.has(String(participant.participantUserId)));
+    const result = normalized.filter((participant) =>
+      participant.recordStatus === 'INACTIVE'
+      || (participant.participantUserId && validParticipantIds.has(String(participant.participantUserId)))
+    );
 
     if (!result.length && SEED_PARTICIPANTS.length) {
       return SEED_PARTICIPANTS
         .filter((participant) => users.some((user) => String(user.id) === String(participant.participantUserId)))
-        .map((participant) => ({ ...participant }));
+        .map((participant) => ({ recordStatus: 'ACTIVE', ...participant }));
     }
 
     return result;
@@ -437,16 +683,26 @@ const Auth = (() => {
         const linkedUser = profile.userId
           ? volunteerUsers.find((user) => String(user.id) === String(profile.userId))
           : usersByEmail.get(email);
-        if (!linkedUser || linkedUser.role !== 'VOLUNTEER') return null;
+        const isInactiveOrphan = normalizeRecordStatus(profile.recordStatus, 'ACTIVE') === 'INACTIVE';
+        if ((!linkedUser || linkedUser.role !== 'VOLUNTEER') && !isInactiveOrphan) return null;
+        const fallbackName = linkedUser ? splitName(linkedUser.name) : splitName(`${profile.firstName || ''} ${profile.lastName || ''}`.trim());
         return {
-          userId: String(linkedUser.id),
-          firstName: String(profile.firstName || splitName(linkedUser.name).firstName || '').trim(),
-          lastName: String(profile.lastName || splitName(linkedUser.name).lastName || '').trim(),
+          id: String(profile.id || makeId('vp')),
+          userId: linkedUser ? String(linkedUser.id) : '',
+          firstName: String(profile.firstName || fallbackName.firstName || '').trim(),
+          lastName: String(profile.lastName || fallbackName.lastName || '').trim(),
           phone: String(profile.phone || '').trim(),
-          email: linkedUser.email,
+          email: linkedUser ? linkedUser.email : email,
           interests: normalizeParticipantInterests(profile.interests),
           availability: String(profile.availability || '').trim(),
+          preferredLocation: String(profile.preferredLocation || '').trim(),
+          pronounsSubject: String(profile.pronounsSubject || '').trim(),
+          pronounsObject: String(profile.pronounsObject || '').trim(),
+          languagesSpoken: Array.isArray(profile.languagesSpoken)
+            ? profile.languagesSpoken.map((item) => String(item).trim()).filter(Boolean)
+            : [],
           backgroundCheckStatus: String(profile.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
+          recordStatus: normalizeRecordStatus(profile.recordStatus, linkedUser ? 'ACTIVE' : 'INACTIVE'),
           updatedAt: Number(profile.updatedAt) || Date.now(),
           updatedAtLabel: profile.updatedAtLabel || new Date(Number(profile.updatedAt) || Date.now()).toLocaleString('en-US', {
             year: 'numeric',
@@ -462,7 +718,11 @@ const Auth = (() => {
     if (!result.length && SEED_VOLUNTEER_PROFILES.length) {
       return SEED_VOLUNTEER_PROFILES
         .filter((profile) => volunteerUsers.some((user) => String(user.id) === String(profile.userId)))
-        .map((profile) => ({ ...profile }));
+        .map((profile) => ({
+          id: String(profile.id || makeId('vp')),
+          recordStatus: 'ACTIVE',
+          ...profile
+        }));
     }
 
     return result;
@@ -562,6 +822,55 @@ const Auth = (() => {
       .filter((approval) => approval && approval.jobId);
   }
 
+  /** Append built-in seed rows missing from localStorage (mirrors mergeSeedUsers for other stores). */
+  function mergeSeedParticipantsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((p) => String(p.id || '')).filter(Boolean));
+    SEED_PARTICIPANTS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ recordStatus: 'ACTIVE', ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedVolunteerProfilesRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenUserIds = new Set(merged.map((p) => String(p.userId || '')).filter(Boolean));
+    SEED_VOLUNTEER_PROFILES.forEach((seed) => {
+      const uid = String(seed.userId || '');
+      if (!uid || seenUserIds.has(uid)) return;
+      seenUserIds.add(uid);
+      merged.push({ recordStatus: 'ACTIVE', ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedEventsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((e) => String(e.id || '')).filter(Boolean));
+    SEED_EVENTS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ ...seed });
+    });
+    return merged;
+  }
+
+  function mergeSeedJobsRaw(storedRaw) {
+    const merged = Array.isArray(storedRaw) ? [...storedRaw] : [];
+    const seenIds = new Set(merged.map((j) => String(j.id || '')).filter(Boolean));
+    SEED_JOBS.forEach((seed) => {
+      const id = String(seed.id || '');
+      if (!id || seenIds.has(id)) return;
+      seenIds.add(id);
+      merged.push({ ...seed });
+    });
+    return merged;
+  }
+
   function refreshSeedEventDates(events) {
     const seedEventsById = new Map(SEED_EVENTS.map((event) => [event.id, event]));
     const staleSeedDateTimesById = new Map([
@@ -570,7 +879,11 @@ const Auth = (() => {
       ['seed_e3', '2026-04-19T14:00'],
       ['seed_e4', '2026-04-26T11:00'],
       ['seed_e5', '2026-05-03T17:00'],
-      ['seed_e6', '2026-05-10T13:00']
+      ['seed_e6', '2026-05-10T13:00'],
+      ['seed_e7', '2026-05-17T09:00'],
+      ['seed_e8', '2026-05-24T16:30'],
+      ['seed_e9', '2026-06-01T11:00'],
+      ['seed_e10', '2026-06-17T08:30']
     ]);
     let changed = false;
     const refreshedEvents = events.map((event) => {
@@ -593,22 +906,23 @@ const Auth = (() => {
     const normalizedUsers = normalizeUsers(getRawUsers());
     setJson(USERS_KEY, normalizedUsers);
 
-    const normalizedParticipants = normalizeParticipants(getRawParticipants(), normalizedUsers);
+    const normalizedParticipants = normalizeParticipants(
+      mergeSeedParticipantsRaw(getRawParticipants()),
+      normalizedUsers
+    );
     setJson(PARTICIPANTS_KEY, normalizedParticipants);
 
-    const normalizedVolunteerProfiles = normalizeVolunteerProfiles(getRawVolunteerProfiles(), normalizedUsers);
+    const normalizedVolunteerProfiles = normalizeVolunteerProfiles(
+      mergeSeedVolunteerProfilesRaw(getRawVolunteerProfiles()),
+      normalizedUsers
+    );
     setJson(VOLUNTEER_PROFILES_KEY, normalizedVolunteerProfiles);
 
-    const events = getRawEvents();
-    if (!events.length) {
-      setJson(EVENTS_KEY, SEED_EVENTS);
-    } else {
-      const refreshedEvents = refreshSeedEventDates(events);
-      if (refreshedEvents !== events) setJson(EVENTS_KEY, refreshedEvents);
-    }
+    const mergedEvents = refreshSeedEventDates(mergeSeedEventsRaw(getRawEvents()));
+    setJson(EVENTS_KEY, mergedEvents);
 
-    const jobs = getRawJobs();
-    if (!jobs.length) setJson(JOBS_KEY, SEED_JOBS);
+    const mergedJobs = mergeSeedJobsRaw(getRawJobs());
+    setJson(JOBS_KEY, mergedJobs);
 
     setJson(EVENT_SIGNUPS_KEY, normalizeEventSignups(getRawEventSignups(), normalizedParticipants, normalizedUsers));
     setJson(JOB_INTERESTS_KEY, normalizeJobInterests(getRawJobInterests(), normalizedParticipants, normalizedUsers));
@@ -621,6 +935,16 @@ const Auth = (() => {
     if (!localStorage.getItem(AUDIT_LOG_KEY)) setJson(AUDIT_LOG_KEY, []);
     if (!localStorage.getItem(INQUIRIES_KEY)) setJson(INQUIRIES_KEY, []);
     if (!localStorage.getItem(TASKS_KEY)) setJson(TASKS_KEY, []);
+    if (!localStorage.getItem(JOB_APPLICATIONS_KEY)) setJson(JOB_APPLICATIONS_KEY, []);
+    if (!localStorage.getItem(VOLUNTEER_EVENT_ASSIGNMENTS_KEY)) setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
+  }
+
+  /** Run once per full page load; merges bundled seeds into localStorage before reads. */
+  let _storesHydrated = false;
+  function ensureStoresHydrated() {
+    if (_storesHydrated) return;
+    _storesHydrated = true;
+    initStores();
   }
 
   function getUserByIdInternal(userId) {
@@ -636,15 +960,21 @@ const Auth = (() => {
   }
 
   function getVolunteerProfileByUserIdInternal(userId) {
-    return getRawVolunteerProfiles().find((profile) => String(profile.userId) === String(userId)) || null;
+    return getRawVolunteerProfiles().find((profile) =>
+      String(profile.userId) === String(userId) && profile.recordStatus === 'ACTIVE'
+    ) || null;
   }
 
   function getParticipantRecordByUserIdInternal(userId) {
-    return getRawParticipants().find((participant) => String(participant.participantUserId) === String(userId)) || null;
+    return getRawParticipants().find((participant) =>
+      String(participant.participantUserId) === String(userId) && participant.recordStatus === 'ACTIVE'
+    ) || null;
   }
 
   function getLinkedParticipantsForGuardianUserIdInternal(userId) {
-    return getRawParticipants().filter((participant) => (participant.guardianUserIds || []).map(String).includes(String(userId)));
+    return getRawParticipants().filter((participant) =>
+      participant.recordStatus === 'ACTIVE' && (participant.guardianUserIds || []).map(String).includes(String(userId))
+    );
   }
 
   function participantDisplayName(participant) {
@@ -656,7 +986,7 @@ const Auth = (() => {
     const guardians = (participant.guardianUserIds || [])
       .map((guardianId) => getUserByIdInternal(guardianId))
       .filter(Boolean);
-    const approvedJobCount = getRawJobInterests().filter((interest) => String(interest.participantId) === String(participant.id)).length;
+    const approvedJobCount = getRawJobApplications().filter((app) => String(app.participantId) === String(participant.id) && app.status !== 'REJECTED').length;
     const pendingApprovalCount = getRawApprovals().filter((approval) =>
       String(approval.participantId) === String(participant.id) && approval.status === 'PENDING'
     ).length;
@@ -664,6 +994,7 @@ const Auth = (() => {
 
     return {
       ...participant,
+      age: deriveAgeFromDateOfBirth(participant.dateOfBirth) || participant.age || '',
       fullName: participantDisplayName(participant),
       participantUser,
       guardians,
@@ -674,7 +1005,20 @@ const Auth = (() => {
     };
   }
 
+  function decorateVolunteerProfile(profile) {
+    const linkedUser = getUserByIdInternal(profile.userId);
+    const bgRecord = getRawBgChecks().find((record) => String(record.volunteerUserId) === String(profile.userId));
+    return {
+      ...profile,
+      fullName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email,
+      linkedUser,
+      backgroundCheckExpiry: bgRecord?.expiresAtLabel || '',
+      backgroundCheckExpiryMs: bgRecord?.expiresAtMs || null
+    };
+  }
+
   async function getSession() {
+    ensureStoresHydrated();
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
@@ -684,7 +1028,7 @@ const Auth = (() => {
         return null;
       }
       const user = getUserByIdInternal(session.userId);
-      if (!user) {
+      if (!user || normalizeAccessStatus(user.accessStatus) === 'REVOKED') {
         localStorage.removeItem(SESSION_KEY);
         return null;
       }
@@ -704,6 +1048,21 @@ const Auth = (() => {
     const user = getRawUsers().find((candidate) => candidate.email === normalizeEmail(email) && candidate.password === String(password || ''));
     if (!user) {
       return { success: false, message: 'Invalid email or password. Please try again.' };
+    }
+    if (normalizeAccessStatus(user.accessStatus) === 'REVOKED') {
+      return { success: false, message: 'This account has been revoked. Contact an administrator to restore access.' };
+    }
+    if (user.role === 'PARTICIPANT') {
+      const participant = getParticipantRecordByUserIdInternal(user.id);
+      if (!participant || participant.recordStatus !== 'ACTIVE') {
+        return { success: false, message: 'This participant account is not linked to an active participant record.' };
+      }
+    }
+    if (user.role === 'VOLUNTEER') {
+      const profile = getVolunteerProfileByUserIdInternal(user.id);
+      if (!profile || profile.recordStatus !== 'ACTIVE') {
+        return { success: false, message: 'This volunteer account is not linked to an active volunteer profile.' };
+      }
     }
     const session = { userId: user.id, name: user.name, email: user.email, role: user.role };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
@@ -734,6 +1093,7 @@ const Auth = (() => {
       EVENT_SIGNUPS_KEY,
       JOBS_KEY,
       JOB_INTERESTS_KEY,
+      JOB_APPLICATIONS_KEY,
       APPROVALS_KEY,
       NEWSLETTERS_KEY,
       NEWSLETTER_DRAFT_KEY,
@@ -742,7 +1102,8 @@ const Auth = (() => {
       URGENT_NOTIFICATIONS_KEY,
       AUDIT_LOG_KEY,
       INQUIRIES_KEY,
-      TASKS_KEY
+      TASKS_KEY,
+      VOLUNTEER_EVENT_ASSIGNMENTS_KEY
     ].forEach((key) => localStorage.removeItem(key));
     if (reseed) initStores();
     return { success: true };
@@ -753,11 +1114,15 @@ const Auth = (() => {
   }
 
   async function getUsers() {
-    return getRawUsers().map(({ id, name, email, role, dateAdded }) => ({
+    return getRawUsers().map(({ id, name, email, role, accessStatus, dateAdded }) => ({
       id,
       name,
       email,
       role: normalizeRole(role),
+      accessStatus: (
+        (normalizeRole(role) === 'PARTICIPANT' && !getParticipantRecordByUserIdInternal(id))
+        || (normalizeRole(role) === 'VOLUNTEER' && !getVolunteerProfileByUserIdInternal(id))
+      ) ? 'REVOKED' : normalizeAccessStatus(accessStatus),
       dateAdded
     }));
   }
@@ -767,6 +1132,14 @@ const Auth = (() => {
     if (!user) return null;
     const { password, ...safe } = user;
     return safe;
+  }
+
+  function activateUserAccess(userId) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(userId));
+    if (idx === -1) return;
+    users[idx] = { ...users[idx], accessStatus: 'ACTIVE' };
+    setJson(USERS_KEY, users);
   }
 
   function syncParticipantUserLink(userId, participantId) {
@@ -788,9 +1161,11 @@ const Auth = (() => {
     }
     participants[targetIdx] = {
       ...participants[targetIdx],
-      participantUserId: String(userId)
+      participantUserId: String(userId),
+      recordStatus: 'ACTIVE'
     };
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(userId);
     return { success: true };
   }
 
@@ -801,7 +1176,11 @@ const Auth = (() => {
       return { success: false, message: 'Only volunteer users can link to volunteer profiles.' };
     }
     const profiles = getRawVolunteerProfiles();
-    const targetIdx = profiles.findIndex((profile) => String(profile.userId) === String(volunteerProfileId) || normalizeEmail(profile.email) === normalizeEmail(volunteerProfileId));
+    const targetIdx = profiles.findIndex((profile) =>
+      String(profile.id) === String(volunteerProfileId)
+      || String(profile.userId) === String(volunteerProfileId)
+      || normalizeEmail(profile.email) === normalizeEmail(volunteerProfileId)
+    );
     if (targetIdx === -1) {
       return { success: false, message: 'Volunteer profile not found for linking.' };
     }
@@ -814,13 +1193,15 @@ const Auth = (() => {
     profiles[targetIdx] = {
       ...profiles[targetIdx],
       userId: String(userId),
-      email: user.email
+      email: user.email,
+      recordStatus: 'ACTIVE'
     };
     setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    activateUserAccess(userId);
     return { success: true };
   }
 
-  async function addUser(user) {
+  function createRawUser(user) {
     const users = getRawUsers();
     const email = normalizeEmail(user.email);
     if (!email) return { success: false, message: 'Email is required.' };
@@ -829,16 +1210,45 @@ const Auth = (() => {
     }
     const role = normalizeRole(user.role);
     if (!ROLES.includes(role)) return { success: false, message: 'Invalid role.' };
+    if (role === 'GUARDIAN') {
+      const dob = String(user.dateOfBirth || user.guardianDateOfBirth || '').trim();
+      if (!dob) {
+        return { success: false, message: 'Date of birth is required for guardian accounts. Account holders must be 18 or older.' };
+      }
+      const ageY = ageFromDateOfBirth(dob);
+      if (ageY == null || ageY < 18) {
+        return { success: false, message: 'Guardian accounts are only available to users who are 18 or older. Please contact an administrator if you need help.' };
+      }
+    }
     const newUser = {
       id: makeId('u'),
       name: String(user.name || '').trim(),
       email,
       password: String(user.password || ''),
       role,
-      dateAdded: formatDateLabel(new Date())
+      accessStatus: normalizeAccessStatus(user.accessStatus),
+      dateAdded: formatDateLabel(new Date()),
+      ...((() => {
+        if (role !== 'GUARDIAN') return {};
+        return { dateOfBirth: String(user.dateOfBirth || user.guardianDateOfBirth || '').trim() };
+      })())
     };
     users.push(newUser);
     setJson(USERS_KEY, users);
+    return {
+      success: true,
+      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, accessStatus: newUser.accessStatus }
+    };
+  }
+
+  async function addUser(user) {
+    const role = normalizeRole(user.role);
+    if ((role === 'PARTICIPANT' || role === 'VOLUNTEER') && !user.linkParticipantId && !user.linkVolunteerProfileId) {
+      return { success: false, message: `${role === 'PARTICIPANT' ? 'Participant' : 'Volunteer'} users must be created with a linked record.` };
+    }
+    const result = createRawUser(user);
+    if (!result.success) return result;
+    const newUser = result.user;
 
     const participantLinkResult = syncParticipantUserLink(newUser.id, user.linkParticipantId);
     if (!participantLinkResult.success) {
@@ -854,8 +1264,37 @@ const Auth = (() => {
 
     return {
       success: true,
-      user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role }
+      user: newUser
     };
+  }
+
+  async function createUserWithLinkedRecord(payload) {
+    const role = normalizeRole(payload.role);
+    if (role !== 'PARTICIPANT' && role !== 'VOLUNTEER') {
+      return addUser(payload);
+    }
+    const userResult = createRawUser({ ...payload, role, accessStatus: 'ACTIVE' });
+    if (!userResult.success) return userResult;
+    const userId = userResult.user.id;
+    const rollback = () => {
+      setJson(USERS_KEY, getRawUsers().filter((candidate) => String(candidate.id) !== String(userId)));
+    };
+
+    if (role === 'PARTICIPANT') {
+      const result = await addParticipant({ ...(payload.participantRecord || {}), participantUserId: userId });
+      if (!result.success) {
+        rollback();
+        return result;
+      }
+      return { success: true, user: userResult.user };
+    }
+
+    const result = await saveVolunteerProfile({ ...(payload.volunteerProfile || {}), userId });
+    if (!result.success) {
+      rollback();
+      return result;
+    }
+    return { success: true, user: userResult.user };
   }
 
   async function updateUser(originalEmail, payload) {
@@ -879,7 +1318,20 @@ const Auth = (() => {
     users[idx].name = String(payload.name || '').trim();
     users[idx].email = nextEmail;
     users[idx].role = nextRole;
+    users[idx].accessStatus = normalizeAccessStatus(payload.accessStatus || users[idx].accessStatus);
     if (String(payload.password || '').trim()) users[idx].password = String(payload.password);
+    if (nextRole === 'GUARDIAN') {
+      const dobIn = String(payload.dateOfBirth || payload.guardianDateOfBirth || '').trim();
+      const finalDob = dobIn || String(users[idx].dateOfBirth || '').trim();
+      if (!finalDob) {
+        return { success: false, message: 'Guardian accounts require a date of birth. Account holders must be 18 or older.' };
+      }
+      const ageY = ageFromDateOfBirth(finalDob);
+      if (ageY == null || ageY < 18) {
+        return { success: false, message: 'Guardian accounts are only available to users who are 18 or older.' };
+      }
+      users[idx].dateOfBirth = finalDob;
+    }
     setJson(USERS_KEY, users);
     initStores();
     const updatedUser = getRawUsers().find((user) => String(user.id) === String(users[idx].id));
@@ -899,15 +1351,60 @@ const Auth = (() => {
     ) || volunteerProfiles.some((profile) => String(profile.userId) === String(userId));
   }
 
-  async function removeUser(email) {
+  async function revokeUserAccess(identifier) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(identifier) || user.email === normalizeEmail(identifier));
+    if (idx === -1) return { success: false, message: 'User not found.' };
+    users[idx] = { ...users[idx], accessStatus: 'REVOKED' };
+    setJson(USERS_KEY, users);
+    return { success: true };
+  }
+
+  async function restoreUserAccess(identifier) {
+    const users = getRawUsers();
+    const idx = users.findIndex((user) => String(user.id) === String(identifier) || user.email === normalizeEmail(identifier));
+    if (idx === -1) return { success: false, message: 'User not found.' };
+    const user = users[idx];
+    if (user.role === 'PARTICIPANT' && !getParticipantRecordByUserIdInternal(user.id)) {
+      return { success: false, message: 'Link this participant user to an active participant record before restoring access.' };
+    }
+    if (user.role === 'VOLUNTEER' && !getVolunteerProfileByUserIdInternal(user.id)) {
+      return { success: false, message: 'Link this volunteer user to an active volunteer profile before restoring access.' };
+    }
+    users[idx] = { ...user, accessStatus: 'ACTIVE' };
+    setJson(USERS_KEY, users);
+    return { success: true };
+  }
+
+  async function removeUser(identifier, options = {}) {
     const session = await getSession();
-    const user = getUserByEmailInternal(email);
+    const user = getUserByIdInternal(identifier) || getUserByEmailInternal(identifier);
     if (!user) return { success: false, message: 'User not found.' };
     if (session && session.userId === user.id) {
       return { success: false, message: 'You cannot delete your own account.' };
     }
-    if (userHasLinkedData(user.id)) {
+    const preserveLinkedRecords = options.preserveLinkedRecords !== false;
+    if (userHasLinkedData(user.id) && !preserveLinkedRecords && !options.deleteLinkedRecords) {
       return { success: false, message: 'This account is linked to participant or volunteer data. Unlink it first.' };
+    }
+    if (preserveLinkedRecords) {
+      setJson(PARTICIPANTS_KEY, getRawParticipants().map((participant) =>
+        String(participant.participantUserId) === String(user.id)
+          ? { ...participant, participantUserId: '', recordStatus: 'INACTIVE' }
+          : { ...participant, guardianUserIds: (participant.guardianUserIds || []).filter((guardianId) => String(guardianId) !== String(user.id)) }
+      ));
+      setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().map((profile) =>
+        String(profile.userId) === String(user.id)
+          ? { ...profile, userId: '', email: '', recordStatus: 'INACTIVE' }
+          : profile
+      ));
+    } else if (options.deleteLinkedRecords) {
+      getRawParticipants()
+        .filter((participant) => String(participant.participantUserId) === String(user.id))
+        .forEach((participant) => removeParticipant(participant.id, { deleteLinkedUser: false }));
+      getRawVolunteerProfiles()
+        .filter((profile) => String(profile.userId) === String(user.id))
+        .forEach((profile) => removeVolunteerProfile(profile.id || profile.userId, { deleteLinkedUser: false }));
     }
     setJson(USERS_KEY, getRawUsers().filter((candidate) => candidate.id !== user.id));
     return { success: true };
@@ -929,7 +1426,10 @@ const Auth = (() => {
       sensoryNotes: String(payload.sensoryNotes || '').trim(),
       guardianNotes: String(payload.guardianNotes || '').trim(),
       participantInterests: normalizeParticipantInterests(payload.participantInterests),
-      jobGoals: String(payload.jobGoals || '').trim()
+      jobGoals: String(payload.jobGoals || '').trim(),
+      bio: String(payload.bio || '').trim(),
+      dateOfBirth: String(payload.dateOfBirth || '').trim(),
+      recordStatus: normalizeRecordStatus(payload.recordStatus, 'ACTIVE')
     };
   }
 
@@ -978,10 +1478,12 @@ const Auth = (() => {
     participants.push({
       id: makeId('p'),
       ...normalized,
+      recordStatus: 'ACTIVE',
       createdAtMs: Date.now(),
       dateAdded: formatDateLabel(new Date())
     });
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(normalized.participantUserId);
     return { success: true };
   }
 
@@ -997,17 +1499,27 @@ const Auth = (() => {
     }
     participants[idx] = {
       ...participants[idx],
-      ...normalized
+      ...normalized,
+      recordStatus: 'ACTIVE'
     };
     setJson(PARTICIPANTS_KEY, participants);
+    activateUserAccess(normalized.participantUserId);
     return { success: true };
   }
 
-  async function removeParticipant(id) {
+  async function removeParticipant(id, options = {}) {
     const participants = getRawParticipants();
+    const target = participants.find((participant) => String(participant.id) === String(id));
     const filtered = participants.filter((participant) => String(participant.id) !== String(id));
     if (filtered.length === participants.length) {
       return { success: false, message: 'Participant record not found.' };
+    }
+    if (target?.participantUserId) {
+      if (options.deleteLinkedUser) {
+        setJson(USERS_KEY, getRawUsers().filter((user) => String(user.id) !== String(target.participantUserId)));
+      } else {
+        await revokeUserAccess(target.participantUserId);
+      }
     }
     setJson(PARTICIPANTS_KEY, filtered);
     setJson(EVENT_SIGNUPS_KEY, getRawEventSignups().filter((entry) => String(entry.participantId) !== String(id)));
@@ -1045,7 +1557,7 @@ const Auth = (() => {
     const session = await getSession();
     if (!session || session.role !== 'GUARDIAN') return false;
     const participant = getRawParticipants().find((entry) => String(entry.id) === String(participantId));
-    return Boolean(participant && (participant.guardianUserIds || []).map(String).includes(String(session.userId)));
+    return Boolean(participant && participant.recordStatus === 'ACTIVE' && (participant.guardianUserIds || []).map(String).includes(String(session.userId)));
   }
 
   async function updateMyParticipantProfile(payload) {
@@ -1071,23 +1583,19 @@ const Auth = (() => {
     const profiles = getRawVolunteerProfiles();
     const normalizedId = String(identifier || '').trim();
     const normalizedEmail = normalizeEmail(identifier);
-    const profile = profiles.find((entry) => String(entry.userId) === normalizedId || entry.email === normalizedEmail);
-    return profile || null;
+    const profile = profiles.find((entry) =>
+      String(entry.id) === normalizedId
+      || String(entry.userId) === normalizedId
+      || (entry.email && entry.email === normalizedEmail)
+    );
+    return profile ? decorateVolunteerProfile(profile) : null;
   }
 
   async function getVolunteerProfiles() {
     return getRawVolunteerProfiles()
       .slice()
       .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
-      .map((profile) => {
-        const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.email;
-        const linkedUser = getUserByIdInternal(profile.userId);
-        return {
-          ...profile,
-          fullName,
-          linkedUser
-        };
-      });
+      .map(decorateVolunteerProfile);
   }
 
   async function saveVolunteerProfile(payload) {
@@ -1098,6 +1606,7 @@ const Auth = (() => {
     }
 
     const record = {
+      id: String(payload.id || makeId('vp')),
       userId: volunteerUser.id,
       firstName: String(payload.firstName || '').trim(),
       lastName: String(payload.lastName || '').trim(),
@@ -1105,7 +1614,14 @@ const Auth = (() => {
       email: volunteerUser.email,
       interests: normalizeParticipantInterests(payload.interests),
       availability: String(payload.availability || '').trim(),
+      preferredLocation: String(payload.preferredLocation || '').trim(),
+      pronounsSubject: String(payload.pronounsSubject || '').trim(),
+      pronounsObject: String(payload.pronounsObject || '').trim(),
+      languagesSpoken: Array.isArray(payload.languagesSpoken)
+        ? payload.languagesSpoken.map(l => String(l).trim()).filter(Boolean)
+        : [],
       backgroundCheckStatus: String(payload.backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
+      recordStatus: 'ACTIVE',
       updatedAt: Date.now(),
       updatedAtLabel: new Date().toLocaleString('en-US', {
         year: 'numeric',
@@ -1117,7 +1633,8 @@ const Auth = (() => {
     };
 
     const idx = profiles.findIndex((profile) =>
-      String(profile.userId) === String(volunteerUser.id)
+      (payload.id && String(profile.id) === String(payload.id))
+      || String(profile.userId) === String(volunteerUser.id)
       || normalizeEmail(profile.email) === volunteerUser.email
     );
     if (idx >= 0) {
@@ -1127,7 +1644,7 @@ const Auth = (() => {
       if (conflicting) {
         return { success: false, message: 'That volunteer login is already linked to another volunteer profile.' };
       }
-      profiles[idx] = { ...profiles[idx], ...record };
+      profiles[idx] = { ...profiles[idx], ...record, id: profiles[idx].id || record.id };
     } else {
       const conflicting = profiles.find((profile) => String(profile.userId) === String(volunteerUser.id));
       if (conflicting) {
@@ -1136,15 +1653,154 @@ const Auth = (() => {
       profiles.push(record);
     }
     setJson(VOLUNTEER_PROFILES_KEY, profiles);
+    activateUserAccess(volunteerUser.id);
     return { success: true };
   }
 
-  async function removeVolunteerProfile(identifier) {
+  async function removeVolunteerProfile(identifier, options = {}) {
     const profile = await getVolunteerProfile(identifier);
     if (!profile) return { success: false, message: 'Volunteer profile not found.' };
-    setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().filter((entry) => String(entry.userId) !== String(profile.userId)));
+    if (profile.userId) {
+      if (options.deleteLinkedUser) {
+        setJson(USERS_KEY, getRawUsers().filter((user) => String(user.id) !== String(profile.userId)));
+      } else {
+        await revokeUserAccess(profile.userId);
+      }
+    }
+    setJson(VOLUNTEER_PROFILES_KEY, getRawVolunteerProfiles().filter((entry) =>
+      String(entry.id || entry.userId) !== String(profile.id || profile.userId)
+    ));
     return { success: true };
   }
+
+  // ─── Volunteer-Event Assignment Methods ───────────────────────────────────
+
+  async function assignVolunteerToEvent(eventId, volunteerEmail) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can assign volunteers to events.' };
+    }
+    const events = getRawEvents();
+    if (!events.find((e) => String(e.id) === String(eventId))) {
+      return { success: false, message: 'Event not found.' };
+    }
+    const profile = getRawVolunteerProfiles().find((p) => p.recordStatus === 'ACTIVE' && normalizeEmail(p.email) === normalizeEmail(volunteerEmail));
+    if (!profile) return { success: false, message: 'Volunteer profile not found.' };
+
+    const assignments = getRawVolunteerEventAssignments();
+    const duplicate = assignments.find(
+      (a) => String(a.eventId) === String(eventId) && normalizeEmail(a.volunteerEmail) === normalizeEmail(volunteerEmail)
+    );
+    if (duplicate) return { success: true, alreadyAssigned: true };
+
+    const now = Date.now();
+    assignments.push({
+      id: makeId('va'),
+      eventId: String(eventId),
+      volunteerEmail: normalizeEmail(volunteerEmail),
+      volunteerUserId: String(profile.userId),
+      volunteerName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || normalizeEmail(volunteerEmail),
+      selfSignedUp: false,
+      assignedByUserId: String(session.userId),
+      assignedByRole: 'ADMIN',
+      assignedAtMs: now,
+      assignedAtLabel: formatDateLabel(new Date(now))
+    });
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, assignments);
+    return { success: true };
+  }
+
+  async function removeVolunteerFromEvent(eventId, volunteerEmail) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can remove volunteer assignments.' };
+    }
+    const assignments = getRawVolunteerEventAssignments();
+    const filtered = assignments.filter(
+      (a) => !(String(a.eventId) === String(eventId) && normalizeEmail(a.volunteerEmail) === normalizeEmail(volunteerEmail))
+    );
+    if (filtered.length === assignments.length) return { success: false, message: 'Assignment not found.' };
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, filtered);
+    return { success: true };
+  }
+
+  async function selfSignUpForEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can sign up for events.' };
+    }
+    const events = getRawEvents();
+    if (!events.find((e) => String(e.id) === String(eventId))) {
+      return { success: false, message: 'Event not found.' };
+    }
+    const profile = getRawVolunteerProfiles().find((p) => p.recordStatus === 'ACTIVE' && String(p.userId) === String(session.userId));
+    if (!profile) return { success: false, message: 'Please complete your volunteer profile before signing up for events.' };
+
+    const assignments = getRawVolunteerEventAssignments();
+    const duplicate = assignments.find(
+      (a) => String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId)
+    );
+    if (duplicate) return { success: true, alreadySignedUp: true };
+
+    const now = Date.now();
+    assignments.push({
+      id: makeId('va'),
+      eventId: String(eventId),
+      volunteerEmail: normalizeEmail(session.email),
+      volunteerUserId: String(session.userId),
+      volunteerName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || session.name,
+      selfSignedUp: true,
+      assignedByUserId: String(session.userId),
+      assignedByRole: 'VOLUNTEER',
+      assignedAtMs: now,
+      assignedAtLabel: formatDateLabel(new Date(now))
+    });
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, assignments);
+    return { success: true };
+  }
+
+  async function withdrawFromEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') {
+      return { success: false, message: 'Only volunteers can withdraw from events.' };
+    }
+    const assignments = getRawVolunteerEventAssignments();
+    const filtered = assignments.filter(
+      (a) => !(String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId))
+    );
+    if (filtered.length === assignments.length) return { success: false, message: 'You are not signed up for this event.' };
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, filtered);
+    return { success: true };
+  }
+
+  async function getEventVolunteers(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return [];
+    return getRawVolunteerEventAssignments()
+      .filter((a) => String(a.eventId) === String(eventId))
+      .sort((a, b) => (a.assignedAtMs || 0) - (b.assignedAtMs || 0));
+  }
+
+  async function getMyVolunteerEvents() {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return [];
+    const userAssignments = getRawVolunteerEventAssignments().filter(
+      (a) => String(a.volunteerUserId) === String(session.userId)
+    );
+    const eventIds = new Set(userAssignments.map((a) => String(a.eventId)));
+    const events = await getEvents();
+    return events.filter((e) => eventIds.has(String(e.id)));
+  }
+
+  async function isSignedUpForEvent(eventId) {
+    const session = await getSession();
+    if (!session || session.role !== 'VOLUNTEER') return false;
+    return getRawVolunteerEventAssignments().some(
+      (a) => String(a.eventId) === String(eventId) && String(a.volunteerUserId) === String(session.userId)
+    );
+  }
+
+  // ─── End Volunteer-Event Assignment Methods ────────────────────────────────
 
   function eventDuplicate(events, payload, skipId = null) {
     const title = String(payload.title || '').trim().toLowerCase();
@@ -1192,6 +1848,59 @@ const Auth = (() => {
     return total === 0 ? 'Free' : `$${total.toFixed(2)}`;
   }
 
+  const AGE_REQUIREMENT = { ALL: 'ALL', MIN_16: '16', MIN_18: '18' };
+
+  function normalizeAgeRequirement(val) {
+    const s = String(val == null ? 'ALL' : val).toUpperCase().trim();
+    if (s === '16' || s === '16+' || s === 'MIN_16') return AGE_REQUIREMENT.MIN_16;
+    if (s === '18' || s === '18+' || s === 'MIN_18') return AGE_REQUIREMENT.MIN_18;
+    return AGE_REQUIREMENT.ALL;
+  }
+
+  function minAgeForRequirement(req) {
+    const n = normalizeAgeRequirement(req);
+    if (n === AGE_REQUIREMENT.MIN_16) return 16;
+    if (n === AGE_REQUIREMENT.MIN_18) return 18;
+    return 0;
+  }
+
+  function parseParticipantAge(ageVal) {
+    if (ageVal === '' || ageVal == null) return null;
+    const n = parseInt(String(ageVal).trim(), 10);
+    return Number.isFinite(n) && n >= 0 && n < 150 ? n : null;
+  }
+
+  function ageFromDateOfBirth(isoYmd) {
+    const raw = String(isoYmd || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+    const d = new Date(`${raw}T12:00:00`);
+    if (isNaN(d.getTime())) return null;
+    const t = new Date();
+    let age = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) age -= 1;
+    return age;
+  }
+
+  function assertParticipantMeetsAgeRequirement(participant, req) {
+    const min = minAgeForRequirement(req);
+    if (min === 0) return { ok: true };
+    const age = parseParticipantAge(participant?.age);
+    if (age == null) {
+      return {
+        ok: false,
+        message: 'This opportunity has a minimum age. Your profile must list your age — ask a guardian or administrator to update your participant record if needed.'
+      };
+    }
+    if (age < min) {
+      return {
+        ok: false,
+        message: `This opportunity is only available to participants age ${min}+.`
+      };
+    }
+    return { ok: true };
+  }
+
   async function addEvent(payload) {
     const events = getRawEvents();
     if (eventDuplicate(events, payload)) {
@@ -1209,6 +1918,7 @@ const Auth = (() => {
       programFee,
       materialsCost,
       cost: buildCostSummary(programFee, materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent),
       createdAtMs: Date.now(),
@@ -1237,6 +1947,7 @@ const Auth = (() => {
       programFee,
       materialsCost,
       cost: buildCostSummary(programFee, materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       accommodations: String(payload.accommodations || '').trim(),
       isUrgent: Boolean(payload.isUrgent)
     };
@@ -1294,6 +2005,12 @@ const Auth = (() => {
     const participant = getParticipantForActor(session, options.participantId);
     if (!participant) {
       return { success: false, message: session.role === 'GUARDIAN' ? 'Choose a linked participant first.' : 'No participant profile is linked to this account.' };
+    }
+
+    const ev = getRawEvents().find((e) => String(e.id) === String(eventId));
+    if (ev) {
+      const ageCheck = assertParticipantMeetsAgeRequirement(participant, ev.ageRequirement);
+      if (!ageCheck.ok) return { success: false, message: ageCheck.message };
     }
 
     const signups = getRawEventSignups();
@@ -1376,6 +2093,7 @@ const Auth = (() => {
       payRate,
       programFee: parseNonNegativeNumber(payload.programFee),
       materialsCost: parseNonNegativeNumber(payload.materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent),
@@ -1404,6 +2122,7 @@ const Auth = (() => {
       payRate,
       programFee: parseNonNegativeNumber(payload.programFee),
       materialsCost: parseNonNegativeNumber(payload.materialsCost),
+      ageRequirement: normalizeAgeRequirement(payload.ageRequirement),
       requirements: String(payload.requirements || '').trim(),
       status: String(payload.status || jobs[idx].status || 'Open').trim() || 'Open',
       isUrgent: Boolean(payload.isUrgent)
@@ -1418,6 +2137,7 @@ const Auth = (() => {
     if (filtered.length === jobs.length) return { success: false, message: 'Job opportunity not found.' };
     setJson(JOBS_KEY, filtered);
     setJson(JOB_INTERESTS_KEY, getRawJobInterests().filter((entry) => String(entry.jobId) !== String(id)));
+    setJson(JOB_APPLICATIONS_KEY, getRawJobApplications().filter((app) => String(app.jobId) !== String(id)));
     setJson(APPROVALS_KEY, getRawApprovals().filter((entry) => String(entry.jobId) !== String(id)));
     return { success: true };
   }
@@ -1461,23 +2181,60 @@ const Auth = (() => {
     if (!session || session.role !== 'PARTICIPANT') return {};
     const participant = getParticipantRecordByUserIdInternal(session.userId);
     if (!participant) return {};
+
     const statusMap = {};
-    getRawJobInterests()
-      .filter((entry) => String(entry.participantId) === String(participant.id))
-      .forEach((entry) => {
-        statusMap[String(entry.jobId)] = 'APPROVED';
-      });
+    const participantId = participant.id;
+
+    // Check pending guardian approvals
     getRawApprovals()
-      .filter((approval) => String(approval.participantId) === String(participant.id) && approval.type === 'JOB_INTEREST')
-      .forEach((approval) => {
-        statusMap[String(approval.jobId)] = approval.status;
+      .filter((a) => a.type === 'JOB_INTEREST' && a.status === 'PENDING' && String(a.participantId) === String(participantId))
+      .forEach((a) => { statusMap[String(a.jobId)] = 'PENDING'; });
+
+    // Pipeline applications override pending (most recent wins per job)
+    getRawJobApplications()
+      .filter((app) => String(app.participantId) === String(participantId))
+      .sort((a, b) => a.appliedAtMs - b.appliedAtMs)
+      .forEach((app) => {
+        if (app.status === 'WITHDRAWN' || app.status === 'REJECTED') return;
+        statusMap[String(app.jobId)] = app.status;
       });
+
     return statusMap;
   }
 
   async function getInterestedJobIds() {
     const statuses = await getMyJobInterestStatuses();
-    return Object.keys(statuses).filter((jobId) => statuses[jobId] === 'APPROVED');
+    return Object.keys(statuses).filter((jobId) => !['REJECTED', 'PENDING', 'WITHDRAWN'].includes(statuses[jobId]));
+  }
+
+  function withdrawJobApplication(session, participant, jobId) {
+    const normalizedJobId = String(jobId || '').trim();
+    const applications = getRawJobApplications();
+    const idx = applications.findIndex((app) =>
+      String(app.participantId) === String(participant.id)
+      && String(app.jobId) === normalizedJobId
+      && !['REJECTED', 'WITHDRAWN'].includes(app.status)
+    );
+    if (idx === -1) return { success: false, message: 'No active application to withdraw for this job.' };
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+    const app = applications[idx];
+    app.status = 'WITHDRAWN';
+    app.updatedAtMs = now;
+    app.updatedAtLabel = dateLabel;
+    app.updatedByUserId = String(session.userId);
+    app.statusHistory = Array.isArray(app.statusHistory) ? app.statusHistory : [];
+    app.statusHistory.push({
+      status: 'WITHDRAWN',
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      changedByUserId: String(session.userId),
+      changedByRole: session.role,
+      note: 'Participant or guardian withdrew from this opportunity'
+    });
+    applications[idx] = app;
+    setJson(JOB_APPLICATIONS_KEY, applications);
+    return { success: true, status: 'WITHDRAWN' };
   }
 
   async function toggleJobInterest(jobId, options = {}) {
@@ -1494,16 +2251,9 @@ const Auth = (() => {
 
     const normalizedJobId = String(jobId || '').trim();
     const jobs = getRawJobs();
-    if (!jobs.some((job) => String(job.id) === normalizedJobId)) {
+    const job = jobs.find((j) => String(j.id) === normalizedJobId);
+    if (!job) {
       return { success: false, message: 'Job opportunity not found.' };
-    }
-
-    const approvedInterest = getRawJobInterests().find((entry) =>
-      String(entry.participantId) === String(participant.id) && String(entry.jobId) === normalizedJobId
-    );
-    if (approvedInterest) {
-      setJson(JOB_INTERESTS_KEY, getRawJobInterests().filter((entry) => String(entry.id) !== String(approvedInterest.id)));
-      return { success: true, status: 'REMOVED' };
     }
 
     const pendingApproval = getRawApprovals().find((entry) =>
@@ -1517,11 +2267,48 @@ const Auth = (() => {
       return { success: true, status: 'REMOVED_PENDING' };
     }
 
+    const existingApplication = getRawJobApplications().find((app) =>
+      String(app.participantId) === String(participant.id)
+      && String(app.jobId) === normalizedJobId
+      && !['REJECTED', 'WITHDRAWN'].includes(app.status)
+    );
+    if (existingApplication) {
+      return withdrawJobApplication(session, participant, normalizedJobId);
+    }
+
+    const ageCheck = assertParticipantMeetsAgeRequirement(participant, job.ageRequirement);
+    if (!ageCheck.ok) {
+      return { success: false, message: ageCheck.message };
+    }
+
     if (session.role === 'GUARDIAN') {
-      const interests = getRawJobInterests();
-      interests.push(buildApprovedInterest(participant, normalizedJobId, session, session.userId));
-      setJson(JOB_INTERESTS_KEY, interests);
-      return { success: true, status: 'APPROVED' };
+      const now = Date.now();
+      const dateLabel = makeDateLabel();
+      const applications = getRawJobApplications();
+      applications.push({
+        id: makeId('ja'),
+        participantId: participant.id,
+        participantUserId: participant.participantUserId,
+        guardianUserIds: participant.guardianUserIds,
+        jobId: normalizedJobId,
+        status: 'APPLIED',
+        appliedAtMs: now,
+        appliedAtLabel: dateLabel,
+        updatedAtMs: now,
+        updatedAtLabel: dateLabel,
+        updatedByUserId: String(session.userId),
+        notes: '',
+        statusHistory: [{
+          status: 'APPLIED',
+          changedAtMs: now,
+          changedAtLabel: dateLabel,
+          changedByUserId: String(session.userId),
+          changedByRole: 'GUARDIAN',
+          note: ''
+        }]
+      });
+      setJson(JOB_APPLICATIONS_KEY, applications);
+      return { success: true, status: 'APPLIED' };
     }
 
     const approvals = getRawApprovals();
@@ -1592,67 +2379,132 @@ const Auth = (() => {
     if (decisionUpper === 'APPROVED') {
       const participant = getRawParticipants().find((entry) => String(entry.id) === String(approval.participantId));
       if (participant) {
-        const interests = getRawJobInterests();
-        interests.push({
-          id: makeId('ji'),
+        const now = Date.now();
+        const dateLabel = makeDateLabel();
+        const applications = getRawJobApplications();
+        applications.push({
+          id: makeId('ja'),
           participantId: participant.id,
           participantUserId: participant.participantUserId,
           guardianUserIds: participant.guardianUserIds,
           jobId: approval.jobId,
-          status: 'APPROVED',
-          requestedByRole: approval.requestedByRole,
-          requestedByUserId: approval.requestedByUserId,
-          approvedByUserId: session.userId,
-          createdAtMs: approval.createdAtMs,
-          approvedAtMs: Date.now()
+          status: 'APPLIED',
+          appliedAtMs: now,
+          appliedAtLabel: dateLabel,
+          updatedAtMs: now,
+          updatedAtLabel: dateLabel,
+          updatedByUserId: String(session.userId),
+          notes: String(notes || '').trim(),
+          statusHistory: [{
+            status: 'APPLIED',
+            changedAtMs: now,
+            changedAtLabel: dateLabel,
+            changedByUserId: String(session.userId),
+            changedByRole: 'GUARDIAN',
+            note: String(notes || '').trim()
+          }]
         });
-        setJson(JOB_INTERESTS_KEY, interests);
+        setJson(JOB_APPLICATIONS_KEY, applications);
       }
     }
 
     return { success: true };
   }
 
-  async function getJobInterestSummary() {
-    const participants = await getParticipants();
-    const participantMap = new Map(participants.map((participant) => [String(participant.id), participant]));
-    const summary = {};
+  async function getJobApplicationSummary() {
+    const participants = getRawParticipants();
+    const users = getRawUsers();
+    const participantMap = new Map(participants.map((p) => [String(p.id), p]));
+    const userMap = new Map(users.map((u) => [String(u.id), u]));
 
-    getRawJobInterests().forEach((interest) => {
-      const jobId = String(interest.jobId);
-      const participant = participantMap.get(String(interest.participantId));
-      if (!participant) return;
-      if (!summary[jobId]) summary[jobId] = { approved: [], pending: [] };
-      const already = summary[jobId].approved.some((entry) => entry.participantId === participant.id);
-      if (!already) {
-        summary[jobId].approved.push({
-          participantId: participant.id,
-          name: participant.fullName,
-          email: participant.participantUser?.email || '',
-          guardianNames: participant.guardianNames
-        });
+    const summary = {};
+    const ensure = (jobId) => {
+      if (!summary[jobId]) {
+        summary[jobId] = { pending: [], applied: [], interview: [], offer: [], started: [], rejected: [], withdrawn: [] };
+      }
+    };
+    const entryFor = (participantId) => {
+      const p = participantMap.get(String(participantId));
+      const u = p ? userMap.get(String(p.participantUserId)) : null;
+      return { participantId, name: p ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'Unknown', email: u?.email || '' };
+    };
+
+    getRawApprovals()
+      .filter((a) => a.type === 'JOB_INTEREST' && a.status === 'PENDING')
+      .forEach((a) => { ensure(String(a.jobId)); summary[String(a.jobId)].pending.push(entryFor(a.participantId)); });
+
+    getRawJobApplications().forEach((app) => {
+      ensure(String(app.jobId));
+      const key = app.status.toLowerCase();
+      if (summary[String(app.jobId)][key]) {
+        summary[String(app.jobId)][key].push(entryFor(app.participantId));
+      } else if (key === 'withdrawn' && summary[String(app.jobId)].withdrawn) {
+        summary[String(app.jobId)].withdrawn.push(entryFor(app.participantId));
       }
     });
 
-    getRawApprovals()
-      .filter((approval) => approval.type === 'JOB_INTEREST' && approval.status === 'PENDING')
-      .forEach((approval) => {
-        const jobId = String(approval.jobId);
-        const participant = participantMap.get(String(approval.participantId));
-        if (!participant) return;
-        if (!summary[jobId]) summary[jobId] = { approved: [], pending: [] };
-        const already = summary[jobId].pending.some((entry) => entry.participantId === participant.id);
-        if (!already) {
-          summary[jobId].pending.push({
-            participantId: participant.id,
-            name: participant.fullName,
-            email: participant.participantUser?.email || '',
-            guardianNames: participant.guardianNames
-          });
-        }
-      });
-
     return summary;
+  }
+
+  async function getJobApplications(jobId = null) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can view all applications.' };
+    const participants = getRawParticipants();
+    const users = getRawUsers();
+    const jobs = getRawJobs();
+    const participantMap = new Map(participants.map((p) => [String(p.id), p]));
+    const userMap = new Map(users.map((u) => [String(u.id), u]));
+    const jobMap = new Map(jobs.map((j) => [String(j.id), j]));
+
+    let apps = getRawJobApplications();
+    if (jobId) apps = apps.filter((a) => String(a.jobId) === String(jobId));
+    return apps.map((app) => {
+      const p = participantMap.get(String(app.participantId));
+      const u = p ? userMap.get(String(p.participantUserId)) : null;
+      return {
+        ...app,
+        participantName: p ? `${p.firstName || ''} ${p.lastName || ''}`.trim() : 'Unknown',
+        participantEmail: u?.email || '',
+        job: jobMap.get(String(app.jobId)) || null
+      };
+    }).sort((a, b) => b.appliedAtMs - a.appliedAtMs);
+  }
+
+  const APP_STATUS_TRANSITIONS = {
+    APPLIED:   ['INTERVIEW', 'OFFER', 'REJECTED'],
+    INTERVIEW: ['OFFER', 'REJECTED'],
+    OFFER:     ['STARTED', 'REJECTED'],
+    STARTED:   ['REJECTED'],
+    REJECTED:  []
+  };
+
+  async function updateApplicationStatus(applicationId, newStatus, notes = '') {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Only administrators can update application status.' };
+    const applications = getRawJobApplications();
+    const idx = applications.findIndex((a) => String(a.id) === String(applicationId));
+    if (idx === -1) return { success: false, message: 'Application not found.' };
+    const app = applications[idx];
+    if (!(APP_STATUS_TRANSITIONS[app.status] || []).includes(newStatus)) {
+      return { success: false, message: `Cannot move from ${app.status} to ${newStatus}.` };
+    }
+    const now = Date.now();
+    const dateLabel = makeDateLabel();
+    app.status = newStatus;
+    app.notes = String(notes || '').trim();
+    app.updatedAtMs = now;
+    app.updatedAtLabel = dateLabel;
+    app.updatedByUserId = String(session.userId);
+    app.statusHistory.push({
+      status: newStatus,
+      changedAtMs: now,
+      changedAtLabel: dateLabel,
+      changedByUserId: String(session.userId),
+      changedByRole: 'ADMIN',
+      note: app.notes
+    });
+    setJson(JOB_APPLICATIONS_KEY, applications);
+    return { success: true };
   }
 
   function buildDistributedNewsletterBody(entry) {
@@ -1706,7 +2558,27 @@ const Auth = (() => {
       'Kindred Administration'
     ].join('\n');
 
-    return { weekLabel, subject, preview, body };
+    const eventHighlights = [
+      'Upcoming events',
+      eventLines,
+      '',
+      'Job opportunities',
+      jobLines
+    ].join('\n');
+
+    const updates = [
+      preview,
+      '',
+      participants.length
+        ? `Our participant roster currently includes ${participants.length} registered participant${participants.length === 1 ? '' : 's'}.`
+        : 'Participant records can be added by administrators so future newsletters stay aligned with family needs.',
+      '',
+      'Next steps for families',
+      '- Review event accommodations and job requirements in the dashboard before registering interest.',
+      '- Reach out to your Kindred coordinator if you need accessibility support or help choosing the best fit.'
+    ].join('\n');
+
+    return { weekLabel, subject, preview, body, eventHighlights, updates };
   }
 
   async function getNewsletters() {
@@ -1778,6 +2650,8 @@ const Auth = (() => {
       subject: content.subject,
       preview: content.preview,
       body: content.body,
+      eventHighlights: content.eventHighlights,
+      updates: content.updates,
       audience: 'Participants and families',
       eventCount: upcomingEvents.length,
       jobCount: highlightedJobs.length,
@@ -1901,10 +2775,22 @@ const Auth = (() => {
     return getBgCheckRecordInternal(session.userId);
   }
 
-  async function submitBgCheckConsent() {
+  async function submitBgCheckConsent(options = {}) {
     const session = await getSession();
     if (!session || session.role !== 'VOLUNTEER') {
       return { success: false, message: 'Only volunteers can submit background check consent.' };
+    }
+
+    const dob = String(options.dateOfBirth || options.volunteerDateOfBirth || '').trim();
+    if (!dob) {
+      return { success: false, message: 'Date of birth is required for background check consent. You must be 18 or older to participate as a volunteer.' };
+    }
+    const volAge = ageFromDateOfBirth(dob);
+    if (volAge == null) {
+      return { success: false, message: 'Please enter a valid date of birth (YYYY-MM-DD).' };
+    }
+    if (volAge < 18) {
+      return { success: false, message: 'Volunteers must be at least 18 years old. Your application cannot be processed until you meet this requirement.' };
     }
 
     const records = getRawBgChecks();
@@ -1930,12 +2816,14 @@ const Auth = (() => {
       existing.consentSubmitted = true;
       existing.consentSubmittedAtMs = now;
       existing.consentSubmittedAtLabel = dateLabel;
+      existing.submitterDateOfBirth = dob;
       existing.status = 'Pending';
       existing.statusHistory.push(historyEntry);
     } else {
       records.push({
         id: makeId('bgc'),
         volunteerUserId: session.userId,
+        submitterDateOfBirth: dob,
         consentSubmitted: true,
         consentSubmittedAtMs: now,
         consentSubmittedAtLabel: dateLabel,
@@ -2395,17 +3283,25 @@ const Auth = (() => {
   const NOTIFICATION_READS_KEY   = 'kindred_notification_reads';
   const NOTIFICATION_DELETES_KEY = 'kindred_notification_deletes';
 
+  function getNotificationIdList(key) {
+    const parsed = parseJson(key, []);
+    return Array.isArray(parsed)
+      ? parsed.map((id) => String(id || '').trim()).filter(Boolean)
+      : [];
+  }
+
   function getReadNotificationIds() {
-    try { return JSON.parse(localStorage.getItem(NOTIFICATION_READS_KEY)) || []; } catch { return []; }
+    return getNotificationIdList(NOTIFICATION_READS_KEY);
   }
 
   function getDeletedNotificationIds() {
-    try { return JSON.parse(localStorage.getItem(NOTIFICATION_DELETES_KEY)) || []; } catch { return []; }
+    return getNotificationIdList(NOTIFICATION_DELETES_KEY);
   }
 
   function markNotificationsRead(notificationIds) {
     const existing = getReadNotificationIds();
-    const merged = Array.from(new Set([...existing, ...notificationIds]));
+    const incoming = Array.isArray(notificationIds) ? notificationIds.map((id) => String(id || '').trim()).filter(Boolean) : [];
+    const merged = Array.from(new Set([...existing, ...incoming]));
     localStorage.setItem(NOTIFICATION_READS_KEY, JSON.stringify(merged));
     return { success: true };
   }
@@ -2420,7 +3316,8 @@ const Auth = (() => {
 
   function deleteMyNotification(notificationId) {
     const existing = getDeletedNotificationIds();
-    const merged = Array.from(new Set([...existing, String(notificationId)]));
+    const id = String(notificationId || '').trim();
+    const merged = id ? Array.from(new Set([...existing, id])) : existing;
     localStorage.setItem(NOTIFICATION_DELETES_KEY, JSON.stringify(merged));
     return { success: true };
   }
@@ -2857,10 +3754,15 @@ const Auth = (() => {
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
-  initStores();
+  ensureStoresHydrated();
 
   return {
     ROLES,
+    AGE_REQUIREMENT,
+    normalizeAgeRequirement,
+    minAgeForRequirement,
+    parseParticipantAge,
+    assertParticipantMeetsAgeRequirement,
     getSession,
     login,
     requireAuth,
@@ -2869,7 +3771,10 @@ const Auth = (() => {
     getUsers,
     getUserById,
     addUser,
+    createUserWithLinkedRecord,
     updateUser,
+    revokeUserAccess,
+    restoreUserAccess,
     removeUser,
     getParticipants,
     getParticipantById,
@@ -2884,6 +3789,13 @@ const Auth = (() => {
     getVolunteerProfiles,
     saveVolunteerProfile,
     removeVolunteerProfile,
+    assignVolunteerToEvent,
+    removeVolunteerFromEvent,
+    selfSignUpForEvent,
+    withdrawFromEvent,
+    getEventVolunteers,
+    getMyVolunteerEvents,
+    isSignedUpForEvent,
     getEvents,
     addEvent,
     updateEvent,
@@ -2902,7 +3814,9 @@ const Auth = (() => {
     toggleJobInterest,
     getPendingApprovals,
     decideApproval,
-    getJobInterestSummary,
+    getJobApplicationSummary,
+    getJobApplications,
+    updateApplicationStatus,
     getNewsletters,
     generateWeeklyNewsletter,
     getNewsletterDraft,

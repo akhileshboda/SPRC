@@ -1,0 +1,135 @@
+<!-- ══ SECTION: Volunteer — My Profile ══ -->
+<section id="section-v-profile" class="content-section d-none">
+
+  <!-- Status / error messages (outside form so they persist across sections) -->
+  <div id="volunteerProfileStatus" class="alert alert-success d-none mb-3" role="alert"></div>
+  <div id="volunteerProfileError"  class="alert alert-danger  d-none mb-3" role="alert"></div>
+
+  <form id="volunteerProfileForm" novalidate>
+    <div class="profile-shell">
+
+      <!-- Header -->
+      <div class="profile-header" id="volProfileHeader"></div>
+
+      <!-- Two-column grid -->
+      <div class="profile-grid">
+
+        <!-- ── Primary column ─────────────────────────────── -->
+        <div class="profile-main">
+
+          <!-- Identity -->
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Identity</h3>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="volFirstName" class="form-label">First Name</label>
+                <input type="text" class="form-control" id="volFirstName" required>
+                <div class="invalid-feedback">First name is required.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label for="volLastName" class="form-label">Last Name</label>
+                <input type="text" class="form-control" id="volLastName" required>
+                <div class="invalid-feedback">Last name is required.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label for="volPhone" class="form-label">Phone Number</label>
+                <input type="tel" class="form-control" id="volPhone"
+                  placeholder="e.g. (555) 555-0101"
+                  pattern="[\+]?[\d\s\-\(\)]{7,20}"
+                  title="Enter a valid phone number"
+                  required>
+                <div class="invalid-feedback">Enter a valid phone number.</div>
+              </div>
+
+              <div class="col-md-6">
+                <label for="volEmail" class="form-label">Email</label>
+                <input type="email" class="form-control" id="volEmail" readonly
+                  aria-label="Email — managed by your account">
+                <div class="form-text text-muted">Visible to you. Managed by your account.</div>
+              </div>
+
+              <!-- Pronouns -->
+              <div class="col-md-4">
+                <label for="volPronounsSubject" class="form-label">Pronouns (Subject)</label>
+                <select class="form-select" id="volPronounsSubject">
+                  <option value="">Prefer not to say</option>
+                  <option value="he">he</option>
+                  <option value="she">she</option>
+                  <option value="they">they</option>
+                  <option value="ze">ze</option>
+                </select>
+              </div>
+
+              <div class="col-md-4">
+                <label for="volPronounsObject" class="form-label">Pronouns (Object)</label>
+                <select class="form-select" id="volPronounsObject">
+                  <option value="">Prefer not to say</option>
+                  <option value="him">him</option>
+                  <option value="her">her</option>
+                  <option value="them">them</option>
+                  <option value="zir">zir</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Languages Spoken -->
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Languages Spoken</h3>
+            <div id="volLanguagesChips"></div>
+          </div>
+
+          <!-- Interests -->
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Interests</h3>
+            <div id="volInterestsChips"></div>
+          </div>
+
+          <!-- Availability -->
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Availability</h3>
+            <div class="row g-3">
+              <div class="col-12">
+                <label for="volAvailability" class="form-label">Schedule Preferences</label>
+                <textarea class="form-control" id="volAvailability" rows="3"
+                  placeholder="e.g. Weeknights after 6PM, Saturday mornings"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label for="volPreferredLocation" class="form-label">Preferred Location</label>
+                <input type="text" class="form-control" id="volPreferredLocation"
+                  placeholder="e.g. Downtown Community Center">
+              </div>
+            </div>
+          </div>
+
+          <!-- Compliance (read-only display) -->
+          <div class="profile-section-card">
+            <h3 class="profile-section-title">Compliance</h3>
+            <div id="volComplianceDisplay">
+              <span class="text-muted small">Background check status will appear here once your profile is saved.</span>
+            </div>
+          </div>
+
+        </div><!-- /.profile-main -->
+
+        <!-- ── Rail (empty for volunteer self-service; reserved for future use) -->
+        <div class="profile-rail" id="volProfileRail"></div>
+
+      </div><!-- /.profile-grid -->
+
+      <!-- Sticky action bar -->
+      <div class="profile-actions-bar">
+        <button type="submit" class="btn btn-primary fw-semibold" id="volunteerProfileSubmitBtn">
+          <i class="bi bi-check-lg me-1"></i>Save Changes
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="volunteerProfileCancelBtn">
+          Cancel
+        </button>
+      </div>
+
+    </div><!-- /.profile-shell -->
+  </form>
+
+</section>

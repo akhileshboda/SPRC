@@ -1,0 +1,157 @@
+<!-- ══ SECTION: Dashboard (shown by default) ══ -->
+<section id="section-dashboard" class="content-section">
+
+  <h4 id="welcomeHeading" class="mb-4 text-secondary"></h4>
+
+  <!-- ADMIN: welcome card directing to sidebar sections -->
+  <div id="panel-ADMIN" class="d-none">
+    <div id="adminDashboardStats" class="row g-3 mb-4"></div>
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-danger text-white fw-semibold">Where to go next</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3 mb-md-0">Open any area below or use the sidebar. Search boxes on list pages filter rows as you type.</p>
+        <div class="row g-2 mt-md-2">
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="navigateTo('participants')"><i class="bi bi-people me-1"></i>Participants</button>
+          </div>
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-outline-info btn-sm text-dark" onclick="navigateTo('volunteers')"><i class="bi bi-hand-thumbs-up me-1"></i>Volunteers</button>
+          </div>
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="navigateTo('events')"><i class="bi bi-calendar-event me-1"></i>Events</button>
+          </div>
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('jobs')"><i class="bi bi-briefcase me-1"></i>Jobs</button>
+          </div>
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="navigateTo('users')"><i class="bi bi-person-badge me-1"></i>Users</button>
+          </div>
+          <div class="col-6 col-md-4 col-lg-2 d-grid">
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="navigateTo('newsletter')"><i class="bi bi-envelope-paper me-1"></i>Newsletter</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(79,98,176,0.08), rgba(43,181,160,0.10));">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+          <div>
+            <div class="text-uppercase fw-bold small mb-2" style="letter-spacing: 0.08em; color: #4F62B0;">Weekly Communication</div>
+            <h5 class="mb-2">Generate weekly newsletters for participants and families</h5>
+            <p class="text-muted mb-0">
+              Kindred can compile current opportunities into a ready-to-send update for families each week.
+            </p>
+          </div>
+          <button id="adminGenerateNewsletterQuickBtn" class="btn btn-primary align-self-start align-self-lg-center" type="button">
+            <i class="bi bi-envelope-paper me-2"></i>Generate This Week's Newsletter
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="card shadow-sm border-0 mt-3" style="background: linear-gradient(135deg, rgba(220,53,69,0.07), rgba(245,166,35,0.09));">
+      <div class="card-body p-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+          <div>
+            <div class="text-uppercase fw-bold small mb-2" style="letter-spacing: 0.08em; color: #dc3545;">Urgent Opportunity Dispatcher</div>
+            <h5 class="mb-2">Send targeted alerts for time-sensitive events &amp; jobs</h5>
+            <p class="text-muted mb-0">
+              The system monitors for urgent opportunities and drafts targeted notifications for relevant participants and families.
+            </p>
+          </div>
+          <button id="adminUrgentAlertsQuickBtn" class="btn btn-danger align-self-start align-self-lg-center" type="button">
+            <i class="bi bi-bell-fill me-2"></i>Review Urgent Alerts
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GUARDIAN: dashboard -->
+  <div id="panel-GUARDIAN" class="d-none">
+    <div id="guardianDashboardSummary"></div>
+  </div>
+
+  <!-- PARTICIPANT: Portal home —— upcoming events + job opportunities preview -->
+  <div id="panel-PARTICIPANT" class="d-none">
+    <div id="p-dashboard-snapshot" class="mb-4"></div>
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-success text-white fw-semibold">
+        <i class="bi bi-person-vcard me-2"></i>My Profile
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3">Review the parts of your profile that guide events, jobs, and support planning, then open the full workspace to make updates.</p>
+        <div id="participantDashboardProfileSummary"></div>
+      </div>
+    </div>
+
+    <!-- Urgent Notifications banner (hidden until populated by participant.js) -->
+    <div id="p-notifications-banner" class="d-none mb-4"></div>
+
+    <!-- Upcoming Events preview -->
+    <div class="portal-section mb-5">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <h5 class="portal-section-title mb-0"><i class="bi bi-calendar-event me-2 text-success" aria-hidden="true"></i>Upcoming events</h5>
+          <p class="text-muted small mb-0">A sample of what is published—open <strong>My saved events</strong> in the sidebar for the list you marked on the public board.</p>
+        </div>
+        <button class="btn btn-outline-success btn-sm" type="button"
+                onclick="navigateTo('p-events')">
+          View all <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+      </div>
+      <div id="p-dashboard-events"></div>
+    </div>
+
+    <!-- Job Opportunities (public browse + saved interests) -->
+    <div class="portal-section">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <h5 class="portal-section-title mb-0"><i class="bi bi-briefcase me-2" style="color:#6f42c1"></i>Job Opportunities</h5>
+          <p class="text-muted small mb-0">Browse all jobs on the public Jobs page and save interests while signed in.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My pipeline</button>
+          <a href="jobs.html" class="btn btn-sm" style="color:#6f42c1;border-color:#6f42c1;">
+            Browse jobs <i class="bi bi-box-arrow-up-right ms-1"></i>
+          </a>
+        </div>
+      </div>
+      <div id="p-saved-jobs"></div>
+    </div>
+
+  </div>
+
+  <!-- VOLUNTEER: My Saved Events -->
+  <div id="panel-VOLUNTEER-saved" class="d-none">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white fw-semibold">
+        <i class="bi bi-bookmark-heart me-2" aria-hidden="true"></i>My event sign-ups
+      </div>
+      <div class="card-body" id="volunteerSavedEvents">
+        <p class="text-muted small mb-0">Events where you have signed up as a volunteer. <a href="events.html">Browse events</a> and use the sign-up action on a card to add more.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOLUNTEER: Volunteer Portal card -->
+  <div id="panel-VOLUNTEER" class="d-none">
+
+    <div id="volunteerDashboardSnapshot"></div>
+
+    <!-- Matched Events row (populated by volunteer.js after profile load) -->
+    <div class="card shadow-sm mb-4" id="volMatchedEventsCard">
+      <div class="card-header bg-info bg-opacity-10 border-info border-opacity-25 d-flex align-items-center gap-2">
+        <i class="bi bi-stars text-info fs-5"></i>
+        <span class="text-info fw-semibold">Your Matched Events</span>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-2">Based on your interests, these events may be a great fit for you:</p>
+        <div id="volMatchedEvents">
+          <p class="text-muted small">Complete your interests below to see your matched events.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</section>

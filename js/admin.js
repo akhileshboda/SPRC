@@ -3,8 +3,8 @@
  * Handles administrator workflows for users, participants, volunteers,
  * events, jobs, and communications.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || session.role !== 'ADMIN') return;
 
   const ROLE_BADGE = {
@@ -21,6 +21,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     VOLUNTEER: 'Volunteer'
   };
 
+  const ACCESS_BADGE = {
+    ACTIVE: 'bg-success',
+    REVOKED: 'bg-secondary'
+  };
+
   function canonicalRole(role) {
     const normalized = String(role || '').trim().toUpperCase();
     if (normalized === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
@@ -33,12 +38,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     Vocational: 'badge-event-vocational'
   };
 
+  function formatAgeReqLabel(val) {
+    const min = Auth.minAgeForRequirement(val);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
+  }
+
+  function setGuardianAccountDobMax() {
+    const el = document.getElementById('regGuardianDateOfBirth');
+    if (!el) return;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    el.max = d.toISOString().slice(0, 10);
+  }
+
+  const { renderProfileHeader, renderInterestChips, renderLanguageChips,
+          VOLUNTEER_INTERESTS, renderCompletenessMeter, calcCompleteness,
+          linkedRowHTML, adminNoteHTML, fieldAttrBadge } = await import('./profile-ui.js');
+
   const registerForm = document.getElementById('registerForm');
   const registerError = document.getElementById('registerError');
   const participantForm = document.getElementById('participantForm');
   const participantError = document.getElementById('participantError');
   const volunteerAdminForm = document.getElementById('volunteerAdminForm');
   const volunteerAdminError = document.getElementById('volunteerAdminError');
+
+  // ── Admin volunteer chip selectors (initialized once) ─────────────────────
+  const _adminVolInterestsEl  = document.getElementById('adminVolInterestsChips');
+  const _adminVolLanguagesEl  = document.getElementById('adminVolLanguagesChips');
+  const adminVolInterestChips = _adminVolInterestsEl
+    ? renderInterestChips(_adminVolInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const adminVolLangChips = _adminVolLanguagesEl
+    ? renderLanguageChips(_adminVolLanguagesEl, [])
+    : null;
+  const _participantInterestsEl = document.getElementById('participantInterestsChips');
+  const participantInterestChips = _participantInterestsEl
+    ? renderInterestChips(_participantInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const _userParticipantInterestsEl = document.getElementById('userParticipantInterestsChips');
+  const userParticipantInterestChips = _userParticipantInterestsEl
+    ? renderInterestChips(_userParticipantInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const _userVolInterestsEl = document.getElementById('userVolunteerInterestsChips');
+  const _userVolLanguagesEl = document.getElementById('userVolunteerLanguagesChips');
+  const userVolInterestChips = _userVolInterestsEl
+    ? renderInterestChips(_userVolInterestsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+  const userVolLangChips = _userVolLanguagesEl
+    ? renderLanguageChips(_userVolLanguagesEl, [])
+    : null;
   const eventForm = document.getElementById('eventForm');
   const eventError = document.getElementById('eventError');
   const jobForm = document.getElementById('jobForm');
@@ -54,10 +103,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmParticipantModalEl = document.getElementById('confirmSaveParticipantModal');
   const confirmParticipantModal = confirmParticipantModalEl ? bootstrap.Modal.getOrCreateInstance(confirmParticipantModalEl) : null;
   const confirmParticipantBtn = document.getElementById('confirmSaveParticipantBtn');
+  const deleteIdentityModalEl = document.getElementById('deleteIdentityModal');
+  const deleteIdentityModal = deleteIdentityModalEl ? bootstrap.Modal.getOrCreateInstance(deleteIdentityModalEl) : null;
 
   let editingUserEmail = null;
   let editingParticipantId = null;
   let editingVolunteerUserId = null;
+  let editingVolunteerProfileId = null;
   let editingEventId = null;
   let editingJobId = null;
   let eventsEditOrigin = null; // 'urgent-notifications' when editing from dispatcher
@@ -65,6 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let participantsViewOrigin = null; // section to return to when closing participant form
   let pendingUser = null;
   let pendingParticipant = null;
+  let pendingDeleteIdentity = null;
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -86,6 +139,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
   }
 
+  function deriveAgeFromDateOfBirth(dateOfBirth) {
+    const parsed = new Date(String(dateOfBirth || '').trim());
+    if (Number.isNaN(parsed.getTime())) return '';
+    const now = new Date();
+    let age = now.getFullYear() - parsed.getFullYear();
+    const monthDiff = now.getMonth() - parsed.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < parsed.getDate())) age -= 1;
+    return age >= 0 ? age : '';
+  }
+
+  function updateParticipantAgeDisplay(fallbackAge = '') {
+    const dob = document.getElementById('participantDateOfBirth')?.value || '';
+    const age = deriveAgeFromDateOfBirth(dob);
+    const ageEl = document.getElementById('participantAge');
+    const nextAge = age || fallbackAge || '';
+    if (ageEl) ageEl.value = nextAge;
+    return nextAge;
+  }
+
   function getSelectedValues(selectEl) {
     return Array.from(selectEl?.selectedOptions || []).map((option) => option.value);
   }
@@ -104,6 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (email) email.required = enabled;
     if (password) password.required = enabled;
+    window.KindredRequiredMarkers?.sync();
   }
 
   function toggleInlineVolunteerUserFields() {
@@ -120,14 +193,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (email) email.required = enabled;
     if (password) password.required = enabled;
+    window.KindredRequiredMarkers?.sync();
   }
 
   function syncUserLinkVisibility() {
     const role = canonicalRole(document.getElementById('regRole')?.value);
-    document.getElementById('userParticipantLinkWrap')?.classList.toggle('d-none', role !== 'PARTICIPANT');
-    document.getElementById('userVolunteerLinkWrap')?.classList.toggle('d-none', role !== 'VOLUNTEER');
-    if (role !== 'PARTICIPANT') document.getElementById('userParticipantLinkId').value = '';
-    if (role !== 'VOLUNTEER') document.getElementById('userVolunteerLinkId').value = '';
+    const showParticipant = role === 'PARTICIPANT' && !editingUserEmail;
+    const showVolunteer = role === 'VOLUNTEER' && !editingUserEmail;
+    const showGuardianDob = role === 'GUARDIAN';
+    document.getElementById('userParticipantRecordWrap')?.classList.toggle('d-none', !showParticipant);
+    document.getElementById('userVolunteerProfileWrap')?.classList.toggle('d-none', !showVolunteer);
+    document.getElementById('userGuardianDobWrap')?.classList.toggle('d-none', !showGuardianDob);
+    const gDob = document.getElementById('regGuardianDateOfBirth');
+    if (gDob) {
+      gDob.required = showGuardianDob;
+      setGuardianAccountDobMax();
+    }
+    [
+      ['userParticipantGuardianIds', showParticipant],
+      ['userParticipantContactEmail', showParticipant],
+      ['userParticipantContactPhone', showParticipant],
+      ['userParticipantSpecialNeeds', showParticipant],
+      ['userVolunteerPhone', showVolunteer]
+    ].forEach(([id, required]) => {
+      const el = document.getElementById(id);
+      if (el) el.required = required;
+    });
+    if (!showParticipant) userParticipantInterestChips?.setSelected([]);
+    if (!showVolunteer) {
+      userVolInterestChips?.setSelected([]);
+      userVolLangChips?.setSelected([]);
+    }
+    if (!showGuardianDob && gDob) gDob.value = '';
+    window.KindredRequiredMarkers?.sync();
   }
 
   function populateModalSummary({ name, email, role }) {
@@ -139,6 +237,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     badgeEl.textContent = roleName;
     badgeEl.className = `badge ${badgeCls}`;
     document.getElementById('modalSummaryEmailTarget').textContent = email.trim().toLowerCase();
+    const detailEl = document.getElementById('modalSummaryLinkedDetails');
+    if (detailEl) {
+      detailEl.classList.add('d-none');
+      detailEl.innerHTML = '';
+    }
+  }
+
+  function populateLinkedCreateSummary(payload) {
+    const detailEl = document.getElementById('modalSummaryLinkedDetails');
+    if (!detailEl) return;
+    const role = canonicalRole(payload.role);
+    if (role === 'PARTICIPANT') {
+      const record = payload.participantRecord || {};
+      detailEl.innerHTML = `
+        <div class="small fw-semibold text-success mb-2">Participant record will also be created</div>
+        <div class="row g-2 small">
+          <div class="col-4 text-muted fw-semibold">Guardians</div>
+          <div class="col-8">${escapeHtml(record.guardianUserIds?.length || 0)} linked</div>
+          <div class="col-4 text-muted fw-semibold">Contact</div>
+          <div class="col-8">${escapeHtml(record.contactEmail || '—')} · ${escapeHtml(record.contactPhone || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Interests</div>
+          <div class="col-8">${escapeHtml((record.participantInterests || []).join(', ') || '—')}</div>
+        </div>`;
+      detailEl.classList.remove('d-none');
+    } else if (role === 'VOLUNTEER') {
+      const profile = payload.volunteerProfile || {};
+      detailEl.innerHTML = `
+        <div class="small fw-semibold text-info mb-2">Volunteer profile will also be created</div>
+        <div class="row g-2 small">
+          <div class="col-4 text-muted fw-semibold">Phone</div>
+          <div class="col-8">${escapeHtml(profile.phone || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Interests</div>
+          <div class="col-8">${escapeHtml((profile.interests || []).join(', ') || '—')}</div>
+          <div class="col-4 text-muted fw-semibold">Availability</div>
+          <div class="col-8">${escapeHtml(profile.availability || '—')}</div>
+        </div>`;
+      detailEl.classList.remove('d-none');
+    }
+  }
+
+  function getUserParticipantRecordPayload() {
+    return {
+      firstName: document.getElementById('regFirstName').value,
+      lastName: document.getElementById('regLastName').value,
+      age: deriveAgeFromDateOfBirth(document.getElementById('userParticipantDateOfBirth')?.value || ''),
+      dateOfBirth: document.getElementById('userParticipantDateOfBirth')?.value || '',
+      guardianUserIds: getSelectedValues(document.getElementById('userParticipantGuardianIds')),
+      contactEmail: document.getElementById('userParticipantContactEmail')?.value || '',
+      contactPhone: document.getElementById('userParticipantContactPhone')?.value || '',
+      participantInterests: userParticipantInterestChips?.getSelected() || [],
+      jobGoals: document.getElementById('userParticipantJobGoals')?.value || '',
+      bio: document.getElementById('userParticipantBio')?.value || '',
+      specialNeeds: document.getElementById('userParticipantSpecialNeeds')?.value || '',
+      medicalNotes: document.getElementById('userParticipantMedicalNotes')?.value || '',
+      sensoryNotes: document.getElementById('userParticipantSensoryNotes')?.value || '',
+      guardianNotes: document.getElementById('userParticipantGuardianNotes')?.value || ''
+    };
+  }
+
+  function getUserVolunteerProfilePayload() {
+    return {
+      firstName: document.getElementById('regFirstName').value,
+      lastName: document.getElementById('regLastName').value,
+      phone: document.getElementById('userVolunteerPhone')?.value || '',
+      interests: userVolInterestChips?.getSelected() || [],
+      availability: document.getElementById('userVolunteerAvailability')?.value || '',
+      preferredLocation: document.getElementById('userVolunteerPreferredLocation')?.value || '',
+      pronounsSubject: document.getElementById('userVolunteerPronounsSubject')?.value || '',
+      pronounsObject: document.getElementById('userVolunteerPronounsObject')?.value || '',
+      languagesSpoken: userVolLangChips?.getSelected() || [],
+      backgroundCheckStatus: document.getElementById('userVolunteerBackgroundCheck')?.value || 'Not Started'
+    };
   }
 
   async function populateParticipantModalSummary(payload) {
@@ -155,7 +325,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setFormFieldsDisabled(formId, disabled) {
-    document.getElementById(formId).querySelectorAll('input, select, textarea').forEach((el) => {
+    document.getElementById(formId).querySelectorAll('input, select, textarea, .profile-chip').forEach((el) => {
       el.disabled = disabled;
     });
   }
@@ -216,15 +386,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   function showJobsListView() {
     document.getElementById('view-jobs-list').classList.remove('d-none');
     document.getElementById('view-jobs-form').classList.add('d-none');
+    document.getElementById('view-jobs-applications').classList.add('d-none');
   }
 
   function showJobsFormView(isEditing = false, viewMode = false) {
     document.getElementById('view-jobs-list').classList.add('d-none');
     document.getElementById('view-jobs-form').classList.remove('d-none');
+    document.getElementById('view-jobs-applications').classList.add('d-none');
     document.getElementById('jobFormTitle').textContent = viewMode ? 'Job Details' : (isEditing ? 'Edit Job Opportunity' : 'New Job Opportunity');
     setFormFieldsDisabled('jobForm', viewMode);
     document.getElementById('jobSubmitBtn').classList.toggle('d-none', viewMode);
     document.getElementById('jobFormEditBtn').classList.toggle('d-none', !viewMode);
+  }
+
+  function showJobsApplicationsView(jobTitle, jobEmployer) {
+    document.getElementById('view-jobs-list').classList.add('d-none');
+    document.getElementById('view-jobs-form').classList.add('d-none');
+    document.getElementById('view-jobs-applications').classList.remove('d-none');
+    document.getElementById('jobAppsTitle').textContent = jobTitle;
+    document.getElementById('jobAppsSubtitle').textContent = jobEmployer;
   }
 
   async function populateLinkedUserOptions() {
@@ -235,9 +415,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     ]);
     const participantUserSelect = document.getElementById('participantUserId');
     const guardianSelect = document.getElementById('participantGuardianIds');
+    const userGuardianSelect = document.getElementById('userParticipantGuardianIds');
     const volunteerUserSelect = document.getElementById('adminVolUserId');
-    const userParticipantLinkSelect = document.getElementById('userParticipantLinkId');
-    const userVolunteerLinkSelect = document.getElementById('userVolunteerLinkId');
     const participantUsers = users.filter((user) => user.role === 'PARTICIPANT');
     const guardianUsers = users.filter((user) => user.role === 'GUARDIAN');
     const volunteerUsers = users.filter((user) => user.role === 'VOLUNTEER');
@@ -254,23 +433,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       ).join('');
     }
 
+    if (userGuardianSelect) {
+      userGuardianSelect.innerHTML = guardianUsers.map((user) =>
+        `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
+      ).join('');
+    }
+
     if (volunteerUserSelect) {
       volunteerUserSelect.innerHTML = `<option value="" disabled selected>Select volunteer login...</option>${volunteerUsers.map((user) =>
         `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`
       ).join('')}`;
     }
 
-    if (userParticipantLinkSelect) {
-      userParticipantLinkSelect.innerHTML = `<option value="">No participant record link</option>${participants.map((participant) =>
-        `<option value="${escapeHtml(participant.id)}">${escapeHtml(participant.fullName)}${participant.participantUser ? ` (${escapeHtml(participant.participantUser.email)})` : ' (unlinked)'}</option>`
-      ).join('')}`;
-    }
-
-    if (userVolunteerLinkSelect) {
-      userVolunteerLinkSelect.innerHTML = `<option value="">No volunteer profile link</option>${volunteerProfiles.map((profile) =>
-        `<option value="${escapeHtml(profile.userId)}">${escapeHtml(profile.fullName)} (${escapeHtml(profile.email || profile.linkedUser?.email || 'unlinked')})</option>`
-      ).join('')}`;
-    }
   }
 
   function resetUserFormState() {
@@ -278,15 +452,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     registerForm?.classList.remove('was-validated');
     registerError?.classList.add('d-none');
     editingUserEmail = null;
+    const gDob = document.getElementById('regGuardianDateOfBirth');
+    if (gDob) gDob.value = '';
     const passwordEl = document.getElementById('regPassword');
     if (passwordEl) {
       passwordEl.required = true;
       passwordEl.placeholder = 'Temporary password';
     }
+    window.KindredRequiredMarkers?.sync();
     const submitBtn = document.getElementById('userSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Create Account';
-    document.getElementById('userParticipantLinkId').value = '';
-    document.getElementById('userVolunteerLinkId').value = '';
+    userParticipantInterestChips?.setSelected([]);
+    userVolInterestChips?.setSelected([]);
+    userVolLangChips?.setSelected([]);
     syncUserLinkVisibility();
   }
 
@@ -295,12 +473,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     participantForm?.classList.remove('was-validated');
     participantError?.classList.add('d-none');
     editingParticipantId = null;
+    participantInterestChips?.setSelected([]);
     const submitBtn = document.getElementById('participantSubmitBtn');
-    if (submitBtn) submitBtn.textContent = 'Save Participant Record';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
+    const ageEl = document.getElementById('participantAge');
+    if (ageEl) ageEl.value = '';
     document.getElementById('participantCreateUserToggle').checked = false;
     document.getElementById('participantNewUserEmail').value = '';
     document.getElementById('participantNewUserPassword').value = '';
     toggleInlineParticipantUserFields();
+    const headerEl = document.getElementById('participantAdminProfileHeader');
+    if (headerEl) {
+      headerEl.innerHTML = `
+        <div class="profile-avatar">P</div>
+        <div class="profile-header-meta">
+          <div class="profile-header-name">New Participant</div>
+          <div class="profile-header-sub"><span class="badge bg-success">Participant</span></div>
+        </div>`;
+    }
+    document.getElementById('participantGuardianSummary').innerHTML = '';
+    document.getElementById('participantAdminNotesSummary').innerHTML = '';
+    document.getElementById('participantAdminMeta').textContent = '—';
+    document.getElementById('participantAdminCompleteness').innerHTML = '';
+    applyParticipantFieldAttribution();
   }
 
   function resetVolunteerFormState() {
@@ -308,17 +503,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     volunteerAdminForm?.classList.remove('was-validated');
     volunteerAdminError?.classList.add('d-none');
     editingVolunteerUserId = null;
-    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
-    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
+    editingVolunteerProfileId = null;
+    adminVolInterestChips?.setSelected([]);
+    adminVolLangChips?.setSelected([]);
     const submitBtn = document.getElementById('volunteerAdminSubmitBtn');
-    if (submitBtn) submitBtn.textContent = 'Save Volunteer Profile';
+    if (submitBtn) submitBtn.textContent = 'Save Changes';
     const bgSelect = document.getElementById('adminVolBackgroundCheck');
     if (bgSelect) bgSelect.disabled = false;
     document.getElementById('adminVolCreateUserToggle').checked = false;
     document.getElementById('adminVolNewUserEmail').value = '';
     document.getElementById('adminVolNewUserPassword').value = '';
-    setAdminVolunteerOtherInterestInputState();
     toggleInlineVolunteerUserFields();
+    const headerEl = document.getElementById('adminVolProfileHeader');
+    if (headerEl) {
+      headerEl.innerHTML = `
+        <div class="profile-avatar">V</div>
+        <div class="profile-header-meta">
+          <div class="profile-header-name">New Volunteer Profile</div>
+          <div class="profile-header-sub"><span class="badge bg-info text-dark">Volunteer</span></div>
+        </div>`;
+    }
+    const railMeta = document.getElementById('adminVolRailMeta');
+    if (railMeta) railMeta.textContent = '—';
+    const completenessEl = document.getElementById('adminVolCompleteness');
+    if (completenessEl) completenessEl.innerHTML = '';
   }
 
   function resetEventFormState() {
@@ -326,10 +534,183 @@ document.addEventListener('DOMContentLoaded', async () => {
     eventForm?.classList.remove('was-validated');
     eventError?.classList.add('d-none');
     editingEventId = null;
+    const ageReq = document.getElementById('eventAgeRequirement');
+    if (ageReq) ageReq.value = 'ALL';
     const submitBtn = document.getElementById('eventSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Publish Event';
     const urgentCheck = document.getElementById('eventIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
+    document.getElementById('eventVolunteersPanel')?.classList.add('d-none');
+  }
+
+  function renderParticipantAdminRail(participant) {
+    const guardianSummary = document.getElementById('participantGuardianSummary');
+    if (guardianSummary) {
+      guardianSummary.innerHTML = participant.guardians?.length
+        ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+        : '<div class="text-muted small">No linked guardians.</div>';
+    }
+
+    const notesSummary = document.getElementById('participantAdminNotesSummary');
+    if (notesSummary) {
+      const notes = [
+        participant.guardianNotes && `Guardian/Admin notes: ${participant.guardianNotes}`,
+        participant.specialNeeds && `Support needs: ${participant.specialNeeds}`
+      ].filter(Boolean);
+      notesSummary.innerHTML = notes.length
+        ? notes.slice(0, 2).map((note) => adminNoteHTML(note)).join('')
+        : '<div class="text-muted small">No admin notes added yet.</div>';
+    }
+
+    const metaEl = document.getElementById('participantAdminMeta');
+    if (metaEl) {
+      metaEl.innerHTML = `
+        <div>Created: ${escapeHtml(participant.dateAdded || 'N/A')}</div>
+        <div class="mt-1">Participant login: ${escapeHtml(participant.participantUser?.email || 'Unlinked')}</div>
+      `;
+    }
+
+    const completenessEl = document.getElementById('participantAdminCompleteness');
+    if (completenessEl) {
+      renderCompletenessMeter(completenessEl, calcCompleteness({
+        firstName: participant.firstName,
+        lastName: participant.lastName,
+        dateOfBirth: participant.dateOfBirth,
+        participantInterests: participant.participantInterests,
+        jobGoals: participant.jobGoals,
+        specialNeeds: participant.specialNeeds,
+        contactEmail: participant.contactEmail,
+        contactPhone: participant.contactPhone,
+        bio: participant.bio
+      }));
+    }
+  }
+
+  function applyParticipantFieldAttribution() {
+    const mappings = [
+      ['participantDobAttr', 'Participant'],
+      ['participantBioAttr', 'Participant'],
+      ['participantInterestsAttr', 'Participant'],
+      ['participantGoalsAttr', 'Participant'],
+      ['participantSupportAttr', 'Admin'],
+      ['participantMedicalAttr', 'Admin'],
+      ['participantSensoryAttr', 'Admin'],
+      ['participantGuardianAttr', 'Admin']
+    ];
+    mappings.forEach(([id, label]) => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = fieldAttrBadge(label);
+    });
+  }
+
+  function populateParticipantFormFromRecord(participant) {
+    document.getElementById('participantFirstName').value = participant.firstName || '';
+    document.getElementById('participantLastName').value = participant.lastName || '';
+    document.getElementById('participantDateOfBirth').value = participant.dateOfBirth || '';
+    updateParticipantAgeDisplay(participant.age || '');
+    document.getElementById('participantUserId').value = participant.participantUserId || '';
+    Array.from(document.getElementById('participantGuardianIds').options).forEach((option) => {
+      option.selected = participant.guardianUserIds.includes(option.value);
+    });
+    document.getElementById('participantEmail').value = participant.contactEmail || '';
+    document.getElementById('participantPhone').value = participant.contactPhone || '';
+    participantInterestChips?.setSelected(participant.participantInterests || []);
+    document.getElementById('participantJobGoals').value = participant.jobGoals || '';
+    document.getElementById('participantBio').value = participant.bio || '';
+    document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
+    document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
+    document.getElementById('participantCreateUserToggle').checked = false;
+    toggleInlineParticipantUserFields();
+    const headerEl = document.getElementById('participantAdminProfileHeader');
+    if (headerEl) {
+      renderProfileHeader(headerEl, {
+        name: participant.fullName || `${participant.firstName || ''} ${participant.lastName || ''}`.trim(),
+        role: 'Participant',
+        managedBy: 'Shared with family and admin',
+        lastUpdatedMs: participant.createdAtMs
+      });
+    }
+    renderParticipantAdminRail(participant);
+    applyParticipantFieldAttribution();
+  }
+
+  async function renderEventVolunteersPanel(eventId) {
+    const panel = document.getElementById('eventVolunteersPanel');
+    const listEl = document.getElementById('eventVolunteersList');
+    const selectEl = document.getElementById('eventVolunteerSelect');
+    const errEl = document.getElementById('eventVolunteersError');
+    if (!panel || !listEl || !selectEl) return;
+
+    panel.classList.remove('d-none');
+    if (errEl) errEl.classList.add('d-none');
+
+    const [volunteers, assigned] = await Promise.all([
+      Auth.getVolunteerProfiles(),
+      Auth.getEventVolunteers(eventId)
+    ]);
+
+    const assignedEmails = new Set(assigned.map((a) => String(a.volunteerEmail)));
+
+    selectEl.innerHTML = '<option value="">Select a volunteer to assign&hellip;</option>'
+      + volunteers
+          .filter((v) => !assignedEmails.has(String(v.email)))
+          .map((v) => `<option value="${escapeHtml(v.email)}">${escapeHtml(`${v.fullName} (${v.email})`)}</option>`)
+          .join('');
+
+    if (!assigned.length) {
+      listEl.innerHTML = '<p class="text-muted small mb-0">No volunteers assigned yet.</p>';
+    } else {
+      listEl.innerHTML = `<ul class="list-group list-group-flush">
+        ${assigned.map((a) => `
+          <li class="list-group-item d-flex align-items-center justify-content-between px-0 py-2">
+            <div>
+              <span class="fw-semibold small">${escapeHtml(a.volunteerName)}</span>
+              <span class="text-muted small ms-2">${escapeHtml(a.volunteerEmail)}</span>
+              <span class="badge ${a.selfSignedUp ? 'bg-info text-dark' : 'bg-secondary'} ms-2" style="font-size:0.65rem;">
+                ${a.selfSignedUp ? 'Self sign-up' : 'Admin assigned'}
+              </span>
+            </div>
+            <button class="btn btn-outline-danger btn-sm js-remove-vol-assignment"
+              data-event-id="${escapeHtml(eventId)}" data-vol-email="${escapeHtml(a.volunteerEmail)}">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </li>`).join('')}
+      </ul>`;
+
+      listEl.querySelectorAll('.js-remove-vol-assignment').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          const result = await Auth.removeVolunteerFromEvent(btn.dataset.eventId, btn.dataset.volEmail);
+          if (result.success) {
+            await renderEventVolunteersPanel(eventId);
+          } else {
+            if (errEl) { errEl.textContent = result.message; errEl.classList.remove('d-none'); }
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    const assignBtn = document.getElementById('eventAssignVolunteerBtn');
+    const newAssignBtn = assignBtn?.cloneNode(true);
+    if (assignBtn && newAssignBtn) {
+      assignBtn.replaceWith(newAssignBtn);
+      newAssignBtn.addEventListener('click', async () => {
+        const email = selectEl.value;
+        if (!email) return;
+        if (errEl) errEl.classList.add('d-none');
+        newAssignBtn.disabled = true;
+        const result = await Auth.assignVolunteerToEvent(eventId, email);
+        if (result.success) {
+          await renderEventVolunteersPanel(eventId);
+        } else {
+          if (errEl) { errEl.textContent = result.message; errEl.classList.remove('d-none'); }
+          newAssignBtn.disabled = false;
+        }
+      });
+    }
   }
 
   function resetJobFormState() {
@@ -337,83 +718,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     jobForm?.classList.remove('was-validated');
     jobError?.classList.add('d-none');
     editingJobId = null;
+    const ageReq = document.getElementById('jobAgeRequirement');
+    if (ageReq) ageReq.value = 'ALL';
     const submitBtn = document.getElementById('jobSubmitBtn');
     if (submitBtn) submitBtn.textContent = 'Save Opportunity';
     const urgentCheck = document.getElementById('jobIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
   }
 
-  function setAdminVolunteerOtherInterestInputState() {
-    const checkbox = document.getElementById('adminVolInterestOther');
-    const input = document.getElementById('adminVolInterestOtherText');
-    const enabled = Boolean(checkbox?.checked);
-    if (!input) return;
-    input.disabled = !enabled;
-    if (!enabled) input.value = '';
-  }
-
-  function getAdminSelectedVolunteerInterests() {
-    const values = Array.from(document.querySelectorAll('input[name="adminVolInterests"]:checked')).map((checkbox) => checkbox.value);
-    if (values.includes('Other')) {
-      const custom = String(document.getElementById('adminVolInterestOtherText')?.value || '').trim();
-      if (custom) {
-        return values.map((value) => value === 'Other' ? `Other: ${custom}` : value);
-      }
-    }
-    return values;
-  }
-
-  function setAdminSelectedVolunteerInterests(interests) {
-    const list = Array.isArray(interests) ? interests : [];
-    let otherText = '';
-    Array.from(document.querySelectorAll('input[name="adminVolInterests"]')).forEach((checkbox) => {
-      if (checkbox.value === 'Other') {
-        const custom = list.find((item) => String(item).startsWith('Other:'));
-        checkbox.checked = Boolean(custom) || list.includes('Other');
-        otherText = custom ? String(custom).replace(/^Other:\s*/i, '').trim() : '';
-      } else {
-        checkbox.checked = list.includes(checkbox.value);
-      }
-    });
-    setAdminVolunteerOtherInterestInputState();
-    const input = document.getElementById('adminVolInterestOtherText');
-    if (input && otherText) input.value = otherText;
-  }
-
-  function validateAdminVolunteerInterests() {
-    const selected = getAdminSelectedVolunteerInterests();
-    const group = document.getElementById('adminVolInterestsGroup');
-    const feedback = document.getElementById('adminVolInterestsFeedback');
-    if (!selected.length) {
-      group?.classList.add('border-danger');
-      feedback?.classList.remove('d-none');
-      return false;
-    }
-    group?.classList.remove('border-danger');
-    feedback?.classList.add('d-none');
-    return true;
-  }
-
   async function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
+    const q = document.getElementById('usersTableSearch')?.value?.trim().toLowerCase() || '';
     const users = await Auth.getUsers();
     if (!users.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted px-3">No users found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users found.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = users.map((user) => {
+    const usersFiltered = !q
+      ? users
+      : users.filter((user) => {
+        const roleLabel = (ROLE_LABEL[canonicalRole(user.role)] || user.role || '').toLowerCase();
+        const hay = [user.name, user.email, roleLabel, String(user.accessStatus || '')].map((s) => String(s).toLowerCase()).join(' ');
+        return hay.includes(q);
+      });
+    if (!usersFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No users match this filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = usersFiltered.map((user) => {
       const isSelf = session.userId === user.id;
       const canEdit = user.role !== 'ADMIN';
+      const accessStatus = user.accessStatus || 'ACTIVE';
+      const accessAction = accessStatus === 'REVOKED'
+        ? `<button class="btn btn-outline-success btn-sm me-1" data-user-restore-email="${escapeHtml(user.email)}">Restore</button>`
+        : `<button class="btn btn-outline-secondary btn-sm me-1" data-user-revoke-email="${escapeHtml(user.email)}" ${isSelf ? 'disabled title="You cannot revoke your own access"' : ''}>Revoke</button>`;
       return `
         <tr>
           <td class="ps-3">${escapeHtml(user.name)}</td>
           <td class="text-muted small">${escapeHtml(user.email)}</td>
           <td><span class="badge ${ROLE_BADGE[canonicalRole(user.role)] || 'bg-secondary'}">${escapeHtml(ROLE_LABEL[canonicalRole(user.role)] || user.role)}</span></td>
+          <td><span class="badge ${ACCESS_BADGE[accessStatus] || 'bg-secondary'}">${escapeHtml(accessStatus)}</span></td>
           <td class="text-muted small">${escapeHtml(user.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
             ${canEdit ? `<button class="btn btn-outline-primary btn-sm me-1" data-user-edit-email="${escapeHtml(user.email)}">Edit</button>` : ''}
+            ${accessAction}
             ${isSelf
               ? '<button class="btn btn-outline-secondary btn-sm" disabled title="You cannot delete your own account">Delete</button>'
               : `<button class="btn btn-outline-danger btn-sm" data-user-email="${escapeHtml(user.email)}">Delete</button>`}
@@ -431,15 +782,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('regLastName').value = nameParts.lastName;
         document.getElementById('regEmail').value = user.email;
         document.getElementById('regRole').value = canonicalRole(user.role);
+        const gDob = document.getElementById('regGuardianDateOfBirth');
+        if (gDob) gDob.value = user.dateOfBirth || '';
         const passwordEl = document.getElementById('regPassword');
         passwordEl.value = '';
         passwordEl.required = false;
         passwordEl.placeholder = 'Leave blank to keep current password';
-        const participants = await Auth.getParticipants();
-        const linkedParticipant = participants.find((participant) => String(participant.participantUserId) === String(user.id));
-        const volunteerProfile = await Auth.getVolunteerProfile(user.id);
-        document.getElementById('userParticipantLinkId').value = linkedParticipant?.id || '';
-        document.getElementById('userVolunteerLinkId').value = volunteerProfile?.userId || '';
+        window.KindredRequiredMarkers?.sync();
         editingUserEmail = user.email;
         document.getElementById('userSubmitBtn').textContent = 'Update Account';
         registerError.classList.add('d-none');
@@ -451,32 +800,103 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     tbody.querySelectorAll('[data-user-email]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeUser(button.dataset.userEmail);
+        await openDeleteIdentityModal('user', button.dataset.userEmail);
+      });
+    });
+
+    tbody.querySelectorAll('[data-user-revoke-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.revokeUserAccess(button.dataset.userRevokeEmail);
         if (!result.success) {
           registerError.textContent = result.message;
           registerError.classList.remove('d-none');
           return;
         }
         await renderUsersTable();
-        await populateLinkedUserOptions();
+        showToast('User access revoked.');
       });
     });
+
+    tbody.querySelectorAll('[data-user-restore-email]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.restoreUserAccess(button.dataset.userRestoreEmail);
+        if (!result.success) {
+          registerError.textContent = result.message;
+          registerError.classList.remove('d-none');
+          return;
+        }
+        await renderUsersTable();
+        showToast('User access restored.');
+      });
+    });
+  }
+
+  async function openDeleteIdentityModal(kind, identifier) {
+    if (!deleteIdentityModal) return;
+    const titleEl = document.getElementById('deleteIdentityTitle');
+    const messageEl = document.getElementById('deleteIdentityMessage');
+    const preserveBtn = document.getElementById('deleteIdentityPreserveBtn');
+    const cascadeBtn = document.getElementById('deleteIdentityCascadeBtn');
+
+    pendingDeleteIdentity = { kind, identifier };
+
+    if (kind === 'user') {
+      const users = await Auth.getUsers();
+      const user = users.find((entry) => entry.email === identifier || String(entry.id) === String(identifier));
+      const linkedParticipant = (await Auth.getParticipants()).find((participant) => String(participant.participantUserId) === String(user?.id));
+      const linkedVolunteer = await Auth.getVolunteerProfile(user?.id);
+      titleEl.textContent = 'Delete User';
+      messageEl.textContent = `Delete ${user?.name || 'this user'}? You can preserve linked records as inactive/unlinked data or delete linked data too.`;
+      preserveBtn.textContent = linkedParticipant || linkedVolunteer ? 'Delete user only' : 'Delete user';
+      cascadeBtn.textContent = 'Delete user and linked data';
+      cascadeBtn.classList.toggle('d-none', !(linkedParticipant || linkedVolunteer));
+    } else if (kind === 'participant') {
+      const participant = await Auth.getParticipantById(identifier);
+      titleEl.textContent = 'Delete Participant Record';
+      messageEl.textContent = `Delete the participant record for ${participant?.fullName || 'this participant'}? You can keep the linked user revoked, or delete both.`;
+      preserveBtn.textContent = 'Delete record only';
+      cascadeBtn.textContent = 'Delete record and user';
+      cascadeBtn.classList.toggle('d-none', !participant?.participantUser);
+    } else {
+      const profile = await Auth.getVolunteerProfile(identifier);
+      titleEl.textContent = 'Delete Volunteer Profile';
+      messageEl.textContent = `Delete the volunteer profile for ${profile?.fullName || 'this volunteer'}? You can keep the linked user revoked, or delete both.`;
+      preserveBtn.textContent = 'Delete profile only';
+      cascadeBtn.textContent = 'Delete profile and user';
+      cascadeBtn.classList.toggle('d-none', !profile?.linkedUser);
+    }
+
+    deleteIdentityModal.show();
   }
 
   async function renderParticipantsTable() {
     const tbody = document.getElementById('participantsTableBody');
     if (!tbody) return;
+    const q = document.getElementById('participantsTableSearch')?.value?.trim().toLowerCase() || '';
     const participants = await Auth.getParticipants();
     if (!participants.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records yet.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = participants.map((participant) => `
+    const participantsFiltered = !q
+      ? participants
+      : participants.filter((p) => {
+        const gBlob = (p.guardians || []).map((g) => `${g.name} ${g.email}`).join(' ');
+        const hay = [p.fullName, p.participantUser?.name, p.participantUser?.email, gBlob, String(p.age || ''), (p.participantInterests || []).join(' ')].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    if (!participantsFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3">No participant records match this filter.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = participantsFiltered.map((participant) => `
       <tr>
         <td class="ps-3">
           <div class="fw-semibold">${escapeHtml(participant.fullName)}</div>
           <div class="text-muted small">Age ${escapeHtml(participant.age || '—')}</div>
+          ${participant.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}
         </td>
         <td class="small text-muted">${participant.participantUser ? `${escapeHtml(participant.participantUser.name)}<div>${escapeHtml(participant.participantUser.email)}</div>` : '<span class="text-danger">Missing login</span>'}</td>
         <td class="small">${participant.guardians.length
@@ -499,27 +919,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       button.addEventListener('click', async () => {
         const participant = await Auth.getParticipantById(button.dataset.participantEditId);
         if (!participant) return;
-        document.getElementById('participantFirstName').value = participant.firstName || '';
-        document.getElementById('participantLastName').value = participant.lastName || '';
-        document.getElementById('participantAge').value = participant.age || '';
-        document.getElementById('participantUserId').value = participant.participantUserId || '';
-        Array.from(document.getElementById('participantGuardianIds').options).forEach((option) => {
-          option.selected = participant.guardianUserIds.includes(option.value);
-        });
-        document.getElementById('participantEmail').value = participant.contactEmail || '';
-        document.getElementById('participantPhone').value = participant.contactPhone || '';
-        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
-        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
-        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
-        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
-        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
-        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
-        document.getElementById('participantCreateUserToggle').checked = false;
-        toggleInlineParticipantUserFields();
+        populateParticipantFormFromRecord(participant);
         editingParticipantId = participant.id;
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');
-        document.getElementById('participantSubmitBtn').textContent = 'Update Participant Record';
+        document.getElementById('participantSubmitBtn').textContent = 'Save Changes';
         participantsViewOrigin = null;
         showParticipantsFormView(true, true);
       });
@@ -527,13 +931,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     tbody.querySelectorAll('[data-participant-id]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeParticipant(button.dataset.participantId);
-        if (!result.success) {
-          participantError.textContent = result.message;
-          participantError.classList.remove('d-none');
-          return;
-        }
-        await renderParticipantsTable();
+        await openDeleteIdentityModal('participant', button.dataset.participantId);
       });
     });
   }
@@ -562,6 +960,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const profiles = await Auth.getVolunteerProfiles();
     if (!profiles.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles yet.</td></tr>';
+      return;
+    }
+
+    const q = document.getElementById('volunteersTableSearch')?.value?.trim().toLowerCase() || '';
+    const profilesFiltered = !q
+      ? profiles
+      : profiles.filter((profile) => {
+        const hay = [
+          profile.fullName,
+          profile.email,
+          profile.phone,
+          (profile.interests || []).join(' '),
+          profile.availability,
+          profile.preferredLocation,
+          profile.backgroundCheckStatus
+        ].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+    if (!profilesFiltered.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted px-3">No volunteer profiles match this filter.</td></tr>';
       return;
     }
 
@@ -602,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, { once: true });
     };
 
-    tbody.innerHTML = profiles.map((profile) => {
+    tbody.innerHTML = profilesFiltered.map((profile) => {
       const bgStatus = profile.backgroundCheckStatus || 'Not Started';
       const bgRecord = allBgRecords.find((r) => String(r.volunteerUserId) === String(profile.userId));
       const isLocked = bgStatus === 'Cleared' && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
@@ -621,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       return `
       <tr>
-        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || '')}</div></td>
+        <td class="ps-3"><div class="fw-semibold">${escapeHtml(profile.fullName)}</div><div class="text-muted small">${escapeHtml(profile.linkedUser?.email || 'Unlinked')}</div>${profile.recordStatus === 'INACTIVE' ? '<span class="badge bg-secondary mt-1">Inactive</span>' : ''}</td>
         <td class="small text-muted"><div>${escapeHtml(profile.email)}</div><div>${escapeHtml(profile.phone || '')}</div></td>
         <td class="small">${escapeHtml(profile.interests.join(', ') || 'Not provided')}</td>
         <td class="small text-muted">${escapeHtml(profile.availability || 'Not provided')}</td>
@@ -638,8 +1056,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         </td>
         <td class="small text-muted">${escapeHtml(profile.updatedAtLabel || 'N/A')}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
-          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId)}">View</button>
-          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId)}">Delete</button>
+          <button class="btn btn-outline-primary btn-sm me-1" data-volunteer-edit-user-id="${escapeHtml(profile.userId || profile.id)}">View</button>
+          <button class="btn btn-outline-danger btn-sm" data-volunteer-user-id="${escapeHtml(profile.userId || profile.id)}">Delete</button>
         </td>
       </tr>`;
     }).join('');
@@ -653,19 +1071,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('adminVolLastName').value = profile.lastName || '';
         document.getElementById('adminVolPhone').value = profile.phone || '';
         document.getElementById('adminVolAvailability').value = profile.availability || '';
+        const prefLocEl = document.getElementById('adminVolPreferredLocation');
+        if (prefLocEl) prefLocEl.value = profile.preferredLocation || '';
+        const pronSubjEl = document.getElementById('adminVolPronounsSubject');
+        const pronObjEl  = document.getElementById('adminVolPronounsObject');
+        if (pronSubjEl) pronSubjEl.value = profile.pronounsSubject || '';
+        if (pronObjEl)  pronObjEl.value  = profile.pronounsObject  || '';
+
         const bgSelect = document.getElementById('adminVolBackgroundCheck');
         bgSelect.value = profile.backgroundCheckStatus || 'Not Started';
-
         const bgRecord = await Auth.getBgCheckRecord(profile.userId);
         const isLocked = profile.backgroundCheckStatus === 'Cleared'
           && bgRecord?.expiresAtMs && Date.now() < bgRecord.expiresAtMs;
         bgSelect.disabled = isLocked;
 
-        setAdminSelectedVolunteerInterests(profile.interests);
+        adminVolInterestChips?.setSelected(profile.interests || []);
+        adminVolLangChips?.setSelected(profile.languagesSpoken || []);
+
+        // Render profile header
+        const headerEl = document.getElementById('adminVolProfileHeader');
+        if (headerEl) {
+          renderProfileHeader(headerEl, {
+            name: profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim(),
+            role: 'Volunteer',
+            lastUpdatedMs: profile.updatedAt
+          });
+        }
+
+        // Render right rail
+        const railMeta = document.getElementById('adminVolRailMeta');
+        if (railMeta) {
+          railMeta.innerHTML = `
+            <div class="small text-muted">Last updated: ${escapeHtml(profile.updatedAtLabel || 'N/A')}</div>
+            <div class="small text-muted mt-1">BG Check: <span class="fw-semibold">${escapeHtml(profile.backgroundCheckStatus || 'Not Started')}</span></div>
+          `;
+        }
+        const completenessEl = document.getElementById('adminVolCompleteness');
+        if (completenessEl) {
+          const pct = calcCompleteness({
+            firstName: profile.firstName, lastName: profile.lastName,
+            phone: profile.phone, interests: profile.interests,
+            availability: profile.availability, pronounsSubject: profile.pronounsSubject,
+            languagesSpoken: profile.languagesSpoken
+          });
+          renderCompletenessMeter(completenessEl, pct);
+        }
+
         document.getElementById('adminVolCreateUserToggle').checked = false;
         toggleInlineVolunteerUserFields();
-        editingVolunteerUserId = profile.userId;
-        document.getElementById('volunteerAdminSubmitBtn').textContent = 'Update Volunteer Profile';
+        editingVolunteerUserId = profile.userId || '';
+        editingVolunteerProfileId = profile.id || '';
+        document.getElementById('volunteerAdminSubmitBtn').textContent = 'Save Changes';
         volunteerAdminError.classList.add('d-none');
         volunteerAdminForm.classList.remove('was-validated');
         showVolunteersFormView(true, true);
@@ -674,13 +1130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     tbody.querySelectorAll('[data-volunteer-user-id]').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeVolunteerProfile(button.dataset.volunteerUserId);
-        if (!result.success) {
-          volunteerAdminError.textContent = result.message;
-          volunteerAdminError.classList.remove('d-none');
-          return;
-        }
-        await renderVolunteersTable();
+        await openDeleteIdentityModal('volunteer', button.dataset.volunteerUserId);
       });
     });
 
@@ -705,6 +1155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="mb-3">
               <h6 class="fw-semibold">Current Status</h6>
               <p class="mb-1"><strong>Status:</strong> ${bgCheckBadge(record.status)}</p>
+              ${record.submitterDateOfBirth ? `<p class="mb-1"><strong>DOB on consent:</strong> ${escapeHtml(record.submitterDateOfBirth)}</p>` : ''}
               ${record.expiresAtLabel ? `<p class="mb-1"><strong>Expires:</strong> ${escapeHtml(record.expiresAtLabel)}</p>` : ''}
               ${record.notes ? `<p class="mb-1"><strong>Notes:</strong> ${escapeHtml(record.notes)}</p>` : ''}
             </div>
@@ -766,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!tbody) return;
     const events = await Auth.getEvents();
     if (!events.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3">No live events yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted px-3">No live events yet.</td></tr>';
       return;
     }
 
@@ -778,13 +1229,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       <tr>
         <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(event.title)}</div></td>
         <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
+        <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(event.ageRequirement))}</td>
         <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
         <td class="small">${escapeHtml(event.location)}</td>
         <td class="small">
           <div class="fw-semibold">${totalCost}</div>
           <div class="text-muted" style="font-size:0.75rem;">Fee: ${fee} · Materials: ${mat}</div>
         </td>
-        <td class="small text-muted"><div class="event-accommodations">${escapeHtml(event.accommodations)}</div></td>
+        <td class="small text-muted" style="max-width: 14rem;">
+          ${!event.accommodations
+            ? '—'
+            : `<details class="event-acc-details small">
+            <summary class="fw-semibold" style="cursor:pointer;">View requirements <span class="text-muted">(${escapeHtml(String(event.accommodations).length)} characters)</span></summary>
+            <div class="mt-2 p-2 bg-light rounded border" style="white-space: pre-wrap; max-height: 12rem; overflow: auto;">${escapeHtml(event.accommodations)}</div>
+          </details>`}
+        </td>
         <td class="text-muted small">${escapeHtml(event.dateAdded)}</td>
         <td class="pe-3" style="width:1%;white-space:nowrap;">
           <button class="btn btn-outline-primary btn-sm me-1" data-event-edit-id="${escapeHtml(event.id)}">View</button>
@@ -800,6 +1259,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!event) return;
         document.getElementById('eventTitle').value = event.title || '';
         document.getElementById('eventCategory').value = event.category || '';
+        const evAgeEl = document.getElementById('eventAgeRequirement');
+        if (evAgeEl) evAgeEl.value = String(Auth.normalizeAgeRequirement(event.ageRequirement) || 'ALL');
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
         document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
@@ -810,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         editingEventId = event.id;
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         showEventsFormView(true, true);
+        await renderEventVolunteersPanel(event.id);
       });
     });
 
@@ -830,9 +1292,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderJobsTable() {
     const tbody = document.getElementById('jobsTableBody');
     if (!tbody) return;
-    const [jobs, interestSummary] = await Promise.all([Auth.getJobs(), Auth.getJobInterestSummary()]);
+    const [jobs, appSummary] = await Promise.all([Auth.getJobs(), Auth.getJobApplicationSummary()]);
     if (!jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted px-3">No job opportunities logged yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted px-3 py-4">No job opportunities logged yet.</td></tr>';
       return;
     }
 
@@ -849,36 +1311,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     tbody.innerHTML = jobs.map((job) => {
-      const summary = interestSummary[job.id] || { approved: [], pending: [] };
-      const approvedMarkup = summary.approved.length
-        ? summary.approved.map((entry) => `<div class="text-success">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
-        : '<div class="text-muted">No approved interest yet</div>';
-      const pendingMarkup = summary.pending.length
-        ? summary.pending.map((entry) => `<div class="text-warning-emphasis">${escapeHtml(entry.name)} <span class="text-muted">(${escapeHtml(entry.email)})</span></div>`).join('')
-        : '<div class="text-muted">No pending approvals</div>';
+      const s = appSummary[job.id] || {};
+      // Build compact pipeline count badges (skip empty stages, skip rejected)
+      const pipelineParts = [
+        s.pending?.length   ? `<span class="badge text-bg-warning">${s.pending.length} Pending</span>` : '',
+        s.applied?.length   ? `<span class="badge text-bg-primary">${s.applied.length} Applied</span>` : '',
+        s.interview?.length ? `<span class="badge text-bg-info">${s.interview.length} Interview</span>` : '',
+        s.offer?.length     ? `<span class="badge text-bg-success">${s.offer.length} Offer</span>` : '',
+        s.started?.length   ? `<span class="badge bg-success">${s.started.length} Started</span>` : '',
+      ].filter(Boolean);
+      const pipelineMarkup = pipelineParts.length
+        ? `<div class="d-flex flex-wrap gap-1">${pipelineParts.join('')}</div>`
+        : '<span class="text-muted small">None yet</span>';
+
       return `
         <tr>
-          <td class="ps-3"><div class="fw-semibold text-dark">${escapeHtml(job.title)}</div></td>
-          <td>${escapeHtml(job.employer)}</td>
-          <td class="small">${escapeHtml(job.location || '—')}</td>
+          <td class="ps-3">
+            <div class="fw-semibold text-dark">${escapeHtml(job.title)}</div>
+            <div class="small text-muted">${escapeHtml(job.employer)}${job.location ? ` · ${escapeHtml(job.location)}` : ''}</div>
+          </td>
           <td>${job.jobType ? `<span class="badge ${JOB_TYPE_BADGE[job.jobType] || 'bg-secondary'}">${escapeHtml(job.jobType)}</span>` : '<span class="text-muted small">—</span>'}</td>
           <td><span class="badge ${JOB_STATUS_BADGE[job.status] || 'bg-secondary'}">${escapeHtml(job.status || 'Open')}</span></td>
+          <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(job.ageRequirement))}</td>
           <td class="small">
-            ${job.payRate != null && job.payRate > 0 ? `<div class="fw-semibold text-success">$${Number(job.payRate).toFixed(2)}/hr</div>` : `<div class="fw-semibold">${escapeHtml(job.salary || 'Unpaid')}</div>`}
-            ${job.programFee != null && job.programFee > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Fee: $${Number(job.programFee).toFixed(2)}</div>` : ''}
-            ${job.materialsCost != null && job.materialsCost > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Materials: $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
+            ${job.payRate != null && job.payRate > 0 ? `<span class="fw-semibold text-success">$${Number(job.payRate).toFixed(2)}/hr</span>` : `<span class="text-muted">Unpaid</span>`}
+            ${job.programFee > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Fee $${Number(job.programFee).toFixed(2)}</div>` : ''}
+            ${job.materialsCost > 0 ? `<div class="text-muted" style="font-size:0.75rem;">Materials $${Number(job.materialsCost).toFixed(2)}</div>` : ''}
           </td>
-          <td class="small text-muted"><div class="event-accommodations">${escapeHtml(job.requirements)}</div></td>
-          <td class="small">
-            <div class="fw-semibold text-success mb-1">Approved</div>
-            ${approvedMarkup}
-            <div class="fw-semibold text-warning-emphasis mt-2 mb-1">Pending</div>
-            ${pendingMarkup}
-          </td>
+          <td>${pipelineMarkup}</td>
           <td class="text-muted small">${escapeHtml(job.dateAdded)}</td>
           <td class="pe-3" style="width:1%;white-space:nowrap;">
-            <button class="btn btn-outline-primary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">View</button>
-            <button class="btn btn-outline-danger btn-sm" data-job-id="${escapeHtml(job.id)}">Delete</button>
+            <button class="btn btn-outline-secondary btn-sm me-1" data-job-edit-id="${escapeHtml(job.id)}">View</button>
+            <button class="btn btn-outline-primary btn-sm me-1 js-job-apps-btn" data-job-id="${escapeHtml(job.id)}" data-job-title="${escapeHtml(job.title)}" data-job-employer="${escapeHtml(job.employer)}">Applications</button>
+            <button class="btn btn-outline-danger btn-sm" data-job-delete-id="${escapeHtml(job.id)}">Delete</button>
           </td>
         </tr>`;
     }).join('');
@@ -893,6 +1358,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || 'Open';
+        const jAge = document.getElementById('jobAgeRequirement');
+        if (jAge) jAge.value = String(Auth.normalizeAgeRequirement(job.ageRequirement) || 'ALL');
         document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
         document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
         document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
@@ -905,9 +1372,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    tbody.querySelectorAll('[data-job-id]').forEach((button) => {
+    tbody.querySelectorAll('.js-job-apps-btn').forEach((button) => {
       button.addEventListener('click', async () => {
-        const result = await Auth.removeJob(button.dataset.jobId);
+        const { jobId, jobTitle, jobEmployer } = button.dataset;
+        showJobsApplicationsView(jobTitle, jobEmployer);
+        await renderJobAppsForJob(jobId);
+      });
+    });
+
+    tbody.querySelectorAll('[data-job-delete-id]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const result = await Auth.removeJob(button.dataset.jobDeleteId);
         if (!result.success) {
           jobError.textContent = result.message;
           jobError.classList.remove('d-none');
@@ -918,6 +1393,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
   }
+
+  async function renderJobAppsForJob(jobId) {
+    const tbody = document.getElementById('jobAppsTableBody');
+    if (!tbody) return;
+    currentJobId = jobId;
+
+    const result = await Auth.getJobApplications(jobId);
+    if (!Array.isArray(result)) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger px-3 py-4">${escapeHtml(result?.message || 'Error loading applications.')}</td></tr>`;
+      return;
+    }
+    if (!result.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted px-3 py-4">No applications yet for this job.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = result.map((app) => {
+      const transitions = ADMIN_APP_TRANSITIONS[app.status] || [];
+      return `
+        <tr>
+          <td class="ps-3">
+            <div class="fw-semibold">${escapeHtml(app.participantName)}</div>
+            <div class="small text-muted">${escapeHtml(app.participantEmail)}</div>
+          </td>
+          <td><span class="badge ${APP_STATUS_BADGE[app.status] || 'text-bg-secondary'}">${escapeHtml(app.status)}</span></td>
+          <td class="small text-muted">${escapeHtml(app.appliedAtLabel || '')}</td>
+          <td class="small text-muted">${escapeHtml(app.updatedAtLabel || '')}</td>
+          <td class="small">${app.notes ? escapeHtml(app.notes) : '<span class="text-muted">—</span>'}</td>
+          <td class="text-end pe-3">
+            ${transitions.length ? `<button class="btn btn-outline-primary btn-sm js-update-app-status-btn"
+              data-app-id="${escapeHtml(app.id)}"
+              data-current-status="${escapeHtml(app.status)}"
+              data-participant-name="${escapeHtml(app.participantName)}"
+              data-job-title="${escapeHtml(app.job?.title || '')}">
+              Update
+            </button>` : '<span class="text-muted small">—</span>'}
+          </td>
+        </tr>`;
+    }).join('');
+
+    tbody.querySelectorAll('.js-update-app-status-btn').forEach((btn) => {
+      btn.addEventListener('click', () => openUpdateAppStatusModal(btn.dataset));
+    });
+  }
+
+  const ADMIN_APP_TRANSITIONS = {
+    APPLIED:   ['INTERVIEW', 'OFFER', 'REJECTED'],
+    INTERVIEW: ['OFFER', 'REJECTED'],
+    OFFER:     ['STARTED', 'REJECTED'],
+    STARTED:   ['REJECTED'],
+    REJECTED:  []
+  };
+
+  const APP_STATUS_BADGE = {
+    APPLIED:   'text-bg-primary',
+    INTERVIEW: 'text-bg-info',
+    OFFER:     'text-bg-success',
+    STARTED:   'text-bg-success',
+    REJECTED:  'text-bg-danger'
+  };
+
+  let currentAppId = null;
+  let currentJobId = null;
+
+  function openUpdateAppStatusModal({ appId, currentStatus, participantName, jobTitle }) {
+    currentAppId = appId;
+    const modalEl = document.getElementById('updateAppStatusModal');
+    if (!modalEl) return;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    document.getElementById('updateAppStatusContext').textContent =
+      `${participantName} — ${jobTitle} (currently: ${currentStatus})`;
+    document.getElementById('updateAppStatusNotes').value = '';
+    const errEl = document.getElementById('updateAppStatusError');
+    if (errEl) errEl.classList.add('d-none');
+
+    const transitions = ADMIN_APP_TRANSITIONS[currentStatus] || [];
+    const STATUS_LABEL = { INTERVIEW: 'Interview', OFFER: 'Offer', STARTED: 'Started', REJECTED: 'Rejected' };
+    document.getElementById('updateAppStatusOptions').innerHTML = transitions.map((status) => `
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="appStatusOption"
+               id="appStatus_${escapeHtml(status)}" value="${escapeHtml(status)}">
+        <label class="form-check-label" for="appStatus_${escapeHtml(status)}">${escapeHtml(STATUS_LABEL[status] || status)}</label>
+      </div>`).join('');
+
+    const confirmBtn = document.getElementById('updateAppStatusConfirmBtn');
+    if (confirmBtn) confirmBtn.disabled = true;
+    document.getElementById('updateAppStatusOptions').querySelectorAll('input[type="radio"]').forEach((radio) => {
+      radio.addEventListener('change', () => { if (confirmBtn) confirmBtn.disabled = false; });
+    });
+
+    modal.show();
+  }
+
+  document.getElementById('updateAppStatusConfirmBtn')?.addEventListener('click', async () => {
+    const selected = document.querySelector('input[name="appStatusOption"]:checked')?.value;
+    const notes = document.getElementById('updateAppStatusNotes')?.value || '';
+    const errEl = document.getElementById('updateAppStatusError');
+    if (!selected) {
+      if (errEl) { errEl.textContent = 'Please select a status.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    const result = await Auth.updateApplicationStatus(currentAppId, selected, notes);
+    if (!result.success) {
+      if (errEl) { errEl.textContent = result.message || 'Update failed.'; errEl.classList.remove('d-none'); }
+      return;
+    }
+    bootstrap.Modal.getInstance(document.getElementById('updateAppStatusModal'))?.hide();
+    showToast('Application status updated.');
+    if (currentJobId) await renderJobAppsForJob(currentJobId);
+    await renderJobsTable();
+  });
 
   function getSelectedNewsletterRecipients() {
     return Array.from(document.querySelectorAll('input[name="newsletterRecipients"]:checked')).map((checkbox) => checkbox.value);
@@ -1003,16 +1590,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   registerForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     registerForm.classList.add('was-validated');
-    if (!registerForm.checkValidity()) return;
+    const role = canonicalRole(document.getElementById('regRole').value);
+    const collectLinkedRecord = !editingUserEmail;
+    const collectParticipantRecord = collectLinkedRecord && role === 'PARTICIPANT';
+    const collectVolunteerProfile = collectLinkedRecord && role === 'VOLUNTEER';
+    const participantInterestsValid = collectParticipantRecord ? (userParticipantInterestChips?.validate() ?? true) : true;
+    const volunteerInterestsValid = collectVolunteerProfile ? (userVolInterestChips?.validate() ?? true) : true;
+    const guardianIds = collectParticipantRecord ? getSelectedValues(document.getElementById('userParticipantGuardianIds')) : [];
+    document.getElementById('userParticipantGuardianIds')?.setCustomValidity(
+      collectParticipantRecord && !guardianIds.length ? 'Select at least one guardian.' : ''
+    );
+    if (!registerForm.checkValidity() || !participantInterestsValid || !volunteerInterestsValid || (collectParticipantRecord && !guardianIds.length)) {
+      registerForm.reportValidity();
+      return;
+    }
+    document.getElementById('userParticipantGuardianIds')?.setCustomValidity('');
     const fullName = `${document.getElementById('regFirstName').value} ${document.getElementById('regLastName').value}`.trim();
     const payload = {
       name: fullName,
       email: document.getElementById('regEmail').value,
       password: document.getElementById('regPassword').value,
-      role: document.getElementById('regRole').value,
-      linkParticipantId: document.getElementById('userParticipantLinkId').value,
-      linkVolunteerProfileId: document.getElementById('userVolunteerLinkId').value
+      role
     };
+
+    if (role === 'GUARDIAN') {
+      const gdob = document.getElementById('regGuardianDateOfBirth')?.value?.trim();
+      if (!gdob) {
+        registerError.textContent = 'Date of birth is required for guardian accounts. Account holders must be 18 or older.';
+        registerError.classList.remove('d-none');
+        return;
+      }
+      payload.dateOfBirth = gdob;
+    }
+
+    if (collectParticipantRecord) payload.participantRecord = getUserParticipantRecordPayload();
+    if (collectVolunteerProfile) payload.volunteerProfile = getUserVolunteerProfilePayload();
 
     if (editingUserEmail) {
       const result = await Auth.updateUser(editingUserEmail, payload);
@@ -1031,6 +1643,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     pendingUser = payload;
     populateModalSummary(payload);
+    populateLinkedCreateSummary(payload);
     confirmModal?.show();
   });
 
@@ -1040,22 +1653,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     event.preventDefault();
     participantForm.classList.add('was-validated');
     const guardianIds = getSelectedValues(document.getElementById('participantGuardianIds'));
-    if (!participantForm.checkValidity() || !guardianIds.length) {
+    const interestsValid = participantInterestChips?.validate() ?? true;
+    if (!participantForm.checkValidity() || !guardianIds.length || !interestsValid) {
       document.getElementById('participantGuardianIds')?.setCustomValidity(guardianIds.length ? '' : 'Select at least one guardian.');
       participantForm.reportValidity();
       return;
     }
     document.getElementById('participantGuardianIds')?.setCustomValidity('');
+    const derivedAge = updateParticipantAgeDisplay(document.getElementById('participantAge').value);
     const payload = {
       firstName: document.getElementById('participantFirstName').value,
       lastName: document.getElementById('participantLastName').value,
-      age: document.getElementById('participantAge').value,
+      age: derivedAge,
+      dateOfBirth: document.getElementById('participantDateOfBirth').value,
       participantUserId: document.getElementById('participantUserId').value,
       guardianUserIds: guardianIds,
       contactEmail: document.getElementById('participantEmail').value,
       contactPhone: document.getElementById('participantPhone').value,
-      participantInterests: document.getElementById('participantInterests').value,
+      participantInterests: participantInterestChips?.getSelected() || [],
       jobGoals: document.getElementById('participantJobGoals').value,
+      bio: document.getElementById('participantBio').value,
       specialNeeds: document.getElementById('participantSpecialNeeds').value,
       medicalNotes: document.getElementById('participantMedicalNotes').value,
       sensoryNotes: document.getElementById('participantSensoryNotes').value,
@@ -1063,18 +1680,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     if (document.getElementById('participantCreateUserToggle')?.checked) {
-      const createResult = await Auth.addUser({
+      const newUserPayload = {
         name: `${payload.firstName} ${payload.lastName}`.trim(),
         email: document.getElementById('participantNewUserEmail').value,
         password: document.getElementById('participantNewUserPassword').value,
         role: 'PARTICIPANT'
-      });
-      if (!createResult.success) {
-        participantError.textContent = createResult.message;
-        participantError.classList.remove('d-none');
-        return;
+      };
+      if (!editingParticipantId) {
+        payload._newUser = newUserPayload;
+        payload.participantUserId = '';
+      } else {
+        const createResult = await Auth.addUser({ ...newUserPayload, linkParticipantId: editingParticipantId });
+        if (!createResult.success) {
+          participantError.textContent = createResult.message;
+          participantError.classList.remove('d-none');
+          return;
+        }
+        payload.participantUserId = createResult.user.id;
       }
-      payload.participantUserId = createResult.user.id;
     }
 
     if (editingParticipantId) {
@@ -1098,45 +1721,60 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   participantForm?.addEventListener('input', () => participantError?.classList.add('d-none'));
 
-  document.getElementById('adminVolInterestOther')?.addEventListener('change', () => {
-    setAdminVolunteerOtherInterestInputState();
-    volunteerAdminError?.classList.add('d-none');
-  });
-
-  document.querySelectorAll('input[name="adminVolInterests"]').forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
-      volunteerAdminError?.classList.add('d-none');
-      validateAdminVolunteerInterests();
-    });
-  });
-
   volunteerAdminForm?.addEventListener('input', () => {
     volunteerAdminError?.classList.add('d-none');
-    document.getElementById('adminVolInterestsGroup')?.classList.remove('border-danger');
-    document.getElementById('adminVolInterestsFeedback')?.classList.add('d-none');
   });
 
   volunteerAdminForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     volunteerAdminForm.classList.add('was-validated');
-    const interestsValid = validateAdminVolunteerInterests();
+    const interestsValid = adminVolInterestChips?.validate() ?? true;
     if (!volunteerAdminForm.checkValidity() || !interestsValid) return;
     const payload = {
       userId: document.getElementById('adminVolUserId').value,
       firstName: document.getElementById('adminVolFirstName').value,
       lastName: document.getElementById('adminVolLastName').value,
       phone: document.getElementById('adminVolPhone').value,
-      interests: getAdminSelectedVolunteerInterests(),
+      interests: adminVolInterestChips?.getSelected() || [],
       availability: document.getElementById('adminVolAvailability').value,
+      preferredLocation: document.getElementById('adminVolPreferredLocation').value,
+      pronounsSubject: document.getElementById('adminVolPronounsSubject').value,
+      pronounsObject: document.getElementById('adminVolPronounsObject').value,
+      languagesSpoken: adminVolLangChips?.getSelected() || [],
       backgroundCheckStatus: document.getElementById('adminVolBackgroundCheck').value
     };
+    if (editingVolunteerProfileId) payload.id = editingVolunteerProfileId;
 
     if (document.getElementById('adminVolCreateUserToggle')?.checked) {
-      const createResult = await Auth.addUser({
+      const newUserPayload = {
         name: `${payload.firstName} ${payload.lastName}`.trim(),
         email: document.getElementById('adminVolNewUserEmail').value,
         password: document.getElementById('adminVolNewUserPassword').value,
         role: 'VOLUNTEER'
+      };
+      if (!editingVolunteerUserId && !editingVolunteerProfileId) {
+        const result = await Auth.createUserWithLinkedRecord({
+          ...newUserPayload,
+          volunteerProfile: payload
+        });
+        if (!result.success) {
+          volunteerAdminError.textContent = result.message || 'Unable to create linked volunteer profile.';
+          volunteerAdminError.classList.remove('d-none');
+          return;
+        }
+        if (payload.backgroundCheckStatus && payload.backgroundCheckStatus !== 'Not Started') {
+          await Auth.updateBgCheckStatus(result.user.id, payload.backgroundCheckStatus, 'Updated by admin via volunteer profile form');
+        }
+        resetVolunteerFormState();
+        await renderVolunteersTable();
+        await populateLinkedUserOptions();
+        showVolunteersListView();
+        showToast('Volunteer profile saved successfully.');
+        return;
+      }
+      const createResult = await Auth.addUser({
+        ...newUserPayload,
+        linkVolunteerProfileId: editingVolunteerProfileId || editingVolunteerUserId
       });
       if (!createResult.success) {
         volunteerAdminError.textContent = createResult.message || 'Unable to create linked volunteer user.';
@@ -1157,7 +1795,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await Auth.updateBgCheckStatus(payload.userId, newBgStatus, 'Updated by admin via volunteer profile form');
     }
 
-    const wasEditing = Boolean(editingVolunteerUserId);
+    const wasEditing = Boolean(editingVolunteerUserId || editingVolunteerProfileId);
     resetVolunteerFormState();
     await renderVolunteersTable();
     showVolunteersListView();
@@ -1188,6 +1826,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       programFee: programFeeInput.value,
       materialsCost: materialsCostInput.value,
       accommodations: document.getElementById('eventAccommodations').value,
+      ageRequirement: document.getElementById('eventAgeRequirement')?.value || 'ALL',
       isUrgent: Boolean(document.getElementById('eventIsUrgent')?.checked)
     };
     const result = editingEventId ? await Auth.updateEvent(editingEventId, payload) : await Auth.addEvent(payload);
@@ -1235,6 +1874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       location: document.getElementById('jobLocation').value,
       jobType: document.getElementById('jobType').value,
       status: document.getElementById('jobStatus').value,
+      ageRequirement: document.getElementById('jobAgeRequirement')?.value || 'ALL',
       salary,
       payRate: jobPayRateInput.value,
       programFee: jobProgramFeeInput.value,
@@ -1259,7 +1899,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   confirmBtn?.addEventListener('click', async () => {
     if (!pendingUser) return;
-    const result = await Auth.addUser(pendingUser);
+    const result = pendingUser.role === 'PARTICIPANT' || pendingUser.role === 'VOLUNTEER'
+      ? await Auth.createUserWithLinkedRecord(pendingUser)
+      : await Auth.addUser(pendingUser);
     confirmModal?.hide();
     if (!result.success) {
       registerError.textContent = result.message;
@@ -1268,6 +1910,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     const createdRoleLabel = ROLE_LABEL[pendingUser.role] || pendingUser.role;
+    if (pendingUser.role === 'VOLUNTEER' && pendingUser.volunteerProfile?.backgroundCheckStatus && pendingUser.volunteerProfile.backgroundCheckStatus !== 'Not Started') {
+      await Auth.updateBgCheckStatus(result.user.id, pendingUser.volunteerProfile.backgroundCheckStatus, 'Updated by admin via user creation form');
+    }
     resetUserFormState();
     await renderUsersTable();
     await populateLinkedUserOptions();
@@ -1282,7 +1927,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   confirmParticipantBtn?.addEventListener('click', async () => {
     if (!pendingParticipant) return;
-    const result = await Auth.addParticipant(pendingParticipant);
+    const result = pendingParticipant._newUser
+      ? await Auth.createUserWithLinkedRecord({
+          ...pendingParticipant._newUser,
+          role: 'PARTICIPANT',
+          participantRecord: pendingParticipant
+        })
+      : await Auth.addParticipant(pendingParticipant);
     confirmParticipantModal?.hide();
     if (!result.success) {
       participantError.textContent = result.message;
@@ -1301,12 +1952,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     pendingParticipant = null;
   });
 
+  async function runPendingDelete(cascade) {
+    if (!pendingDeleteIdentity) return;
+    const pending = pendingDeleteIdentity;
+    let result = { success: false, message: 'Nothing selected to delete.' };
+    if (pending.kind === 'user') {
+      result = await Auth.removeUser(pending.identifier, {
+        preserveLinkedRecords: !cascade,
+        deleteLinkedRecords: cascade
+      });
+    } else if (pending.kind === 'participant') {
+      result = await Auth.removeParticipant(pending.identifier, { deleteLinkedUser: cascade });
+    } else if (pending.kind === 'volunteer') {
+      result = await Auth.removeVolunteerProfile(pending.identifier, { deleteLinkedUser: cascade });
+    }
+
+    deleteIdentityModal?.hide();
+    if (!result.success) {
+      const targetError = pending.kind === 'participant'
+        ? participantError
+        : (pending.kind === 'volunteer' ? volunteerAdminError : registerError);
+      if (targetError) {
+        targetError.textContent = result.message;
+        targetError.classList.remove('d-none');
+      }
+      pendingDeleteIdentity = null;
+      return;
+    }
+    pendingDeleteIdentity = null;
+    await renderUsersTable();
+    await renderParticipantsTable();
+    await renderVolunteersTable();
+    await populateLinkedUserOptions();
+    showToast(cascade ? 'Linked user data deleted.' : 'Item deleted and linked data preserved.');
+  }
+
+  document.getElementById('deleteIdentityPreserveBtn')?.addEventListener('click', () => runPendingDelete(false));
+  document.getElementById('deleteIdentityCascadeBtn')?.addEventListener('click', () => runPendingDelete(true));
+  deleteIdentityModalEl?.addEventListener('hidden.bs.modal', () => {
+    pendingDeleteIdentity = null;
+  });
+
   document.getElementById('newParticipantBtn')?.addEventListener('click', () => {
     resetParticipantFormState();
     participantsViewOrigin = null;
     showParticipantsFormView(false);
   });
   document.getElementById('backToParticipantsBtn')?.addEventListener('click', () => {
+    const origin = participantsViewOrigin;
+    resetParticipantFormState();
+    participantsViewOrigin = null;
+    if (origin) {
+      navigateTo(origin);
+    } else {
+      showParticipantsListView();
+    }
+  });
+  document.getElementById('participantCancelBtn')?.addEventListener('click', () => {
     const origin = participantsViewOrigin;
     resetParticipantFormState();
     participantsViewOrigin = null;
@@ -1330,12 +2032,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetVolunteerFormState();
     showVolunteersListView();
   });
+  document.getElementById('volunteerAdminCancelBtn')?.addEventListener('click', () => {
+    resetVolunteerFormState();
+    showVolunteersListView();
+  });
   document.getElementById('volunteerFormEditBtn')?.addEventListener('click', () => {
     document.getElementById('volunteerFormTitle').textContent = 'Edit Volunteer Profile';
     setFormFieldsDisabled('volunteerAdminForm', false);
     document.getElementById('volunteerAdminSubmitBtn').classList.remove('d-none');
     document.getElementById('volunteerFormEditBtn').classList.add('d-none');
   });
+  document.getElementById('participantDateOfBirth')?.addEventListener('input', updateParticipantAgeDisplay);
   document.getElementById('newEventBtn')?.addEventListener('click', () => {
     resetEventFormState();
     showEventsFormView(false);
@@ -1384,8 +2091,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetUserFormState();
     showUsersListView();
   });
-  document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => navigateTo('communications'));
+  async function applyGeneratedWeeklyNewsletter() {
+    clearNewsletterMessages();
+    const gen = await Auth.generateWeeklyNewsletter();
+    if (!gen.success) {
+      showToast(gen.message || 'Could not generate newsletter.');
+      return;
+    }
+    const n = gen.newsletter;
+    const users = await Auth.getUsers();
+    const recipientEmails = users.filter((u) => u.role !== 'ADMIN').map((u) => u.email);
+    await Auth.saveNewsletterDraft({
+      subject: n.subject || '',
+      eventHighlights: n.eventHighlights || '',
+      updates: n.updates || '',
+      recipients: recipientEmails
+    });
+    navigateTo('communications');
+    const subEl = document.getElementById('newsletterSubject');
+    const evEl = document.getElementById('newsletterEvents');
+    const upEl = document.getElementById('newsletterUpdates');
+    if (subEl) subEl.value = n.subject || '';
+    if (evEl) evEl.value = n.eventHighlights || '';
+    if (upEl) upEl.value = n.updates || '';
+    await renderNewsletterRecipients();
+    const draft = await Auth.getNewsletterDraft();
+    const selected = new Set((draft?.recipients || []).map((e) => String(e).toLowerCase()));
+    document.querySelectorAll('input[name="newsletterRecipients"]').forEach((cb) => {
+      cb.checked = selected.has(String(cb.value).toLowerCase());
+    });
+    renderNewsletterPreview();
+    showNewsletterSuccess(
+      gen.updated
+        ? 'Weekly newsletter refreshed with the latest events and jobs. Review the form, then distribute.'
+        : 'Weekly newsletter generated and loaded. Review recipients, then distribute when ready.'
+    );
+    showToast('Weekly newsletter draft is ready in Communications.');
+  }
+
+  document.getElementById('adminGenerateNewsletterQuickBtn')?.addEventListener('click', () => {
+    applyGeneratedWeeklyNewsletter();
+  });
+  document.getElementById('newsletterAutoGenerateBtn')?.addEventListener('click', () => {
+    applyGeneratedWeeklyNewsletter();
+  });
   document.getElementById('adminUrgentAlertsQuickBtn')?.addEventListener('click', () => navigateTo('urgent-notifications'));
+
+  // ── Admin notification bell ───────────────────────────────────────────────
+  const _adminBellConfig = { notificationsSection: 'a-notifications', role: 'ADMIN', eventSection: 'events', jobSection: 'jobs' };
+  if (document.getElementById('nav-notifications-bell')) {
+    NotificationsUI.renderNavBell(_adminBellConfig);
+  } else {
+    document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_adminBellConfig), { once: true });
+  }
+  const _adminNotifSection = document.getElementById('section-a-notifications');
+  if (_adminNotifSection) {
+    new MutationObserver(() => {
+      if (!_adminNotifSection.classList.contains('d-none')) {
+        NotificationsUI.renderInbox('a-notifications-list', _adminBellConfig);
+      }
+    }).observe(_adminNotifSection, { attributes: true, attributeFilter: ['class'] });
+  }
 
   // ─── Urgent Notifications UI ─────────────────────────────────────────────────────
 
@@ -1592,6 +2358,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!event) return;
         document.getElementById('eventTitle').value = event.title || '';
         document.getElementById('eventCategory').value = event.category || '';
+        const evAgeEl2 = document.getElementById('eventAgeRequirement');
+        if (evAgeEl2) evAgeEl2.value = String(Auth.normalizeAgeRequirement(event.ageRequirement) || 'ALL');
         document.getElementById('eventDateTime').value = event.dateTime || '';
         document.getElementById('eventLocation').value = event.location || '';
         document.getElementById('eventProgramFee').value = event.programFee != null ? event.programFee : '';
@@ -1604,6 +2372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         navigateTo('events');
         showEventsFormView(true);
+        await renderEventVolunteersPanel(event.id);
       });
     });
 
@@ -1618,6 +2387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('jobLocation').value = job.location || '';
         document.getElementById('jobType').value = job.jobType || '';
         document.getElementById('jobStatus').value = job.status || '';
+        const ujAge = document.getElementById('jobAgeRequirement');
+        if (ujAge) ujAge.value = String(Auth.normalizeAgeRequirement(job.ageRequirement) || 'ALL');
         document.getElementById('jobPayRate').value = job.payRate != null ? job.payRate : '';
         document.getElementById('jobProgramFee').value = job.programFee != null ? job.programFee : '';
         document.getElementById('jobMaterialsCost').value = job.materialsCost != null ? job.materialsCost : '';
@@ -1723,23 +2494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (!participant) { showToast('No participant record linked to this user.'); return; }
 
-        document.getElementById('participantFirstName').value = participant.firstName || '';
-        document.getElementById('participantLastName').value = participant.lastName || '';
-        document.getElementById('participantAge').value = participant.age || '';
-        document.getElementById('participantUserId').value = participant.participantUserId || '';
-        Array.from(document.getElementById('participantGuardianIds').options).forEach((opt) => {
-          opt.selected = participant.guardianUserIds.includes(opt.value);
-        });
-        document.getElementById('participantEmail').value = participant.contactEmail || '';
-        document.getElementById('participantPhone').value = participant.contactPhone || '';
-        document.getElementById('participantInterests').value = participant.participantInterests.join(', ');
-        document.getElementById('participantJobGoals').value = participant.jobGoals || '';
-        document.getElementById('participantSpecialNeeds').value = participant.specialNeeds || '';
-        document.getElementById('participantMedicalNotes').value = participant.medicalNotes || '';
-        document.getElementById('participantSensoryNotes').value = participant.sensoryNotes || '';
-        document.getElementById('participantGuardianNotes').value = participant.guardianNotes || '';
-        document.getElementById('participantCreateUserToggle').checked = false;
-        toggleInlineParticipantUserFields();
+        populateParticipantFormFromRecord(participant);
         editingParticipantId = participant.id;
         participantError.classList.add('d-none');
         participantForm.classList.remove('was-validated');
@@ -2442,6 +3197,79 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
+  async function renderAdminDashboardStats() {
+    const el = document.getElementById('adminDashboardStats');
+    if (!el) return;
+    try {
+      el.className = 'row row-cols-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4';
+      const [users, participants, events, jobs, approvals] = await Promise.all([
+        Auth.getUsers(),
+        Auth.getParticipants(),
+        Auth.getEvents(),
+        Auth.getJobs(),
+        Auth.getPendingApprovals()
+      ]);
+      const now = Date.now();
+      const upcomingCount = events.filter((e) => {
+        const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+        return !isNaN(t) && t >= now;
+      }).length;
+      const openJobs = jobs.filter((j) => (j.status || 'Open') === 'Open').length;
+      const pendingApprovalCount = approvals.filter((a) => a.status === 'PENDING').length;
+      el.innerHTML = `
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">User accounts</div>
+              <div class="h4 mb-1 fw-semibold">${users.filter((u) => u.accessStatus !== 'REVOKED').length}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('users')">Users</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Participants</div>
+              <div class="h4 mb-1 fw-semibold">${participants.length}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('participants')">Manage</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Upcoming events</div>
+              <div class="h4 mb-1 fw-semibold">${upcomingCount}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('events')">Events</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Open jobs</div>
+              <div class="h4 mb-1 fw-semibold">${openJobs}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('jobs')">Jobs</button>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body py-3">
+              <div class="text-muted text-uppercase small mb-1">Pending job approvals</div>
+              <div class="h4 mb-1 fw-semibold">${pendingApprovalCount}</div>
+              <button type="button" class="btn btn-link btn-sm p-0" onclick="navigateTo('work-queue')">Work queue</button>
+            </div>
+          </div>
+        </div>`;
+    } catch (err) {
+      console.error(err);
+      el.innerHTML = '<div class="col-12"><div class="alert alert-light border mb-0 small">Unable to load dashboard stats.</div></div>';
+    }
+  }
+
+  await renderAdminDashboardStats();
+
   await populateLinkedUserOptions();
   await renderUsersTable();
   await renderParticipantsTable();
@@ -2452,11 +3280,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   await hydrateNewsletterDraft();
   await renderNewsletterHistory();
   renderNewsletterPreview();
-  setAdminVolunteerOtherInterestInputState();
   toggleInlineParticipantUserFields();
   toggleInlineVolunteerUserFields();
   syncUserLinkVisibility();
   document.getElementById('regRole')?.addEventListener('change', syncUserLinkVisibility);
   document.getElementById('participantCreateUserToggle')?.addEventListener('change', toggleInlineParticipantUserFields);
   document.getElementById('adminVolCreateUserToggle')?.addEventListener('change', toggleInlineVolunteerUserFields);
+
+  document.getElementById('usersTableSearch')?.addEventListener('input', () => { renderUsersTable(); });
+  document.getElementById('participantsTableSearch')?.addEventListener('input', () => { renderParticipantsTable(); });
+  document.getElementById('volunteersTableSearch')?.addEventListener('input', () => { renderVolunteersTable(); });
 });

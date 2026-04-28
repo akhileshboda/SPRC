@@ -3,18 +3,19 @@
  * Handles participant self-service profile updates, participant saved content,
  * guardian linked-participant views, and guardian approvals.
  */
-document.addEventListener('DOMContentLoaded', async () => {
-  const session = await Auth.getSession();
+document.addEventListener('sections:ready', async (e) => {
+  const session = e.detail.session;
   if (!session || !['PARTICIPANT', 'GUARDIAN'].includes(session.role)) return;
 
-  function escHtml(str) {
-    return String(str ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
+  const {
+    escHtml,
+    renderProfileHeader,
+    renderInterestChips,
+    linkedRowHTML,
+    renderCompletenessMeter,
+    calcCompleteness,
+    VOLUNTEER_INTERESTS
+  } = await import('./profile-ui.js');
 
   function emptyState(icon, message) {
     return `<div class="portal-empty-state"><i class="bi ${icon}"></i><p>${message}</p></div>`;
@@ -76,12 +77,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     return total > 0 ? money(total) : 'No listed cost';
   }
 
+  function jobMinAgeLabel(job) {
+    const min = Auth.minAgeForRequirement(job.ageRequirement);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
+  }
+
   function buildJobExpectationLine(job) {
     return `
       <div class="small mt-1">
-        <span class="text-success fw-semibold"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
+        <span class="text-muted"><i class="bi bi-person-bounding-box me-1"></i>Age: ${escHtml(jobMinAgeLabel(job))}</span>
+        <span class="text-success fw-semibold ms-2"><i class="bi bi-cash-coin me-1"></i>Pay: ${escHtml(jobPayText(job))}</span>
         <span class="text-muted ms-2"><i class="bi bi-tag me-1"></i>Cost: ${escHtml(jobCostText(job))}</span>
       </div>`;
+  }
+
+  const participantInterestChipsEl = document.getElementById('participantInterestsChips');
+  const participantInterestChips = participantInterestChipsEl
+    ? renderInterestChips(participantInterestChipsEl, VOLUNTEER_INTERESTS, [], { required: true })
+    : null;
+
+  function eventMinAgeLabel(event) {
+    const min = Auth.minAgeForRequirement(event.ageRequirement);
+    if (min === 0) return 'All ages';
+    return `${min}+`;
   }
 
   function buildEventCard(event, options = {}) {
@@ -98,6 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="portal-card-meta">
             <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}</span>
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
+            <span><i class="bi bi-person-bounding-box me-1"></i>${escHtml(eventMinAgeLabel(event))}</span>
           </div>
           <div class="portal-card-body">
             <p class="portal-card-accommodations">${escHtml(event.accommodations || '')}</p>
@@ -139,65 +159,147 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
-  async function renderParticipantDashboard() {
-    if (session.role !== 'PARTICIPANT') return;
-    const participant = await Auth.getMyParticipantRecord();
-    const statusEl = document.getElementById('participantProfileStatus');
-    const errorEl = document.getElementById('participantProfileError');
-    const sectionEl = document.getElementById('participantProfileSection');
-    const selfForm = document.getElementById('participantSelfProfileForm');
+  function renderParticipantDashboardProfileSummary(participant) {
+    const container = document.getElementById('participantDashboardProfileSummary');
+    if (!container) return;
+    container.innerHTML = participant ? `
+      <div class="row g-3 align-items-center">
+        <div class="col-md-8">
+          <div class="fw-semibold">${escHtml(participant.fullName)}</div>
+          <div class="text-muted small">Age ${escHtml(participant.age || '—')} · Linked contacts: ${escHtml(participant.guardianNames.join(', ') || 'None')}</div>
+          <div class="small mt-2"><span class="fw-semibold">Interests:</span> ${escHtml(participant.participantInterests.join(', ') || 'No interests yet')}</div>
+          <div class="small mt-1"><span class="fw-semibold">Goals:</span> ${escHtml(participant.jobGoals || 'No goals added yet')}</div>
+        </div>
+        <div class="col-md-4 text-md-end">
+          <button type="button" class="btn btn-success btn-sm" onclick="navigateTo('p-profile')">
+            View / Edit Profile <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </div>
+    ` : '<div class="alert alert-warning mb-0">No participant record is linked to this login yet. Ask an administrator to link your participant profile.</div>';
+  }
 
-    if (!participant) {
-      document.getElementById('panel-PARTICIPANT')?.classList.add('d-none');
-      if (sectionEl) {
-        sectionEl.innerHTML = '<div class="alert alert-warning mb-0">No participant record is linked to this login yet. Ask an administrator to link your participant profile.</div>';
-      }
-      return;
-    }
+  function renderParticipantProfileWorkspace(participant) {
+    const form = document.getElementById('participantProfileForm');
+    if (!form) return;
 
-    document.getElementById('participantInterestsInput').value = participant.participantInterests.join(', ');
-    document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
-    document.getElementById('participantSpecialNeedsReadonly').value = participant.specialNeeds || '';
-    document.getElementById('participantMedicalReadonly').value = participant.medicalNotes || '';
-    document.getElementById('participantSensoryReadonly').value = participant.sensoryNotes || '';
+    renderProfileHeader(document.getElementById('participantProfileHeader'), {
+      name: participant.fullName,
+      role: 'Participant',
+      managedBy: 'Shared with guardian and admin',
+      lastUpdatedMs: participant.createdAtMs
+    });
 
-    if (sectionEl) {
-      sectionEl.innerHTML = `
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="fw-semibold">${escHtml(participant.fullName)}</div>
-                <div class="text-muted small">Age ${escHtml(participant.age || '—')}</div>
-                <div class="text-muted small mt-2">Linked guardians: ${escHtml(participant.guardianNames.join(', ') || 'None')}</div>
-              </div>
-              <div class="col-md-6">
-                <div class="small"><span class="fw-semibold">Interests:</span> ${escHtml(participant.participantInterests.join(', ') || 'No interests yet')}</div>
-                <div class="small mt-2"><span class="fw-semibold">Job goals:</span> ${escHtml(participant.jobGoals || 'No goals yet')}</div>
-              </div>
+    const summaryContent = document.getElementById('participantProfileSummaryContent');
+    if (summaryContent) {
+      summaryContent.innerHTML = `
+        <div class="row g-3 align-items-center">
+          <div class="col-md-8">
+            <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-stars me-2 text-success"></i>Profile Snapshot</h6>
+            <div class="d-flex flex-wrap gap-3 small">
+              <div><span class="text-muted">Interests</span><br><strong>${escHtml(participant.participantInterests.length || 0)}</strong> selected</div>
+              <div><span class="text-muted">Linked Contacts</span><br><strong>${escHtml(participant.guardianNames.length || 0)}</strong> on file</div>
+              <div class="flex-grow-1"><span class="text-muted">Bio</span><br>${escHtml(participant.bio || 'Add a short introduction about yourself')}</div>
             </div>
+          </div>
+          <div class="col-md-4 text-md-end">
+            <span class="badge text-bg-light border">${escHtml(participant.participantUser?.email || session.email)}</span>
           </div>
         </div>`;
     }
 
-    selfForm?.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      statusEl?.classList.add('d-none');
-      errorEl?.classList.add('d-none');
-      const result = await Auth.updateMyParticipantProfile({
-        participantInterests: document.getElementById('participantInterestsInput').value,
-        jobGoals: document.getElementById('participantJobGoalsInput').value
-      });
-      if (!result.success) {
-        errorEl.textContent = result.message || 'Could not update your profile.';
-        errorEl.classList.remove('d-none');
-        return;
-      }
-      statusEl.textContent = 'Your self-service profile updates have been saved.';
-      statusEl.classList.remove('d-none');
-      await renderParticipantDashboard();
-      await renderParticipantSavedJobs();
-    }, { once: true });
+    document.getElementById('participantBioInput').value = participant.bio || '';
+    document.getElementById('participantDateOfBirthInput').value = participant.dateOfBirth || '';
+    document.getElementById('participantJobGoalsInput').value = participant.jobGoals || '';
+    document.getElementById('participantSpecialNeedsInput').value = participant.specialNeeds || '';
+    document.getElementById('participantMedicalNotesInput').value = participant.medicalNotes || '';
+    document.getElementById('participantSensoryNotesInput').value = participant.sensoryNotes || '';
+    participantInterestChips?.setSelected(participant.participantInterests || []);
+
+    const contacts = document.getElementById('participantLinkedContacts');
+    if (contacts) {
+      contacts.innerHTML = participant.guardians.length
+        ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+        : '<div class="text-muted small">No linked contacts yet.</div>';
+    }
+
+    const completenessEl = document.getElementById('participantCompleteness');
+    if (completenessEl) {
+      renderCompletenessMeter(completenessEl, calcCompleteness({
+        bio: participant.bio,
+        dateOfBirth: participant.dateOfBirth,
+        interests: participant.participantInterests,
+        jobGoals: participant.jobGoals,
+        specialNeeds: participant.specialNeeds,
+        contactEmail: participant.contactEmail
+      }));
+    }
+  }
+
+  async function renderParticipantDashboard() {
+    if (session.role !== 'PARTICIPANT') return;
+    const participant = await Auth.getMyParticipantRecord();
+    const form = document.getElementById('participantProfileForm');
+
+    if (!participant) {
+      document.getElementById('panel-PARTICIPANT')?.classList.add('d-none');
+      renderParticipantDashboardProfileSummary(null);
+      form?.classList.add('d-none');
+      return;
+    }
+
+    form?.classList.remove('d-none');
+    renderParticipantDashboardProfileSummary(participant);
+    renderParticipantProfileWorkspace(participant);
+    await renderParticipantDashboardSnapshot();
+  }
+
+  async function renderParticipantDashboardSnapshot() {
+    if (session.role !== 'PARTICIPANT') return;
+    const el = document.getElementById('p-dashboard-snapshot');
+    if (!el) return;
+    const participant = await Auth.getMyParticipantRecord();
+    if (!participant) {
+      el.innerHTML = '';
+      return;
+    }
+    const events = await Auth.getEvents();
+    const subscribedIds = new Set(await Auth.getInterestedEventIds());
+    const subscribed = events.filter((e) => subscribedIds.has(String(e.id)));
+    const now = Date.now();
+    const upcomingSubscribed = subscribed.filter((e) => {
+      const ts = e.eventTimestamp ?? new Date(e.dateTime).getTime();
+      return !isNaN(ts) && ts >= now;
+    });
+    const jobs = await Auth.getJobs();
+    const statuses = await Auth.getMyJobInterestStatuses();
+    const savedJobCount = jobs.filter((j) => statuses[String(j.id)]).length;
+    const pendingGuardianJobs = Object.values(statuses).filter((s) => s === 'PENDING').length;
+    const nextEvent = upcomingSubscribed
+      .slice()
+      .sort((a, b) => (a.eventTimestamp ?? 0) - (b.eventTimestamp ?? 0))[0];
+    el.innerHTML = `
+      <div class="card border-0 shadow-sm mb-0" style="background: linear-gradient(135deg, rgba(25,135,84,0.09), rgba(13,110,253,0.06));">
+        <div class="card-body py-3">
+          <div class="row g-3 align-items-center">
+            <div class="col-md-8">
+              <h6 class="fw-semibold mb-2 text-dark"><i class="bi bi-speedometer2 me-2 text-success"></i>At a glance</h6>
+              <div class="d-flex flex-wrap gap-3 small">
+                <div><span class="text-muted">Saved events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
+                <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> in pipeline</div>
+                <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
+                ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
+              </div>
+            </div>
+            <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
+              <button type="button" class="btn btn-sm btn-success" onclick="navigateTo('p-events')">My saved events</button>
+              <button type="button" class="btn btn-sm text-white" style="background-color:#6f42c1;border-color:#6f42c1;" onclick="navigateTo('p-jobs')">My jobs</button>
+              <a href="events.html" class="btn btn-sm btn-outline-success">Browse events</a>
+              <a href="jobs.html" class="btn btn-sm btn-outline-primary">Browse jobs</a>
+            </div>
+          </div>
+        </div>
+      </div>`;
   }
 
   async function renderParticipantSavedJobs() {
@@ -222,7 +324,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       ${interestingJobs.map((job) => {
         const status = statuses[String(job.id)];
-        const badgeClass = status === 'APPROVED' ? 'text-bg-success' : (status === 'REJECTED' ? 'text-bg-danger' : 'text-bg-warning');
+        const DASH_STATUS_BADGE = {
+          PENDING: 'text-bg-warning', APPLIED: 'text-bg-primary', INTERVIEW: 'text-bg-info',
+          OFFER: 'text-bg-success', STARTED: 'text-bg-success', REJECTED: 'text-bg-danger', WITHDRAWN: 'text-bg-secondary', APPROVED: 'text-bg-success'
+        };
+        const badgeClass = DASH_STATUS_BADGE[status] || 'text-bg-secondary';
+        const canLeave = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
+        const leaveLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw';
         return `
           <div class="list-group-item">
             <div class="d-flex justify-content-between align-items-start gap-2">
@@ -234,9 +342,11 @@ document.addEventListener('DOMContentLoaded', async () => {
               </div>
               <div class="text-end">
                 <div>${jobTypeBadge(job.jobType)}</div>
-                <button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
-                  <i class="bi bi-x-circle me-1"></i>Remove
-                </button>
+                ${canLeave && status !== 'REJECTED' && status !== 'WITHDRAWN'
+        ? `<button class="btn btn-outline-danger btn-sm mt-2 js-dashboard-remove-interest" data-job-id="${escHtml(job.id)}">
+                  <i class="bi bi-x-circle me-1"></i>${escHtml(leaveLabel)}
+                </button>`
+        : ''}
               </div>
             </div>
           </div>`;
@@ -255,6 +365,85 @@ document.addEventListener('DOMContentLoaded', async () => {
         await renderParticipantSavedJobs();
       });
     });
+    await renderParticipantDashboardSnapshot();
+  }
+
+  async function renderParticipantJobApplications() {
+    if (session.role !== 'PARTICIPANT') return;
+    const container = document.getElementById('p-jobs-list');
+    if (!container) return;
+
+    const [jobs, statuses] = await Promise.all([Auth.getJobs(), Auth.getMyJobInterestStatuses()]);
+    const myJobs = jobs.filter((job) => statuses[String(job.id)]);
+
+    if (!myJobs.length) {
+      container.innerHTML = emptyState('bi-briefcase', 'You have not registered interest in any jobs yet. Visit <a href="jobs.html">Jobs</a> to browse opportunities.');
+      return;
+    }
+
+    const PIPELINE_STAGES = ['PENDING', 'APPLIED', 'INTERVIEW', 'OFFER', 'STARTED'];
+    const STATUS_BADGE = {
+      PENDING:   'text-bg-warning',
+      APPLIED:   'text-bg-info',
+      INTERVIEW: 'text-bg-primary',
+      OFFER:     'text-bg-success',
+      STARTED:   'text-bg-success',
+      REJECTED:  'text-bg-danger',
+      APPROVED:  'text-bg-success',
+    };
+
+    function buildPipeline(status) {
+      if (status === 'REJECTED') {
+        return `<div class="small text-danger mt-2"><i class="bi bi-x-circle me-1"></i>Application rejected</div>`;
+      }
+      const currentIdx = PIPELINE_STAGES.indexOf(status);
+      const steps = PIPELINE_STAGES.map((stage, i) => {
+        const done = i < currentIdx;
+        const active = i === currentIdx;
+        const cls = active ? 'fw-semibold text-primary' : (done ? 'text-success' : 'text-muted');
+        const icon = done ? 'bi-check-circle-fill text-success' : (active ? 'bi-circle-fill text-primary' : 'bi-circle text-muted');
+        return `<span class="${cls} me-2 small"><i class="bi ${icon} me-1"></i>${stage}</span>`;
+      });
+      return `<div class="mt-2 d-flex flex-wrap gap-1">${steps.join('<i class="bi bi-chevron-right text-muted small me-2"></i>')}</div>`;
+    }
+
+    container.innerHTML = `<div class="list-group">
+      ${myJobs.map((job) => {
+        const status = statuses[String(job.id)];
+        const badgeCls = STATUS_BADGE[status] || 'text-bg-secondary';
+        const canToggleOff = status === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status);
+        const btnLabel = status === 'PENDING' ? 'Cancel request' : 'Withdraw from job';
+        return `
+          <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">${escHtml(job.title)}</div>
+                <div class="small text-muted">${escHtml(job.employer)}${job.location ? ` · ${escHtml(job.location)}` : ''}</div>
+                ${buildJobExpectationLine(job)}
+                <div class="mt-2"><span class="badge ${badgeCls}">${escHtml(status)}</span></div>
+                ${buildPipeline(status)}
+              </div>
+              <div class="text-end flex-shrink-0">
+                <div>${jobTypeBadge(job.jobType)}</div>
+                ${canToggleOff && status !== 'REJECTED' && status !== 'WITHDRAWN' ? `<button class="btn btn-outline-danger btn-sm mt-2 js-jobs-remove-interest" data-job-id="${escHtml(job.id)}"><i class="bi bi-x-circle me-1"></i>${escHtml(btnLabel)}</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+
+    container.querySelectorAll('.js-jobs-remove-interest').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const result = await Auth.toggleJobInterest(btn.dataset.jobId);
+        if (!result.success) {
+          alert(result.message || 'Could not remove job interest.');
+          btn.disabled = false;
+          return;
+        }
+        await renderParticipantJobApplications();
+      });
+    });
   }
 
   async function renderParticipantEvents() {
@@ -266,7 +455,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const subscribed = events.filter((event) => subscribedIds.has(String(event.id)));
 
     if (!subscribed.length) {
-      container.innerHTML = emptyState('bi-calendar2-check', 'No subscribed events yet. Browse Events and click "I\'m Interested" to add one.');
+      container.innerHTML = emptyState('bi-calendar2-check', 'No saved events yet. Browse the public Events page and click "I\'m interested" to add one to your list.');
       return;
     }
 
@@ -284,6 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           return;
         }
         await renderParticipantEvents();
+        await renderParticipantDashboardSnapshot();
       });
     });
   }
@@ -300,32 +490,101 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.innerHTML = upcoming.length
       ? `<div class="row row-cols-1 row-cols-md-3 g-3">${upcoming.map((event) => buildEventCard(event)).join('')}</div>`
       : emptyState('bi-calendar-x', 'No upcoming events right now. Check back soon!');
+    await renderParticipantDashboardSnapshot();
   }
 
   function participantCard(participant) {
+    const participantName = participant.fullName || 'Participant';
+    const linkedContacts = participant.guardians?.length
+      ? participant.guardians.map((guardian) => linkedRowHTML({ name: guardian.name, role: guardian.email, icon: 'bi-person-heart' })).join('')
+      : '<div class="text-muted small">No linked guardian contacts.</div>';
+    const completeness = calcCompleteness({
+      firstName: participant.firstName,
+      lastName: participant.lastName,
+      dateOfBirth: participant.dateOfBirth,
+      participantInterests: participant.participantInterests,
+      jobGoals: participant.jobGoals,
+      specialNeeds: participant.specialNeeds,
+      contactEmail: participant.contactEmail,
+      contactPhone: participant.contactPhone,
+      bio: participant.bio
+    });
+
+    const completenessHtml = `
+      <div class="profile-completeness">
+        <div class="profile-completeness-label">
+          <span>Profile Completeness</span>
+          <span>${completeness}%</span>
+        </div>
+        <div class="progress" role="progressbar"
+          aria-valuenow="${completeness}" aria-valuemin="0" aria-valuemax="100"
+          aria-label="Profile ${completeness}% complete">
+          <div class="progress-bar" style="width: ${completeness}%"></div>
+        </div>
+      </div>`;
+
     return `
-      <div class="card shadow-sm mb-3">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start gap-3">
-            <div>
-              <h6 class="mb-1">${escHtml(participant.fullName)}</h6>
-              <div class="text-muted small">Participant login: ${escHtml(participant.participantUser?.email || 'Unlinked')}</div>
-              <div class="text-muted small">Primary contact: ${escHtml(participant.contactEmail || '—')} • ${escHtml(participant.contactPhone || '—')}</div>
+      <div class="profile-section-card guardian-participant-card">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <h3 class="profile-section-title mb-0 border-0 p-0">${escHtml(participantName)}</h3>
+              <span class="badge bg-success">Participant</span>
             </div>
-            <div class="text-end small">
-              <div><span class="badge text-bg-warning">${escHtml(participant.pendingApprovalCount)}</span> pending approvals</div>
-              <div class="mt-1"><span class="badge text-bg-success">${escHtml(participant.approvedJobCount)}</span> approved interests</div>
+            <div class="guardian-participant-meta">
+              <span class="guardian-participant-stat"><i class="bi bi-envelope"></i>${escHtml(participant.participantUser?.email || 'Unlinked')}</span>
+              <span class="guardian-participant-stat"><i class="bi bi-telephone"></i>${escHtml(participant.contactPhone || '—')}</span>
+              <span class="guardian-participant-stat"><i class="bi bi-person-lines-fill"></i>${escHtml(participant.contactEmail || '—')}</span>
             </div>
           </div>
-          <hr>
-          <div class="row g-3 small">
-            <div class="col-md-6"><span class="fw-semibold">Support needs:</span> ${escHtml(participant.specialNeeds || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Medical notes:</span> ${escHtml(participant.medicalNotes || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Sensory notes:</span> ${escHtml(participant.sensoryNotes || '—')}</div>
-            <div class="col-md-6"><span class="fw-semibold">Participant interests:</span> ${escHtml(participant.participantInterests.join(', ') || '—')}</div>
-            <div class="col-12"><span class="fw-semibold">Guardian notes:</span> ${escHtml(participant.guardianNotes || '—')}</div>
-            <div class="col-12"><span class="fw-semibold">Job goals:</span> ${escHtml(participant.jobGoals || '—')}</div>
+          <div class="profile-kpi-grid flex-grow-1">
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Pending Approvals</div>
+              <div class="profile-kpi-value">${escHtml(participant.pendingApprovalCount)}</div>
+              <div class="profile-kpi-note">Items waiting for guardian review.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Approved Interests</div>
+              <div class="profile-kpi-value">${escHtml(participant.approvedJobCount)}</div>
+              <div class="profile-kpi-note">Vocational interests already cleared.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Profile Completeness</div>
+              ${completenessHtml}
+            </div>
           </div>
+        </div>
+
+        <div class="profile-support-grid">
+          <div class="profile-support-item">
+            <strong>Support Needs</strong>
+            <span>${escHtml(participant.specialNeeds || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Medical Notes</strong>
+            <span>${escHtml(participant.medicalNotes || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Sensory Notes</strong>
+            <span>${escHtml(participant.sensoryNotes || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Participant Interests</strong>
+            <span>${escHtml(participant.participantInterests.join(', ') || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Job Goals</strong>
+            <span>${escHtml(participant.jobGoals || '—')}</span>
+          </div>
+          <div class="profile-support-item">
+            <strong>Guardian Notes</strong>
+            <span>${escHtml(participant.guardianNotes || '—')}</span>
+          </div>
+        </div>
+
+        <div class="profile-rail-block mt-3">
+          <h4 class="profile-rail-title">Linked Contacts</h4>
+          ${linkedContacts}
         </div>
       </div>`;
   }
@@ -336,25 +595,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     const approvals = await Auth.getPendingApprovals();
     const summary = document.getElementById('guardianDashboardSummary');
     if (summary) {
-      summary.innerHTML = participants.length
-        ? `
-          <div class="row g-3">
-            <div class="col-md-6">
-              <div class="border rounded p-3 bg-light h-100">
-                <div class="text-muted small text-uppercase">Linked participants</div>
-                <div class="display-6 fw-semibold">${participants.length}</div>
-                <div class="small text-muted">${participants.map((participant) => escHtml(participant.fullName)).join(', ')}</div>
+      if (!participants.length) {
+        summary.innerHTML = '<div class="alert alert-warning mb-0">No participants are linked to this guardian account yet.</div>';
+      } else {
+        const pendingCount = approvals.filter((approval) => approval.status === 'PENDING').length;
+        const avgCompleteness = Math.round(participants.reduce((sum, participant) => (
+          sum + calcCompleteness({
+            firstName: participant.firstName,
+            lastName: participant.lastName,
+            dateOfBirth: participant.dateOfBirth,
+            participantInterests: participant.participantInterests,
+            jobGoals: participant.jobGoals,
+            specialNeeds: participant.specialNeeds,
+            contactEmail: participant.contactEmail,
+            contactPhone: participant.contactPhone,
+            bio: participant.bio
+          })
+        ), 0) / participants.length);
+
+        summary.innerHTML = `
+          <div class="profile-shell">
+            <div class="profile-header" id="guardianDashboardHeader"></div>
+            <div class="profile-grid">
+              <div class="profile-main">
+                <div class="profile-section-card">
+                  <h3 class="profile-section-title">Guardian Overview</h3>
+                  <p class="profile-summary-copy">Review your linked participants, monitor support context, and keep up with vocational approvals from one place.</p>
+                  <div class="profile-kpi-grid">
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Linked Participants</div>
+                      <div class="profile-kpi-value">${participants.length}</div>
+                      <div class="profile-kpi-note">${participants.map((participant) => escHtml(participant.fullName)).join(', ')}</div>
+                    </div>
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Pending Approvals</div>
+                      <div class="profile-kpi-value">${pendingCount}</div>
+                      <div class="profile-kpi-note">Vocational interests waiting for your review.</div>
+                    </div>
+                    <div class="profile-kpi-card">
+                      <div class="profile-kpi-label">Average Completeness</div>
+                      <div class="profile-kpi-value">${avgCompleteness}%</div>
+                      <div class="profile-kpi-note">Across all linked participant profiles.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="profile-rail">
+                <div class="profile-rail-block">
+                  <h4 class="profile-rail-title">Quick Actions</h4>
+                  <div class="profile-inline-actions">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="navigateTo('g-approvals')"><i class="bi bi-shield-check me-1"></i>Review approvals</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-participants')"><i class="bi bi-people-fill me-1"></i>Participant profiles</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="navigateTo('g-newsletter')"><i class="bi bi-envelope-paper me-1"></i>Family newsletter</button>
+                  </div>
+                </div>
+                <div class="profile-rail-block">
+                  <h4 class="profile-rail-title">Linked Contacts</h4>
+                  ${participants.map((participant) => linkedRowHTML({ name: participant.fullName, role: participant.contactEmail || 'Primary contact on file', icon: 'bi-person-badge' })).join('')}
+                </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <div class="border rounded p-3 bg-light h-100">
-                <div class="text-muted small text-uppercase">Pending approvals</div>
-                <div class="display-6 fw-semibold">${approvals.filter((approval) => approval.status === 'PENDING').length}</div>
-                <div class="small text-muted">Vocational interests waiting for your review.</div>
-              </div>
-            </div>
-          </div>`
-        : '<div class="alert alert-warning mb-0">No participants are linked to this guardian account yet.</div>';
+          </div>`;
+
+        const guardianHeader = document.getElementById('guardianDashboardHeader');
+        if (guardianHeader) {
+          renderProfileHeader(guardianHeader, {
+            name: session.name || 'Guardian',
+            role: 'Guardian',
+            managedBy: 'Family management workspace',
+            lastUpdatedMs: Math.max(...participants.map((participant) => participant.createdAtMs || 0))
+          });
+        }
+      }
     }
 
     const participantsContainer = document.getElementById('guardianParticipantsList');
@@ -362,6 +674,39 @@ document.addEventListener('DOMContentLoaded', async () => {
       participantsContainer.innerHTML = participants.length
         ? participants.map(participantCard).join('')
         : emptyState('bi-people', 'No participants are linked to your guardian account yet.');
+    }
+
+    const guardianParticipantsHeader = document.getElementById('guardianParticipantsHeader');
+    if (guardianParticipantsHeader) {
+      renderProfileHeader(guardianParticipantsHeader, {
+        name: session.name || 'Guardian',
+        role: 'Guardian',
+        managedBy: 'Linked participant management',
+        lastUpdatedMs: Math.max(...participants.map((participant) => participant.createdAtMs || 0))
+      });
+    }
+
+    const guardianParticipantsSummary = document.getElementById('guardianParticipantsSummary');
+    if (guardianParticipantsSummary) {
+      const pendingCount = approvals.filter((approval) => approval.status === 'PENDING').length;
+      guardianParticipantsSummary.innerHTML = participants.length
+        ? `
+          <div class="profile-kpi-grid">
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Profiles</div>
+              <div class="profile-kpi-value">${participants.length}</div>
+              <div class="profile-kpi-note">Linked participant records you can review.</div>
+            </div>
+            <div class="profile-kpi-card">
+              <div class="profile-kpi-label">Approvals</div>
+              <div class="profile-kpi-value">${pendingCount}</div>
+              <div class="profile-kpi-note">Items currently waiting for a decision.</div>
+            </div>
+          </div>
+          <div class="mt-3">
+            ${participants.map((participant) => linkedRowHTML({ name: participant.fullName, role: participant.participantUser?.email || participant.contactEmail || 'Participant profile', icon: 'bi-person-vcard' })).join('')}
+          </div>`
+        : '<div class="text-muted small">No linked participant records yet.</div>';
     }
   }
 
@@ -413,116 +758,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  async function renderNotifications(containerId) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    const [notifications, readIds, interestedJobIds, interestedEventIds] = await Promise.all([
-      Auth.getMyNotifications(),
-      Promise.resolve(Auth.getReadNotificationIds()),
-      Auth.getInterestedJobIds(),
-      Auth.getInterestedEventIds()
-    ]);
-    if (!notifications.length) {
-      container.innerHTML = emptyState('bi-bell', 'No alerts yet. Kindred Administration will send you personalised alerts here when time-sensitive opportunities arise.');
-      return;
-    }
-
-    // "Clear all" header
-    const clearAllHtml = `
-      <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-outline-secondary btn-sm js-notif-clear-all">
-          <i class="bi bi-trash3 me-1"></i>Clear all
-        </button>
-      </div>`;
-    const readSet = new Set(readIds);
-    const sorted = [...notifications].sort((a, b) => {
-      const aUnread = readSet.has(a.id) ? 1 : 0;
-      const bUnread = readSet.has(b.id) ? 1 : 0;
-      if (aUnread !== bUnread) return aUnread - bUnread;
-      return (b.sentAtMs || 0) - (a.sentAtMs || 0);
-    });
-    Auth.markNotificationsRead(notifications.map((n) => n.id));
-    renderNavNotificationBell();
-
-    container.innerHTML = clearAllHtml + sorted.map((n) => {
-      const isUnread = !readSet.has(n.id);
-      const headerCls = isUnread ? 'bg-danger text-white' : 'bg-secondary bg-opacity-10 text-secondary';
-      const cardBorder = isUnread ? 'border-danger' : 'border-secondary';
-      const newBadge = isUnread ? '<span class="badge bg-warning text-dark ms-2">NEW</span>' : '';
-
-      let actionBtn = '';
-      if (n.opportunityType === 'job' && n.opportunityId) {
-        const isInterested = interestedJobIds.includes(String(n.opportunityId));
-        actionBtn = `<button class="btn btn-sm js-notif-job-action ${isInterested ? 'btn-outline-secondary' : 'btn-success'}"
-          data-job-id="${escHtml(n.opportunityId)}"
-          data-job-title="${escHtml(n.opportunityTitle)}">
-          <i class="bi ${isInterested ? 'bi-x-circle' : 'bi-hand-thumbs-up'} me-1"></i>
-          ${isInterested ? 'Remove Interest' : 'Express Interest'}
-        </button>`;
-      } else if (n.opportunityType === 'event' && n.opportunityId) {
-        const isInterested = interestedEventIds.includes(String(n.opportunityId));
-        actionBtn = `<button class="btn btn-sm js-notif-event-action ${isInterested ? 'btn-outline-secondary' : 'btn-success'}"
-          data-event-id="${escHtml(n.opportunityId)}"
-          data-event-title="${escHtml(n.opportunityTitle)}">
-          <i class="bi ${isInterested ? 'bi-x-circle' : 'bi-calendar-check'} me-1"></i>
-          ${isInterested ? 'Remove Interest' : 'Register Interest'}
-        </button>`;
-      }
-
-      return `
-        <div class="card shadow-sm mb-3 border ${cardBorder}">
-          <div class="card-header d-flex align-items-center justify-content-between ${headerCls}">
-            <span class="fw-semibold"><i class="bi bi-bell-fill me-2"></i>${escHtml(n.subject)}${newBadge}</span>
-            <small class="opacity-75 text-nowrap ms-3">${escHtml(n.sentAtLabel)}</small>
-          </div>
-          <div class="card-body">
-            <pre style="white-space:pre-wrap;font-family:'Inter',system-ui,sans-serif;font-size:0.95rem;border:none;background:none;padding:0;margin:0;">${escHtml(n.body)}</pre>
-          </div>
-          <div class="card-footer d-flex align-items-center justify-content-between bg-transparent border-top">
-            <small class="text-muted"><i class="bi bi-person-fill me-1"></i>From ${escHtml(n.sentByName || 'Kindred Administration')}</small>
-            <div class="d-flex gap-2">
-              ${actionBtn}
-              <button class="btn btn-sm btn-outline-secondary js-notif-delete" data-notif-id="${escHtml(n.id)}" title="Delete alert">
-                <i class="bi bi-trash3"></i>
-              </button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-
-    container.querySelectorAll('.js-notif-job-action').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        await Auth.toggleJobInterest(btn.dataset.jobId);
-        await renderNotifications(containerId);
-      });
-    });
-
-    container.querySelectorAll('.js-notif-event-action').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        await Auth.toggleEventInterest(btn.dataset.eventId, btn.dataset.eventTitle);
-        await renderNotifications(containerId);
-      });
-    });
-
-    container.querySelectorAll('.js-notif-delete').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        Auth.deleteMyNotification(btn.dataset.notifId);
-        await renderNotifications(containerId);
-        await renderNavNotificationBell();
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-
-    container.querySelector('.js-notif-clear-all')?.addEventListener('click', async () => {
-      notifications.forEach((n) => Auth.deleteMyNotification(n.id));
-      await renderNotifications(containerId);
-      await renderNavNotificationBell();
-      await renderNotificationBanner('p-notifications-banner');
-    });
-  }
-
   async function renderNotificationBanner(containerId) {
     const banner = document.getElementById(containerId);
     if (!banner) return;
@@ -540,7 +775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </span>
       <div class="d-flex gap-2 flex-shrink-0">
         <button type="button" class="btn btn-warning btn-sm fw-semibold js-banner-view">
-          View Alerts <i class="bi bi-arrow-right ms-1"></i>
+          View Notifications <i class="bi bi-arrow-right ms-1"></i>
         </button>
         <button type="button" class="btn btn-outline-secondary btn-sm js-banner-dismiss">Dismiss</button>
       </div>`;
@@ -548,136 +783,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     banner.querySelector('.js-banner-dismiss').addEventListener('click', () => banner.classList.add('d-none'));
   }
 
-  async function renderNavNotificationBell() {
-    const bellEl = document.getElementById('nav-notifications-bell');
-    if (!bellEl) return;
-    const notifications = await Auth.getMyNotifications();
-    const readIds = Auth.getReadNotificationIds();
-    const readSet = new Set(readIds);
-    const unreadCount = notifications.filter((n) => !readSet.has(n.id)).length;
-
-    const badgeHtml = unreadCount > 0
-      ? `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:0.65rem;min-width:1.1em;">${unreadCount}</span>`
-      : '';
-
-    const listItems = notifications.slice(0, 8).map((n) => {
-      const isUnread = !readSet.has(n.id);
-      const dot = isUnread
-        ? `<span class="flex-shrink-0 rounded-circle bg-danger" style="width:8px;height:8px;margin-top:5px;"></span>`
-        : `<span class="flex-shrink-0" style="width:8px;height:8px;margin-top:5px;"></span>`;
-      const readToggleTitle = isUnread ? 'Mark as read' : 'Mark as unread';
-      const readToggleIcon = isUnread ? 'bi-check2' : 'bi-arrow-counterclockwise';
-      return `
-        <li class="d-flex align-items-center gap-1 px-2 py-1 border-bottom" style="min-width:0;">
-          ${dot}
-          <div class="flex-grow-1 text-truncate" style="min-width:0;cursor:pointer;" role="button"
-               tabindex="0" data-bell-nav="p-notifications">
-            <div class="fw-semibold text-truncate" style="font-size:0.82rem;">${escHtml(n.subject)}</div>
-            <div class="text-muted" style="font-size:0.72rem;">${escHtml(n.sentAtLabel)}</div>
-          </div>
-          <div class="d-flex gap-1 flex-shrink-0">
-            <button class="btn btn-link p-0 js-bell-toggle-read" data-notif-id="${escHtml(n.id)}"
-                    title="${readToggleTitle}" style="font-size:0.9rem;color:var(--bs-secondary);">
-              <i class="bi ${readToggleIcon}"></i>
-            </button>
-            <button class="btn btn-link p-0 js-bell-delete" data-notif-id="${escHtml(n.id)}"
-                    title="Delete" style="font-size:0.9rem;color:var(--bs-danger);">
-              <i class="bi bi-trash3"></i>
-            </button>
-          </div>
-        </li>`;
-    }).join('');
-
-    const emptyItem = notifications.length === 0
-      ? `<li class="px-3 py-3 text-muted small text-center">No notifications</li>` : '';
-
-    bellEl.innerHTML = `
-      <div class="dropdown">
-        <button class="btn btn-link text-dark position-relative p-1"
-                type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
-                title="Notifications" style="font-size:1.25rem;line-height:1;text-decoration:none;">
-          <i class="bi bi-bell${unreadCount > 0 ? '-fill text-danger' : ''}"></i>
-          ${badgeHtml}
-        </button>
-        <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width:320px;max-width:380px;">
-          <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-            <span class="fw-semibold" style="font-size:0.9rem;">Notifications${unreadCount > 0 ? ` <span class="badge bg-danger ms-1">${unreadCount}</span>` : ''}</span>
-            <button class="btn btn-link btn-sm p-0 js-bell-mark-all-read text-secondary"
-                    style="font-size:0.78rem;" ${notifications.length === 0 ? 'disabled' : ''}>
-              Mark all read
-            </button>
-          </div>
-          <ul class="list-unstyled mb-0" style="max-height:320px;overflow-y:auto;">
-            ${listItems || emptyItem}
-          </ul>
-          <div class="border-top px-3 py-2 text-center">
-            <button class="btn btn-link btn-sm p-0 js-bell-view-all" style="font-size:0.82rem;">
-              View all notifications <i class="bi bi-arrow-right ms-1"></i>
-            </button>
-          </div>
-        </div>
-      </div>`;
-
-    bellEl.querySelectorAll('[data-bell-nav]').forEach((el) => {
-      el.addEventListener('click', () => navigateTo(el.dataset.bellNav));
-      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigateTo(el.dataset.bellNav); });
-    });
-
-    bellEl.querySelector('.js-bell-view-all')?.addEventListener('click', () => navigateTo('p-notifications'));
-
-    bellEl.querySelector('.js-bell-mark-all-read')?.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      Auth.markNotificationsRead(notifications.map((n) => n.id));
-      await renderNavNotificationBell();
-      await renderNotificationBanner('p-notifications-banner');
-    });
-
-    bellEl.querySelectorAll('.js-bell-toggle-read').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        Auth.toggleNotificationRead(btn.dataset.notifId);
-        await renderNavNotificationBell();
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-
-    bellEl.querySelectorAll('.js-bell-delete').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        Auth.deleteMyNotification(btn.dataset.notifId);
-        await renderNavNotificationBell();
-        await renderNotifications('p-notifications-list');
-        await renderNotificationBanner('p-notifications-banner');
-      });
-    });
-  }
-
   if (session.role === 'PARTICIPANT') {
+    const _pBellConfig = { notificationsSection: 'p-notifications', role: 'PARTICIPANT', eventSection: 'p-events', jobSection: 'p-jobs' };
+    const participantForm = document.getElementById('participantProfileForm');
+    const participantStatusEl = document.getElementById('participantProfileStatus');
+    const participantErrorEl = document.getElementById('participantProfileError');
+
+    participantForm?.addEventListener('input', () => {
+      participantStatusEl?.classList.add('d-none');
+      participantErrorEl?.classList.add('d-none');
+    });
+
+    document.getElementById('participantProfileCancelBtn')?.addEventListener('click', async () => {
+      participantForm?.classList.remove('was-validated');
+      participantStatusEl?.classList.add('d-none');
+      participantErrorEl?.classList.add('d-none');
+      await renderParticipantDashboard();
+    });
+
+    participantForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      participantForm.classList.add('was-validated');
+      const interestsValid = participantInterestChips?.validate() ?? true;
+      if (!participantForm.checkValidity() || !interestsValid) return;
+
+      const result = await Auth.updateMyParticipantProfile({
+        participantInterests: participantInterestChips?.getSelected() || [],
+        jobGoals: document.getElementById('participantJobGoalsInput')?.value || '',
+        bio: document.getElementById('participantBioInput')?.value || '',
+        dateOfBirth: document.getElementById('participantDateOfBirthInput')?.value || '',
+        specialNeeds: document.getElementById('participantSpecialNeedsInput')?.value || '',
+        medicalNotes: document.getElementById('participantMedicalNotesInput')?.value || '',
+        sensoryNotes: document.getElementById('participantSensoryNotesInput')?.value || ''
+      });
+
+      if (!result.success) {
+        if (participantErrorEl) {
+          participantErrorEl.textContent = result.message || 'Could not update your profile.';
+          participantErrorEl.classList.remove('d-none');
+        }
+        return;
+      }
+
+      if (participantStatusEl) {
+        participantStatusEl.textContent = 'Your profile changes have been saved.';
+        participantStatusEl.classList.remove('d-none');
+      }
+      await renderParticipantDashboard();
+      await renderParticipantSavedJobs();
+    });
+
     await renderParticipantDashboard();
     await renderParticipantEventPreview();
     await renderParticipantSavedJobs();
+    await renderParticipantJobApplications();
     await renderNewsletter('p-newsletter-content');
     await renderNotificationBanner('p-notifications-banner');
-    // Bell is injected by nav.js asynchronously; render once the element exists
     if (document.getElementById('nav-notifications-bell')) {
-      await renderNavNotificationBell();
+      await NotificationsUI.renderNavBell(_pBellConfig);
     } else {
-      document.addEventListener('kindred:nav-ready', renderNavNotificationBell, { once: true });
+      document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_pBellConfig), { once: true });
     }
-    // Only render+mark-read when the user actually opens the Alerts section
     const eventsSection = document.getElementById('section-p-events');
     if (eventsSection) {
       new MutationObserver(() => {
-        if (!eventsSection.classList.contains('d-none')) {
-          renderParticipantEvents();
-        }
+        if (!eventsSection.classList.contains('d-none')) renderParticipantEvents();
       }).observe(eventsSection, { attributes: true, attributeFilter: ['class'] });
     }
     const alertsSection = document.getElementById('section-p-notifications');
     if (alertsSection) {
       new MutationObserver(() => {
         if (!alertsSection.classList.contains('d-none')) {
-          renderNotifications('p-notifications-list');
+          NotificationsUI.renderInbox('p-notifications-list', _pBellConfig);
         }
       }).observe(alertsSection, { attributes: true, attributeFilter: ['class'] });
     }
@@ -758,8 +935,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (session.role === 'GUARDIAN') {
+    const _gBellConfig = { notificationsSection: 'g-notifications', role: 'GUARDIAN' };
     await renderGuardianDashboard();
     await renderGuardianApprovals();
     await renderNewsletter('g-newsletter-content');
+    if (document.getElementById('nav-notifications-bell')) {
+      await NotificationsUI.renderNavBell(_gBellConfig);
+    } else {
+      document.addEventListener('kindred:nav-ready', () => NotificationsUI.renderNavBell(_gBellConfig), { once: true });
+    }
+    const gNotifSection = document.getElementById('section-g-notifications');
+    if (gNotifSection) {
+      new MutationObserver(() => {
+        if (!gNotifSection.classList.contains('d-none')) {
+          NotificationsUI.renderInbox('g-notifications-list', _gBellConfig);
+        }
+      }).observe(gNotifSection, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 });

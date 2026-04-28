@@ -69,9 +69,39 @@
                     ? `<span class="nav-user-name">${displayName}</span>`
                     : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
 
-                const bellPlaceholder = session.role === 'PARTICIPANT'
-                    ? `<span id="nav-notifications-bell" class="position-relative me-1"></span>`
-                    : '';
+                const bellPlaceholder = `
+                    <div class="dropdown" id="nav-notifications-bell">
+                      <button class="btn btn-link position-relative p-1"
+                              type="button" id="nav-bell-btn"
+                              data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                              aria-expanded="false" title="Notifications" aria-label="Open notifications"
+                              style="font-size:1.2rem;line-height:1;color:inherit;text-decoration:none;">
+                        <i class="bi bi-bell" id="nav-bell-icon" aria-hidden="true"></i>
+                        <span id="nav-bell-badge"
+                              class="d-none position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                              style="font-size:0.6rem;min-width:1.1em;"></span>
+                      </button>
+                      <div class="dropdown-menu dropdown-menu-end shadow-lg p-0 border-0"
+                           style="min-width:340px;max-width:400px;border-radius:0.6rem;overflow:hidden;">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light">
+                          <span id="nav-bell-heading" class="fw-semibold" style="font-size:0.9rem;">Notifications</span>
+                          <button id="nav-bell-mark-all" class="btn btn-link btn-sm p-0 text-secondary"
+                                  style="font-size:0.78rem;" disabled>Mark all read</button>
+                        </div>
+                        <ul id="nav-bell-list" class="list-unstyled mb-0"
+                            style="max-height:340px;overflow-y:auto;">
+                          <li class="px-3 py-4 text-muted small text-center">
+                            <i class="bi bi-hourglass-split opacity-50 me-1"></i>Loading&hellip;
+                          </li>
+                        </ul>
+                        <div class="border-top bg-light px-3 py-2 text-center">
+                          <button id="nav-bell-view-all" class="btn btn-link btn-sm p-0"
+                                  style="font-size:0.82rem;">
+                            View all notifications <i class="bi bi-arrow-right ms-1"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>`;
 
                 navRight.innerHTML = `
                     ${nameEl}

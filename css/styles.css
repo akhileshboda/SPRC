@@ -7,6 +7,12 @@ body {
   min-height: 100vh;
 }
 
+.required-marker {
+  color: #dc3545;
+  font-weight: 700;
+  margin-left: 0.2rem;
+}
+
 /* Slightly softer card corners beyond Bootstrap's default */
 .card {
   border-radius: 0.75rem;
@@ -39,6 +45,69 @@ body {
   min-height: 100vh;
 }
 
+.dashboard-sidebar-offcanvas {
+  width: min(86vw, 320px) !important;
+  background: #fff;
+  color: var(--k-text, #1a1d2e);
+  border-right: 1px solid var(--k-border, #e2e6f3);
+}
+
+.dashboard-sidebar-offcanvas .offcanvas-header {
+  min-height: 4rem;
+  border-bottom: 1px solid var(--k-border, #e2e6f3);
+}
+
+.dashboard-sidebar-offcanvas .offcanvas-body {
+  background: #fff;
+}
+
+#mobileDashboardBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 1010;
+  min-height: 3.5rem;
+  padding: 0.65rem 1rem;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--k-border, #e2e6f3);
+  box-shadow: 0 2px 12px rgba(79, 98, 176, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+#mobileDashboardTitle {
+  color: var(--k-text, #1a1d2e);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.mobile-dashboard-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 2.5rem;
+  border: 1.5px solid var(--k-border, #e2e6f3);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: var(--k-indigo, #4F62B0);
+  font-size: 1.35rem;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mobile-dashboard-menu-btn:hover,
+.mobile-dashboard-menu-btn:focus-visible {
+  background: var(--k-indigo-lt, #eef0fa);
+  border-color: var(--k-indigo, #4F62B0);
+  color: var(--k-indigo, #4F62B0);
+  box-shadow: 0 0 0 3px rgba(79, 98, 176, 0.16);
+  outline: none;
+}
+
 /* Desktop sidebar: sticky below the top nav, scrolls independently */
 #desktopSidebar {
   position: sticky;
@@ -62,6 +131,11 @@ body {
 
 /* On mobile the main content flows naturally (no fixed height) */
 @media (max-width: 767.98px) {
+  #appShell {
+    flex-direction: column;
+    min-height: 0;
+  }
+
   #mainContent {
     height: auto;
     overflow-y: visible;
@@ -613,4 +687,444 @@ a.sidebar-brand:hover {
 
 .sidebar-back-link:hover {
   color: rgba(255, 255, 255, 0.85);
+}
+
+/* ============================================================
+   Profile Workspace
+   ============================================================ */
+
+.profile-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding-bottom: 5rem; /* room for sticky action bar */
+}
+
+/* --- Header --- */
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid var(--k-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 1.25rem 1.5rem;
+}
+
+.profile-avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--k-indigo);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+}
+
+.profile-header-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-header-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--k-text);
+  line-height: 1.2;
+}
+
+.profile-header-sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.profile-managed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  color: var(--k-muted);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.6rem;
+}
+
+.profile-last-updated {
+  font-size: 0.75rem;
+  color: var(--k-muted);
+}
+
+.profile-header-actions {
+  flex-shrink: 0;
+}
+
+/* --- Two-column grid --- */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.profile-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.profile-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* --- Section cards --- */
+.profile-section-card {
+  background: #fff;
+  border: 1px solid var(--k-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 1.25rem 1.5rem;
+}
+
+.profile-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--k-text);
+  margin: 0 0 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--k-border);
+}
+
+/* --- Read-only panel --- */
+.profile-readonly-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--k-indigo-lt);
+  border: 1px solid var(--k-border);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  color: var(--k-muted);
+  font-size: 0.875rem;
+}
+
+.profile-readonly-panel i {
+  color: var(--k-indigo);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.profile-readonly-label {
+  font-weight: 600;
+  color: var(--k-text);
+  font-size: 0.875rem;
+  display: block;
+}
+
+.profile-readonly-caption {
+  font-size: 0.775rem;
+  color: var(--k-muted);
+}
+
+/* --- Field attribution badge --- */
+.profile-field-attr {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--k-muted);
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--radius-pill);
+  padding: 0.1rem 0.45rem;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+  letter-spacing: 0.02em;
+}
+
+/* --- Interest chips --- */
+.profile-chips-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--k-border);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--k-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.profile-chip:hover {
+  border-color: var(--k-teal);
+  background: var(--k-teal-lt);
+}
+
+.profile-chip.is-selected {
+  background: var(--k-teal-lt);
+  border-color: var(--k-teal);
+  color: #1a4f47;
+  font-weight: 600;
+}
+
+.profile-chip:focus-visible {
+  outline: 2px solid var(--k-indigo);
+  outline-offset: 2px;
+}
+
+.profile-chips-hint {
+  font-size: 0.775rem;
+  color: var(--k-muted);
+  margin-top: 0.4rem;
+}
+
+.profile-chips-error {
+  font-size: 0.8rem;
+  color: #dc3545;
+  margin-top: 0.3rem;
+  display: none;
+}
+
+.profile-chips-error.visible {
+  display: block;
+}
+
+/* --- Linked entity row --- */
+.profile-linked-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--k-border);
+  font-size: 0.875rem;
+}
+
+.profile-linked-row:last-child {
+  border-bottom: none;
+}
+
+.profile-linked-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--k-indigo-lt);
+  color: var(--k-indigo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.profile-linked-name {
+  font-weight: 600;
+  color: var(--k-text);
+}
+
+.profile-linked-role {
+  font-size: 0.75rem;
+  color: var(--k-muted);
+}
+
+/* --- Completeness meter --- */
+.profile-completeness-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--k-text);
+  margin-bottom: 0.4rem;
+}
+
+.profile-completeness .progress {
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+.profile-completeness .progress-bar {
+  background: var(--k-teal);
+  border-radius: var(--radius-pill);
+}
+
+/* --- Rail meta block --- */
+.profile-rail-block {
+  background: #fff;
+  border: 1px solid var(--k-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 1rem 1.25rem;
+}
+
+.profile-rail-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--k-text);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--k-border);
+}
+
+.profile-admin-note {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--k-muted);
+  padding: 0.3rem 0;
+}
+
+.profile-admin-note i {
+  color: var(--k-indigo);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.profile-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.profile-kpi-card {
+  background: #fff;
+  border: 1px solid var(--k-border);
+  border-radius: 0.85rem;
+  padding: 1rem;
+}
+
+.profile-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--k-muted);
+  margin-bottom: 0.25rem;
+}
+
+.profile-kpi-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--k-text);
+}
+
+.profile-kpi-note {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--k-muted);
+}
+
+.profile-inline-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-inline-actions .btn {
+  justify-content: flex-start;
+}
+
+.profile-summary-copy {
+  font-size: 0.85rem;
+  color: var(--k-muted);
+  margin-bottom: 0.75rem;
+}
+
+.guardian-participant-card + .guardian-participant-card {
+  margin-top: 1rem;
+}
+
+.guardian-participant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--k-muted);
+}
+
+.guardian-participant-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.profile-support-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.profile-support-item {
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: 0.85rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.profile-support-item strong {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--k-text);
+}
+
+/* --- Sticky action bar --- */
+.profile-actions-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: #fff;
+  border-top: 1px solid var(--k-border);
+  padding: 0.85rem 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0 -1rem; /* bleed to edges of content area */
+  box-shadow: 0 -2px 12px rgba(79, 98, 176, 0.08);
+}
+
+/* --- Responsive --- */
+@media (max-width: 767.98px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-rail {
+    order: 1; /* below main */
+  }
+
+  .profile-main {
+    order: 0;
+  }
+
+  .profile-actions-bar {
+    margin: 0 -1rem;
+    padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .profile-kpi-grid,
+  .profile-support-grid {
+    grid-template-columns: 1fr;
+  }
 }
