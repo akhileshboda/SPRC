@@ -775,6 +775,285 @@ document.addEventListener('sections:ready', async (e) => {
     if (urgentCheck) urgentCheck.checked = false;
   }
 
+  // ─── Registrations ───────────────────────────────────────────────────────
+
+  let _reviewingRegId = null;
+
+  const REG_STATUS_BADGE = {
+    PENDING:  'bg-warning text-dark',
+    APPROVED: 'bg-success',
+    REJECTED: 'bg-secondary',
+  };
+
+  const REG_TYPE_BADGE = {
+    PARTICIPANT: 'bg-success',
+    VOLUNTEER:   'bg-info text-dark',
+  };
+
+  function registrationValue(value, fallback = 'Not provided') {
+    const text = String(value || '').trim();
+    return text || fallback;
+  }
+
+  function setRegistrationText(id, value, fallback = 'Not provided') {
+    const el = document.getElementById(id);
+    if (el) el.textContent = registrationValue(value, fallback);
+  }
+
+  function setRegistrationApprovalFeedback(message, type = 'danger') {
+    const el = document.getElementById('regApprovalFeedback');
+    if (!el) return;
+    el.className = `alert alert-${type} mb-3`;
+    el.textContent = message;
+  }
+
+  function clearRegistrationApprovalFeedback() {
+    const el = document.getElementById('regApprovalFeedback');
+    if (!el) return;
+    el.className = 'alert d-none mb-3';
+    el.textContent = '';
+  }
+
+  async function populateRegistrationGuardianOptions() {
+    const select = document.getElementById('regApprovalGuardianIds');
+    if (!select) return;
+    const users = await Auth.getUsers();
+    const guardians = users.filter((user) => user.role === 'GUARDIAN' && user.accessStatus !== 'REVOKED');
+    select.innerHTML = guardians.length
+      ? guardians.map((user) => `<option value="${escapeHtml(user.id)}">${escapeHtml(user.name)} (${escapeHtml(user.email)})</option>`).join('')
+      : '<option value="">No active guardian accounts available</option>';
+  }
+
+  function buildApprovedRegistrationPayload(reg) {
+    const password = document.getElementById('regApprovalPassword')?.value || '';
+    const contactEmail = document.getElementById('regApprovalContactEmail')?.value || reg.email;
+    const contactPhone = document.getElementById('regApprovalContactPhone')?.value || reg.phone;
+    const baseUser = {
+      name: `${reg.firstName} ${reg.lastName}`.trim(),
+      email: reg.email,
+      password,
+      role: reg.type
+    };
+
+    if (reg.type === 'PARTICIPANT') {
+      return {
+        ...baseUser,
+        participantRecord: {
+          firstName: reg.firstName,
+          lastName: reg.lastName,
+          dateOfBirth: reg.dateOfBirth,
+          age: deriveAgeFromDateOfBirth(reg.dateOfBirth),
+          guardianUserIds: getSelectedValues(document.getElementById('regApprovalGuardianIds')),
+          contactEmail,
+          contactPhone,
+          participantInterests: reg.interests || [],
+          jobGoals: reg.jobGoals || '',
+          bio: reg.bio || '',
+          specialNeeds: document.getElementById('regApprovalSupportNeeds')?.value || reg.specialNeeds || '',
+          medicalNotes: reg.medicalNotes || '',
+          sensoryNotes: reg.sensoryNotes || '',
+          guardianNotes: reg.message || ''
+        }
+      };
+    }
+
+    return {
+      ...baseUser,
+      volunteerProfile: {
+        firstName: reg.firstName,
+        lastName: reg.lastName,
+        phone: contactPhone,
+        interests: reg.interests || [],
+        availability: reg.availability || '',
+        preferredLocation: reg.preferredLocation || '',
+        backgroundCheckStatus: reg.backgroundCheckStatus || 'Not Started'
+      }
+    };
+  }
+
+  function validateApprovedRegistrationPayload(reg, payload) {
+    if (!String(payload.password || '').trim()) return 'Temporary password is required.';
+    const contactEmail = reg.type === 'PARTICIPANT'
+      ? payload.participantRecord?.contactEmail
+      : payload.email;
+    const contactPhone = reg.type === 'PARTICIPANT'
+      ? payload.participantRecord?.contactPhone
+      : payload.volunteerProfile?.phone;
+    if (!String(contactEmail || '').trim()) return 'Contact email is required.';
+    if (!document.getElementById('regApprovalContactEmail')?.checkValidity()) return 'Enter a valid contact email.';
+    if (!String(contactPhone || '').trim()) return 'Contact phone is required.';
+    if (reg.type === 'PARTICIPANT') {
+      if (!payload.participantRecord.guardianUserIds.length) return 'Select at least one linked guardian.';
+      if (!String(payload.participantRecord.specialNeeds || '').trim()) return 'Support needs are required for participant records.';
+    }
+    return '';
+  }
+
+  async function renderRegistrationsTable() {
+    const tbody = document.getElementById('registrationsTableBody');
+    if (!tbody) return;
+    const q          = document.getElementById('registrationsTableSearch')?.value?.trim().toLowerCase() || '';
+    const statusFilter = readChip('registrations', 'status');
+    const typeFilter   = readChip('registrations', 'type');
+    const result = await Auth.getRegistrations();
+    if (!result.success) return;
+    let regs = result.data;
+    if (statusFilter !== 'ALL') regs = regs.filter(r => r.status === statusFilter);
+    if (typeFilter   !== 'ALL') regs = regs.filter(r => r.type   === typeFilter);
+    if (q) regs = regs.filter(r =>
+      `${r.firstName} ${r.lastName}`.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q)
+    );
+    if (!regs.length) {
+      const msg = q || statusFilter !== 'ALL' || typeFilter !== 'ALL'
+        ? '<strong>No matches</strong>Try a different name, email, or filter.'
+        : '<strong>No applications yet</strong>Applications submitted via the public form will appear here.';
+      tbody.innerHTML = `<tr><td colspan="6"><div class="admin-empty-state"><i class="bi bi-person-lines-fill"></i><p>${msg}</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = regs.map(reg => {
+      const fullName = `${reg.firstName} ${reg.lastName}`;
+      return `
+        <tr>
+          <td class="ps-3">
+            <div class="d-flex align-items-center gap-2">
+              ${adminAvatar(fullName, reg.type === 'VOLUNTEER' ? 'teal' : 'indigo')}
+              <span class="fw-medium">${escapeHtml(fullName)}</span>
+            </div>
+          </td>
+          <td><span class="badge ${REG_TYPE_BADGE[reg.type] || 'bg-secondary'}">${escapeHtml(reg.type === 'PARTICIPANT' ? 'Participant' : 'Volunteer')}</span></td>
+          <td>${escapeHtml(reg.email)}</td>
+          <td>${escapeHtml(reg.submittedAtLabel)}</td>
+          <td><span class="badge ${REG_STATUS_BADGE[reg.status] || 'bg-secondary'}">${escapeHtml(reg.status)}</span></td>
+          <td class="text-end pe-3">
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-reg-id="${escapeHtml(reg.id)}">
+              Review
+            </button>
+          </td>
+        </tr>`;
+    }).join('');
+    tbody.querySelectorAll('[data-reg-id]').forEach(btn => {
+      btn.addEventListener('click', () => openRegistrationModal(btn.dataset.regId));
+    });
+  }
+
+  async function openRegistrationModal(regId) {
+    const result = await Auth.getRegistrations();
+    if (!result.success) return;
+    const reg = result.data.find(r => r.id === regId);
+    if (!reg) return;
+    _reviewingRegId = regId;
+
+    const fullName = `${reg.firstName} ${reg.lastName}`;
+    document.getElementById('registrationReviewModalLabel').textContent = `Review Application — ${fullName}`;
+    document.getElementById('regModalName').textContent        = fullName;
+    document.getElementById('regModalEmail').textContent       = reg.email;
+    document.getElementById('regModalPhone').textContent       = registrationValue(reg.phone);
+    document.getElementById('regModalSubmitted').textContent   = reg.submittedAtLabel;
+    document.getElementById('regModalMessage').textContent     = registrationValue(reg.message);
+
+    const typeBadgeEl = document.getElementById('regModalTypeBadge');
+    typeBadgeEl.innerHTML = `<span class="badge ${REG_TYPE_BADGE[reg.type] || 'bg-secondary'}">${escapeHtml(reg.type === 'PARTICIPANT' ? 'Participant' : 'Volunteer')}</span>`;
+
+    document.getElementById('regModalInterests').innerHTML = adminInterestChips(reg.interests);
+
+    const dobWrap = document.getElementById('regModalDobWrap');
+    dobWrap.classList.toggle('d-none', reg.type !== 'PARTICIPANT');
+    setRegistrationText('regModalDob', reg.dateOfBirth);
+
+    const availWrap = document.getElementById('regModalAvailabilityWrap');
+    availWrap.classList.toggle('d-none', reg.type !== 'VOLUNTEER');
+    setRegistrationText('regModalAvailability', reg.availability);
+
+    document.getElementById('regModalPreferredLocationWrap')?.classList.toggle('d-none', reg.type !== 'VOLUNTEER');
+    setRegistrationText('regModalPreferredLocation', reg.preferredLocation);
+    document.getElementById('regModalBackgroundCheckWrap')?.classList.toggle('d-none', reg.type !== 'VOLUNTEER');
+    setRegistrationText('regModalBackgroundCheck', reg.backgroundCheckStatus || 'Not Started');
+
+    ['regModalGoalsWrap', 'regModalBioWrap', 'regModalSupportWrap', 'regModalMedicalWrap', 'regModalSensoryWrap'].forEach((id) => {
+      document.getElementById(id)?.classList.toggle('d-none', reg.type !== 'PARTICIPANT');
+    });
+    setRegistrationText('regModalGoals', reg.jobGoals);
+    setRegistrationText('regModalBio', reg.bio);
+    setRegistrationText('regModalSupport', reg.specialNeeds);
+    setRegistrationText('regModalMedical', reg.medicalNotes);
+    setRegistrationText('regModalSensory', reg.sensoryNotes);
+
+    const mailtoHref = `mailto:${encodeURIComponent(reg.email)}?subject=${encodeURIComponent('Your Kindred Application')}&body=${encodeURIComponent(`Hi ${reg.firstName},\n\n`)}`;
+
+    const isPending = reg.status === 'PENDING';
+    const actionsEl = document.getElementById('regModalActions');
+    const reviewedEl = document.getElementById('regModalReviewedInfo');
+    const bannerEl = document.getElementById('regModalStatusBanner');
+
+    if (isPending) {
+      actionsEl.classList.remove('d-none');
+      reviewedEl.classList.add('d-none');
+      bannerEl.className = 'alert d-none mb-3';
+      document.getElementById('regMailtoLink').href = mailtoHref;
+      document.getElementById('rejectionNoteInput').value = '';
+      document.getElementById('regApprovalPassword').value = '';
+      document.getElementById('regApprovalContactEmail').value = reg.email || '';
+      document.getElementById('regApprovalContactPhone').value = reg.phone || '';
+      document.getElementById('regApprovalGuardiansWrap')?.classList.toggle('d-none', reg.type !== 'PARTICIPANT');
+      document.getElementById('regApprovalSupportWrap')?.classList.toggle('d-none', reg.type !== 'PARTICIPANT');
+      document.getElementById('regApprovalSupportNeeds').value = reg.specialNeeds || '';
+      clearRegistrationApprovalFeedback();
+      await populateRegistrationGuardianOptions();
+    } else {
+      actionsEl.classList.add('d-none');
+      reviewedEl.classList.remove('d-none');
+      const isApproved = reg.status === 'APPROVED';
+      bannerEl.className = `alert mb-3 ${isApproved ? 'alert-success' : 'alert-secondary'}`;
+      bannerEl.innerHTML = `<strong>${isApproved ? 'Approved' : 'Rejected'}</strong>${reg.reviewedAtLabel ? ` on ${reg.reviewedAtLabel}` : ''}${reg.adminNote ? `<br><span class="small">${escapeHtml(reg.adminNote)}</span>` : ''}`;
+      document.getElementById('regMailtoLinkReviewed').href = mailtoHref;
+      const noteEl = document.getElementById('regModalAdminNote');
+      noteEl.textContent = reg.adminNote ? `Note: ${reg.adminNote}` : '';
+    }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('registrationReviewModal')).show();
+  }
+
+  async function updateRegistrationsBadge() {
+    const result = await Auth.getRegistrations();
+    const count = result.success ? result.data.filter(r => r.status === 'PENDING').length : 0;
+    document.querySelectorAll('#regNavBadge').forEach(el => {
+      el.textContent = count > 0 ? String(count) : '';
+      el.classList.toggle('d-none', count === 0);
+    });
+  }
+
+  function applyPendingImportToUserForm() {
+    const imp = Auth.consumePendingImport();
+    if (!imp) return;
+    const fn = document.getElementById('regFirstName');
+    const ln = document.getElementById('regLastName');
+    const em = document.getElementById('regEmail');
+    const ro = document.getElementById('regRole');
+    if (fn) fn.value = imp.firstName || '';
+    if (ln) ln.value = imp.lastName  || '';
+    if (em) em.value = imp.email     || '';
+    if (ro) { ro.value = imp.type || ''; ro.dispatchEvent(new Event('change')); }
+    syncUserLinkVisibility();
+    if (imp.type === 'PARTICIPANT') {
+      const dob   = document.getElementById('userParticipantDateOfBirth');
+      const phone = document.getElementById('userParticipantContactPhone');
+      if (dob)   dob.value   = imp.dateOfBirth || '';
+      if (phone) phone.value = imp.phone || '';
+      userParticipantInterestChips?.setSelected(imp.interests || []);
+    } else if (imp.type === 'VOLUNTEER') {
+      const phone = document.getElementById('userVolunteerPhone');
+      const avail = document.getElementById('userVolunteerAvailability');
+      if (phone) phone.value = imp.phone        || '';
+      if (avail) avail.value = imp.availability || '';
+      userVolInterestChips?.setSelected(imp.interests || []);
+    }
+    document.getElementById('userFormTitle').textContent = 'New User (from Application)';
+    window.KindredRequiredMarkers?.sync();
+  }
+
+  // ─── End Registrations ────────────────────────────────────────────────────
+
   async function renderUsersTable() {
     const tbody = document.getElementById('usersTableBody');
     if (!tbody) return;
@@ -3409,7 +3688,79 @@ document.addEventListener('sections:ready', async (e) => {
 
   await renderAdminDashboardStats();
 
+  // Registration approve/reject handlers
+  document.getElementById('regApproveBtn')?.addEventListener('click', async () => {
+    if (!_reviewingRegId) return;
+    clearRegistrationApprovalFeedback();
+    const regResult = await Auth.getRegistrations();
+    if (!regResult.success) {
+      setRegistrationApprovalFeedback(regResult.message || 'Unable to load application.');
+      return;
+    }
+    const reg = regResult.data.find(r => r.id === _reviewingRegId);
+    if (!reg) {
+      setRegistrationApprovalFeedback('Application not found.');
+      return;
+    }
+
+    const payload = buildApprovedRegistrationPayload(reg);
+    const validationMessage = validateApprovedRegistrationPayload(reg, payload);
+    if (validationMessage) {
+      setRegistrationApprovalFeedback(validationMessage);
+      return;
+    }
+
+    const approveBtn = document.getElementById('regApproveBtn');
+    const originalHtml = approveBtn.innerHTML;
+    approveBtn.disabled = true;
+    approveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating account';
+
+    const createResult = await Auth.createUserWithLinkedRecord(payload);
+    if (!createResult.success) {
+      approveBtn.disabled = false;
+      approveBtn.innerHTML = originalHtml;
+      setRegistrationApprovalFeedback(createResult.message || 'Unable to create account and linked record.');
+      return;
+    }
+
+    if (reg.type === 'VOLUNTEER' && payload.volunteerProfile?.backgroundCheckStatus && payload.volunteerProfile.backgroundCheckStatus !== 'Not Started') {
+      await Auth.updateBgCheckStatus(createResult.user.id, payload.volunteerProfile.backgroundCheckStatus, 'Updated by admin during application approval');
+    }
+
+    const note = `Account created and email sent to ${reg.email}.`;
+    const result = await Auth.updateRegistrationStatus(_reviewingRegId, 'APPROVED', note);
+    if (!result.success) {
+      approveBtn.disabled = false;
+      approveBtn.innerHTML = originalHtml;
+      setRegistrationApprovalFeedback(result.message || 'Account was created, but the application could not be marked approved.');
+      return;
+    }
+
+    await renderRegistrationsTable();
+    await updateRegistrationsBadge();
+    await renderUsersTable();
+    await renderParticipantsTable();
+    await renderVolunteersTable();
+    await populateLinkedUserOptions();
+    approveBtn.disabled = false;
+    approveBtn.innerHTML = originalHtml;
+    await openRegistrationModal(_reviewingRegId);
+    showToast(note);
+  });
+
+  document.getElementById('regRejectBtn')?.addEventListener('click', async () => {
+    if (!_reviewingRegId) return;
+    const note = document.getElementById('rejectionNoteInput')?.value.trim() || '';
+    const result = await Auth.updateRegistrationStatus(_reviewingRegId, 'REJECTED', note);
+    if (!result.success) { showToast(result.message); return; }
+    bootstrap.Modal.getInstance(document.getElementById('registrationReviewModal'))?.hide();
+    await renderRegistrationsTable();
+    await updateRegistrationsBadge();
+    showToast('Application rejected.');
+  });
+
   await populateLinkedUserOptions();
+  applyPendingImportToUserForm();
   await renderUsersTable();
   await renderParticipantsTable();
   await renderVolunteersTable();
@@ -3450,9 +3801,14 @@ document.addEventListener('sections:ready', async (e) => {
       });
     });
   }
-  wireFilterChips('events',       renderEventsTable);
-  wireFilterChips('jobs',         renderJobsTable);
-  wireFilterChips('participants', renderParticipantsTable);
-  wireFilterChips('volunteers',   renderVolunteersTable);
-  wireFilterChips('users',        renderUsersTable);
+  wireFilterChips('events',         renderEventsTable);
+  wireFilterChips('jobs',           renderJobsTable);
+  wireFilterChips('participants',   renderParticipantsTable);
+  wireFilterChips('volunteers',     renderVolunteersTable);
+  wireFilterChips('users',          renderUsersTable);
+  wireFilterChips('registrations',  renderRegistrationsTable);
+
+  await renderRegistrationsTable();
+  await updateRegistrationsBadge();
+  document.getElementById('registrationsTableSearch')?.addEventListener('input', () => renderRegistrationsTable());
 });

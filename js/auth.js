@@ -23,6 +23,8 @@ const Auth = (() => {
   const INQUIRIES_KEY = 'kindred_inquiries';
   const TASKS_KEY = 'kindred_tasks';
   const VOLUNTEER_EVENT_ASSIGNMENTS_KEY = 'kindred_volunteer_event_assignments';
+  const REGISTRATIONS_KEY = 'kindred_registrations';
+  const PENDING_IMPORT_KEY = 'kindred_pending_import';
 
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
@@ -536,6 +538,10 @@ const Auth = (() => {
     return parseJson(TASKS_KEY, []);
   }
 
+  function getRawRegistrations() {
+    return parseJson(REGISTRATIONS_KEY, []);
+  }
+
   function normalizeRole(role, fallback = 'PARTICIPANT') {
     const upper = String(role || '').trim().toUpperCase();
     if (upper === 'PARTICIPANT / GUARDIAN') return 'GUARDIAN';
@@ -937,6 +943,7 @@ const Auth = (() => {
     if (!localStorage.getItem(TASKS_KEY)) setJson(TASKS_KEY, []);
     if (!localStorage.getItem(JOB_APPLICATIONS_KEY)) setJson(JOB_APPLICATIONS_KEY, []);
     if (!localStorage.getItem(VOLUNTEER_EVENT_ASSIGNMENTS_KEY)) setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
+    if (!localStorage.getItem(REGISTRATIONS_KEY)) setJson(REGISTRATIONS_KEY, []);
   }
 
   /** Run once per full page load; merges bundled seeds into localStorage before reads. */
@@ -3781,6 +3788,125 @@ const Auth = (() => {
 
   // ─── End Task Assignment ───────────────────────────────────────────────────
 
+  // ─── Registrations ────────────────────────────────────────────────────────
+
+  async function submitRegistration(payload) {
+    const {
+      type,
+      firstName,
+      lastName,
+      email,
+      phone,
+      dateOfBirth,
+      message,
+      interests,
+      availability,
+      preferredLocation,
+      backgroundCheckStatus,
+      jobGoals,
+      bio,
+      specialNeeds,
+      medicalNotes,
+      sensoryNotes
+    } = payload || {};
+    if (!['PARTICIPANT', 'VOLUNTEER'].includes(type)) return { success: false, message: 'Invalid registration type.' };
+    if (!String(firstName || '').trim()) return { success: false, message: 'First name is required.' };
+    if (!String(lastName || '').trim()) return { success: false, message: 'Last name is required.' };
+    const normEmail = normalizeEmail(email);
+    if (!normEmail) return { success: false, message: 'A valid email address is required.' };
+    if (type === 'PARTICIPANT' && !String(specialNeeds || '').trim()) {
+      return { success: false, message: 'Support needs are required for participant applications.' };
+    }
+    const existing = getRawRegistrations();
+    if (existing.some(r => normalizeEmail(r.email) === normEmail && r.status === 'PENDING')) {
+      return { success: false, message: 'A pending application already exists for this email address.' };
+    }
+    const now = Date.now();
+    const record = {
+      id: makeId('reg'),
+      type,
+      firstName: String(firstName).trim(),
+      lastName: String(lastName).trim(),
+      email: normEmail,
+      phone: String(phone || '').trim(),
+      dateOfBirth: String(dateOfBirth || '').trim(),
+      message: String(message || '').trim(),
+      interests: Array.isArray(interests) ? interests : [],
+      availability: String(availability || '').trim(),
+      preferredLocation: String(preferredLocation || '').trim(),
+      backgroundCheckStatus: String(backgroundCheckStatus || 'Not Started').trim() || 'Not Started',
+      jobGoals: String(jobGoals || '').trim(),
+      bio: String(bio || '').trim(),
+      specialNeeds: String(specialNeeds || '').trim(),
+      medicalNotes: String(medicalNotes || '').trim(),
+      sensoryNotes: String(sensoryNotes || '').trim(),
+      status: 'PENDING',
+      adminNote: '',
+      submittedAtMs: now,
+      submittedAtLabel: formatDateLabel(new Date(now)),
+      reviewedAtMs: null,
+      reviewedAtLabel: null,
+    };
+    setJson(REGISTRATIONS_KEY, [...existing, record]);
+    return { success: true };
+  }
+
+  async function getRegistrations() {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Admin access required.' };
+    return { success: true, data: getRawRegistrations().slice().sort((a, b) => b.submittedAtMs - a.submittedAtMs) };
+  }
+
+  async function updateRegistrationStatus(id, status, adminNote = '') {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') return { success: false, message: 'Admin access required.' };
+    if (!['APPROVED', 'REJECTED'].includes(status)) return { success: false, message: 'Invalid status.' };
+    const regs = getRawRegistrations();
+    const reg = regs.find(r => r.id === id);
+    if (!reg) return { success: false, message: 'Application not found.' };
+    const now = Date.now();
+    reg.status = status;
+    reg.adminNote = String(adminNote || '').trim();
+    reg.reviewedAtMs = now;
+    reg.reviewedAtLabel = formatDateLabel(new Date(now));
+    setJson(REGISTRATIONS_KEY, regs);
+    return { success: true, registration: reg };
+  }
+
+  function writePendingImport(registrationId) {
+    const reg = getRawRegistrations().find(r => r.id === registrationId);
+    if (!reg) return;
+    const payload = {
+      firstName: reg.firstName,
+      lastName: reg.lastName,
+      email: reg.email,
+      phone: reg.phone,
+      type: reg.type,
+      interests: reg.interests,
+      availability: reg.availability,
+      preferredLocation: reg.preferredLocation,
+      backgroundCheckStatus: reg.backgroundCheckStatus,
+      dateOfBirth: reg.dateOfBirth,
+      message: reg.message,
+      jobGoals: reg.jobGoals,
+      bio: reg.bio,
+      specialNeeds: reg.specialNeeds,
+      medicalNotes: reg.medicalNotes,
+      sensoryNotes: reg.sensoryNotes,
+      registrationId: reg.id,
+    };
+    localStorage.setItem(PENDING_IMPORT_KEY, JSON.stringify(payload));
+  }
+
+  function consumePendingImport() {
+    const raw = localStorage.getItem(PENDING_IMPORT_KEY);
+    localStorage.removeItem(PENDING_IMPORT_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  // ─── End Registrations ────────────────────────────────────────────────────
+
   ensureStoresHydrated();
 
   return {
@@ -3887,6 +4013,11 @@ const Auth = (() => {
     unarchiveTask,
     addChecklistItem,
     removeChecklistItem,
-    toggleChecklistItem
+    toggleChecklistItem,
+    submitRegistration,
+    getRegistrations,
+    updateRegistrationStatus,
+    writePendingImport,
+    consumePendingImport,
   };
 })();

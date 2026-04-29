@@ -1,0 +1,203 @@
+<!-- ══ SECTION: Applications / Registrations (ADMIN only) ══ -->
+<section id="section-registrations" class="content-section d-none">
+
+  <div id="view-registrations-list">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+      <div>
+        <h5 class="admin-section-title">Applications</h5>
+        <p class="text-muted small mb-0">Review incoming participant and volunteer applications submitted via the public registration form.</p>
+      </div>
+    </div>
+
+    <div class="admin-search-wrap">
+      <i class="bi bi-search admin-search-icon"></i>
+      <input type="search" class="admin-search-input" id="registrationsTableSearch" placeholder="Filter by name or email" autocomplete="off" aria-label="Filter applications">
+    </div>
+
+    <div class="admin-filter-bar">
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Status</span>
+        <button class="admin-filter-chip active" data-registrations-filter="status" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-registrations-filter="status" data-value="PENDING" type="button">Pending</button>
+        <button class="admin-filter-chip" data-registrations-filter="status" data-value="APPROVED" type="button">Approved</button>
+        <button class="admin-filter-chip" data-registrations-filter="status" data-value="REJECTED" type="button">Rejected</button>
+      </div>
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Type</span>
+        <button class="admin-filter-chip active" data-registrations-filter="type" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-registrations-filter="type" data-value="PARTICIPANT" type="button">Participant</button>
+        <button class="admin-filter-chip" data-registrations-filter="type" data-value="VOLUNTEER" type="button">Volunteer</button>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="admin-thead">
+            <tr>
+              <th scope="col" class="ps-3">Name</th>
+              <th scope="col">Type</th>
+              <th scope="col">Email</th>
+              <th scope="col">Submitted</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="registrationsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review modal -->
+  <div class="modal fade" id="registrationReviewModal" tabindex="-1" aria-labelledby="registrationReviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="registrationReviewModalLabel">Review Application</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+
+          <div id="regModalStatusBanner" class="alert d-none mb-3" role="alert"></div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-6">
+              <p class="text-muted small mb-1">Applicant</p>
+              <p class="fw-semibold mb-0" id="regModalName">—</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted small mb-1">Application Type</p>
+              <p class="mb-0" id="regModalTypeBadge">—</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted small mb-1">Email</p>
+              <p class="mb-0" id="regModalEmail">—</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted small mb-1">Phone</p>
+              <p class="mb-0" id="regModalPhone">—</p>
+            </div>
+            <div class="col-md-6" id="regModalDobWrap">
+              <p class="text-muted small mb-1">Date of Birth</p>
+              <p class="mb-0" id="regModalDob">—</p>
+            </div>
+            <div class="col-md-6">
+              <p class="text-muted small mb-1">Submitted</p>
+              <p class="mb-0" id="regModalSubmitted">—</p>
+            </div>
+            <div class="col-12" id="regModalAvailabilityWrap">
+              <p class="text-muted small mb-1">Availability</p>
+              <p class="mb-0" id="regModalAvailability">—</p>
+            </div>
+            <div class="col-12" id="regModalPreferredLocationWrap">
+              <p class="text-muted small mb-1">Preferred Location</p>
+              <p class="mb-0" id="regModalPreferredLocation">—</p>
+            </div>
+            <div class="col-md-6" id="regModalBackgroundCheckWrap">
+              <p class="text-muted small mb-1">Background Check</p>
+              <p class="mb-0" id="regModalBackgroundCheck">—</p>
+            </div>
+            <div class="col-12" id="regModalGoalsWrap">
+              <p class="text-muted small mb-1">Goals / Job Interests</p>
+              <p class="mb-0" id="regModalGoals">—</p>
+            </div>
+            <div class="col-12" id="regModalBioWrap">
+              <p class="text-muted small mb-1">Bio</p>
+              <p class="mb-0" id="regModalBio">—</p>
+            </div>
+            <div class="col-12" id="regModalSupportWrap">
+              <p class="text-muted small mb-1">Support Needs</p>
+              <p class="mb-0" id="regModalSupport">—</p>
+            </div>
+            <div class="col-md-6" id="regModalMedicalWrap">
+              <p class="text-muted small mb-1">Medical Notes</p>
+              <p class="mb-0" id="regModalMedical">—</p>
+            </div>
+            <div class="col-md-6" id="regModalSensoryWrap">
+              <p class="text-muted small mb-1">Sensory Notes</p>
+              <p class="mb-0" id="regModalSensory">—</p>
+            </div>
+            <div class="col-12">
+              <p class="text-muted small mb-1">Tell us about yourself</p>
+              <p class="mb-0" id="regModalMessage">—</p>
+            </div>
+            <div class="col-12">
+              <p class="text-muted small mb-1">Interests</p>
+              <div id="regModalInterests">—</div>
+            </div>
+          </div>
+
+          <!-- Actions (shown only for PENDING applications) -->
+          <div id="regModalActions">
+            <hr>
+            <div id="regApprovalFeedback" class="alert d-none mb-3" role="alert"></div>
+
+            <div class="border rounded p-3 bg-light mb-3">
+              <h6 class="fw-semibold mb-3">Create account and linked record</h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="regApprovalPassword" class="form-label">Temporary Password <span class="text-danger">*</span></label>
+                  <input type="password" class="form-control" id="regApprovalPassword" autocomplete="new-password">
+                </div>
+                <div class="col-md-6">
+                  <label for="regApprovalContactPhone" class="form-label">Contact Phone <span class="text-danger">*</span></label>
+                  <input type="tel" class="form-control" id="regApprovalContactPhone">
+                </div>
+                <div class="col-md-6">
+                  <label for="regApprovalContactEmail" class="form-label">Contact Email <span class="text-danger">*</span></label>
+                  <input type="email" class="form-control" id="regApprovalContactEmail">
+                </div>
+                <div class="col-md-6 d-none" id="regApprovalGuardiansWrap">
+                  <label for="regApprovalGuardianIds" class="form-label">Linked Guardians <span class="text-danger">*</span></label>
+                  <select class="form-select" id="regApprovalGuardianIds" multiple size="4"></select>
+                  <div class="form-text">Participant applications must be linked to at least one existing guardian.</div>
+                </div>
+                <div class="col-12 d-none" id="regApprovalSupportWrap">
+                  <label for="regApprovalSupportNeeds" class="form-label">Support Needs <span class="text-danger">*</span></label>
+                  <textarea class="form-control" id="regApprovalSupportNeeds" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 align-items-start mb-3">
+              <a id="regMailtoLink" class="btn btn-outline-primary" href="#" target="_blank">
+                <i class="bi bi-envelope me-1"></i>Email Applicant
+              </a>
+            </div>
+
+            <div class="mb-3">
+              <label for="rejectionNoteInput" class="form-label fw-semibold">Rejection Note <span class="text-muted fw-normal small">(optional)</span></label>
+              <textarea class="form-control" id="rejectionNoteInput" rows="2" placeholder="Reason for rejection (visible in admin records only)"></textarea>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-success" id="regApproveBtn">
+                <i class="bi bi-check-lg me-1"></i>Approve &amp; Create Account
+              </button>
+              <button type="button" class="btn btn-danger" id="regRejectBtn">
+                <i class="bi bi-x-lg me-1"></i>Reject Application
+              </button>
+            </div>
+          </div>
+
+          <!-- Reviewed note (shown when not PENDING) -->
+          <div id="regModalReviewedInfo" class="d-none">
+            <hr>
+            <div id="regModalAdminNote" class="text-muted small"></div>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+              <a id="regMailtoLinkReviewed" class="btn btn-outline-secondary btn-sm" href="#" target="_blank">
+                <i class="bi bi-envelope me-1"></i>Email Applicant
+              </a>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>

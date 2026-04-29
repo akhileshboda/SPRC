@@ -13,6 +13,7 @@ const ROLE_SECTIONS = {
     'sections/admin/communications.html?v=1',
     'sections/admin/urgent-notifications.html?v=1',
     'sections/admin/users.html?v=1',
+    'sections/admin/registrations.html?v=1',
     'sections/admin/work-queue.html?v=1',
     'sections/admin/notifications.html?v=1',
   ],

@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
   { id: 'urgent-notifications', label: 'Urgent Alerts', icon: 'bi-bell-fill', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
+  { id: 'registrations', label: 'Applications', icon: 'bi-person-lines-fill', roles: ['ADMIN'], badge: 'regNavBadge' },
   // GUARDIAN sections
   { id: 'g-participants', label: 'My Participants', icon: 'bi-people-fill', roles: ['GUARDIAN'] },
   { id: 'g-approvals',  label: 'Approvals', icon: 'bi-shield-check', roles: ['GUARDIAN'] },
@@ -48,6 +49,7 @@ function _buildSidebarHTML(session) {
     .map(item => `
       <button class="sidebar-nav-link" data-section="${item.id}" type="button" aria-current="false">
         <i class="bi ${item.icon}"></i> ${item.label}
+        ${item.badge ? `<span class="badge bg-danger ms-auto d-none" id="${item.badge}" style="font-size:0.65rem;"></span>` : ''}
       </button>`).join('');
 
   const roleClass = {
