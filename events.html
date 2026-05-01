@@ -546,6 +546,15 @@
                     <button class="filter-btn" data-cat="Vocational" aria-pressed="false">
                         <i class="bi bi-briefcase"></i> Vocational
                     </button>
+
+                    <span class="text-muted mx-1" aria-hidden="true" style="font-size:0.8rem;">|</span>
+
+                    <button class="filter-btn active" data-timing="upcoming" aria-pressed="true">
+                        <i class="bi bi-clock"></i> Upcoming
+                    </button>
+                    <button class="filter-btn" data-timing="all" aria-pressed="false">
+                        <i class="bi bi-calendar3"></i> All Events
+                    </button>
                 </div>
 
             </div>
@@ -606,6 +615,7 @@
         // ── Events browser ────────────────────────────────────────────────────────
         let allEvents = [];
         let activeFilter = 'All';
+        let activeTimingFilter = 'upcoming';
         let searchQuery = '';
         let currentSession = null;
         let interestedEventIds = new Set();
@@ -744,6 +754,7 @@
 
             const filtered = allEvents.filter(ev => {
                 if (activeFilter !== 'All' && ev.category !== activeFilter) return false;
+                if (activeTimingFilter === 'upcoming' && !isUpcoming(ev)) return false;
                 if (!query) return true;
                 return (
                     (ev.title || '').toLowerCase().includes(query) ||
@@ -815,6 +826,20 @@
                 btn.addEventListener('click', () => {
                     activeFilter = btn.dataset.cat;
                     document.querySelectorAll('.filter-btn[data-cat]').forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', 'true');
+                    filterAndRender();
+                });
+            });
+
+            // Wire timing filters
+            document.querySelectorAll('.filter-btn[data-timing]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeTimingFilter = btn.dataset.timing;
+                    document.querySelectorAll('.filter-btn[data-timing]').forEach(b => {
                         b.classList.remove('active');
                         b.setAttribute('aria-pressed', 'false');
                     });

@@ -582,6 +582,54 @@ body {
    My Account nav button & dashboard ↔ site navigation
    ══════════════════════════════════════════════════════════════ */
 
+/* Ghost pill Sign Up / Apply button */
+.btn-nav-apply {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.375rem;
+  padding:         0.45rem 1.1rem;
+  border-radius:   2rem;
+  background:      transparent;
+  color:           var(--k-indigo, #4F62B0);
+  font-size:       0.82rem;
+  font-weight:     700;
+  text-decoration: none;
+  border:          1.5px solid rgba(79, 98, 176, 0.4);
+  white-space:     nowrap;
+  transition:      background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.btn-nav-apply:hover {
+  background:    var(--k-indigo-lt, #eef0fa);
+  border-color:  var(--k-indigo, #4F62B0);
+  color:         var(--k-indigo, #4F62B0);
+}
+
+/* Filled portal pill — replaces the plain name link on non-dashboard pages */
+.btn-nav-portal {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.375rem;
+  padding:         0.4rem 1rem;
+  border-radius:   2rem;
+  background:      var(--k-indigo-lt, #eef0fa);
+  color:           var(--k-indigo, #4F62B0);
+  font-size:       0.82rem;
+  font-weight:     700;
+  text-decoration: none;
+  border:          1.5px solid rgba(79, 98, 176, 0.25);
+  white-space:     nowrap;
+  transition:      background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.btn-nav-portal:hover {
+  background:   var(--k-indigo, #4F62B0);
+  color:        #fff;
+  border-color: var(--k-indigo, #4F62B0);
+  transform:    translateY(-1px);
+  box-shadow:   0 4px 14px rgba(79, 98, 176, 0.28);
+}
+
 /* Filled indigo pill that replaces "Sign In" when a session is active */
 .btn-nav-account {
   display:         inline-flex;

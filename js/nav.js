@@ -40,13 +40,20 @@
             }
         });
 
-        // Hide Sign In button on the login page itself and center the nav links
+        // Hide auth CTAs on pages where they'd be redundant
         if (filename === 'login') {
             const signinBtn = document.getElementById('nav-signin-btn');
             if (signinBtn) signinBtn.style.display = 'none';
+            const applyBtn = document.getElementById('nav-apply-btn');
+            if (applyBtn) applyBtn.style.display = 'none';
 
             const navLinks = document.querySelector('#mainNav .nav-links');
             if (navLinks) navLinks.classList.add('nav-login-links-centered');
+        }
+
+        if (filename === 'register') {
+            const applyBtn = document.getElementById('nav-apply-btn');
+            if (applyBtn) applyBtn.style.display = 'none';
         }
 
         // ── Session-aware CTA: same user block on every page ─────────────────
@@ -67,7 +74,7 @@
                 const displayName = (session.name || session.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const nameEl      = filename === 'dashboard'
                     ? `<span class="nav-user-name">${displayName}</span>`
-                    : `<a href="dashboard.html" class="nav-user-name">${displayName}</a>`;
+                    : `<a href="dashboard.html" class="btn-nav-portal" title="Go to your portal"><i class="bi bi-speedometer2"></i>${displayName}<i class="bi bi-chevron-right" style="font-size:0.65rem;opacity:0.55;"></i></a>`;
 
                 const bellPlaceholder = `
                     <div class="dropdown" id="nav-notifications-bell">
