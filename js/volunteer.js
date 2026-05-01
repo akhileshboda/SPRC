@@ -132,6 +132,30 @@ document.addEventListener('sections:ready', async (e) => {
     return `<div class="portal-empty-state"><i class="bi ${icon}"></i><p>${message}</p></div>`;
   }
 
+  async function renderVolunteerNewsletter() {
+    const container = document.getElementById('v-newsletter-content');
+    if (!container) return;
+    const newsletters = await Auth.getNewsletters();
+    if (!newsletters.length) {
+      container.innerHTML = emptyState('bi-envelope', 'No newsletter has been sent yet. Check back soon!');
+      return;
+    }
+    const newsletter = newsletters[0];
+    container.innerHTML = `
+      <div class="card shadow-sm">
+        <div class="card-header text-white fw-semibold d-flex justify-content-between align-items-center" style="background-color:#4F62B0;">
+          <span><i class="bi bi-envelope-paper me-2"></i>${escHtml(newsletter.subject)}</span>
+          <small class="opacity-75">${escHtml(newsletter.weekOf)}</small>
+        </div>
+        <div class="card-body">
+          <pre style="white-space: pre-wrap; font-family: 'Inter', system-ui, sans-serif; font-size: 0.95rem; border: none; background: none; padding: 0; margin: 0;">${escHtml(newsletter.body)}</pre>
+          <div class="mt-4 text-muted small border-top pt-3">
+            <i class="bi bi-clock me-1"></i>Sent ${escHtml(newsletter.generatedAtLabel)}
+          </div>
+        </div>
+      </div>`;
+  }
+
   // ── Render matched events on the dashboard home ────────────────────────────
 
   async function renderMatchedEvents(profile) {
@@ -600,18 +624,37 @@ document.addEventListener('sections:ready', async (e) => {
 
   const consentCheckbox = document.getElementById('bgCheckConsentCheckbox');
   const consentSubmitBtn = document.getElementById('bgCheckSubmitConsentBtn');
+  const consentDobInput = document.getElementById('bgCheckVolunteerDob');
   const consentErrorEl = document.getElementById('bgCheckConsentError');
   const consentSuccessEl = document.getElementById('bgCheckConsentSuccess');
   const revokeBtn = document.getElementById('bgCheckRevokeBtn');
 
+  function setBgCheckDobMax() {
+    if (!consentDobInput) return;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    consentDobInput.max = d.toISOString().slice(0, 10);
+  }
+  setBgCheckDobMax();
+
   if (consentCheckbox && consentSubmitBtn) {
-    consentCheckbox.addEventListener('change', () => {
+    const syncConsentBtn = () => {
       consentSubmitBtn.disabled = !consentCheckbox.checked;
-    });
+    };
+    consentCheckbox.addEventListener('change', syncConsentBtn);
+    consentDobInput?.addEventListener('input', syncConsentBtn);
 
     consentSubmitBtn.addEventListener('click', async () => {
       consentErrorEl?.classList.add('d-none');
       consentSuccessEl?.classList.add('d-none');
+
+      if (!consentDobInput?.value?.trim()) {
+        if (consentErrorEl) {
+          consentErrorEl.textContent = 'Date of birth is required before submitting background check consent.';
+          consentErrorEl.classList.remove('d-none');
+        }
+        return;
+      }
 
       if (!consentCheckbox.checked) {
         if (consentErrorEl) {
@@ -622,7 +665,7 @@ document.addEventListener('sections:ready', async (e) => {
       }
 
       consentSubmitBtn.disabled = true;
-      const result = await Auth.submitBgCheckConsent();
+      const result = await Auth.submitBgCheckConsent({ dateOfBirth: consentDobInput.value.trim() });
 
       if (!result.success) {
         if (consentErrorEl) {
@@ -850,6 +893,14 @@ document.addEventListener('sections:ready', async (e) => {
     bootstrap.Modal.getInstance(document.getElementById('taskResolveModal'))?.hide();
     await renderVolunteerTasks();
   });
+
+  const vNewsletterSection = document.getElementById('section-v-newsletter');
+  if (vNewsletterSection) {
+    new MutationObserver(() => {
+      if (!vNewsletterSection.classList.contains('d-none')) renderVolunteerNewsletter();
+    }).observe(vNewsletterSection, { attributes: true, attributeFilter: ['class'] });
+  }
+  await renderVolunteerNewsletter();
 
   const vTasksSection = document.getElementById('section-v-tasks');
   if (vTasksSection) {

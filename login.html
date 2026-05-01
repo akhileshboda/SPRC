@@ -28,11 +28,13 @@
 
 <body>
 
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#loginCard" style="z-index:2000;">Skip to sign in form</a>
+
   <!-- Navbar -->
   <div id="nav-root"></div>
 
   <div class="login-wrapper">
-    <div class="card shadow-sm" style="width: 100%; max-width: 420px;">
+    <div id="loginCard" class="card shadow-sm" style="width: 100%; max-width: 420px;" tabindex="-1">
       <div class="card-body p-4">
 
         <!-- Branding -->
@@ -41,6 +43,7 @@
 
         <!-- Inline error alert (hidden until credentials fail) -->
         <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+        <div id="resetSuccess" class="alert alert-success d-none small" role="status" aria-live="polite"></div>
 
         <!-- Login form -->
         <form id="loginForm" novalidate>
@@ -62,15 +65,27 @@
           <div class="d-flex flex-column gap-1">
             <button type="submit" class="btn btn-primary w-100">Sign In</button>
             <div class="text-center">
-              <p>
-                <a href="javascript:void(0)" class="link-secondary small" onclick="handlePasswordReset()">
-                  Forgot my password
-                </a>
-              </p>
+              <button type="button" class="link-secondary small btn btn-link p-0 border-0" id="forgotPasswordToggle" aria-expanded="false" aria-controls="passwordResetPanel">
+                Forgot my password
+              </button>
             </div>
           </div>
 
         </form>
+
+        <div id="passwordResetPanel" class="mt-3 pt-3 border-top d-none" role="region" aria-labelledby="resetHeading" tabindex="-1">
+          <h3 class="h6 mb-2" id="resetHeading">Reset password</h3>
+          <p class="small text-muted mb-2">Enter the email for your Kindred account. In a full deployment, a coordinator or automated system would email a reset link. This demo only confirms the request in your browser.</p>
+          <form id="resetRequestForm" novalidate>
+            <label for="resetEmail" class="form-label small">Email on file</label>
+            <div class="input-group input-group-sm mb-2">
+              <input type="email" class="form-control" id="resetEmail" name="resetEmail" placeholder="you@example.com" autocomplete="email" required aria-describedby="resetHelp">
+              <button type="submit" class="btn btn-outline-primary" id="resetSubmitBtn">Request link</button>
+            </div>
+            <p id="resetHelp" class="form-text small mb-0">If you are unsure which email is on file, contact your Kindred coordinator.</p>
+            <div id="resetError" class="alert alert-danger d-none small py-2 my-2" role="alert"></div>
+          </form>
+        </div>
 
       </div>
     </div>
@@ -79,7 +94,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/required-markers.js"></script>
-  <script src="js/auth.js?v=13"></script>
+  <script src="js/auth.js?v=22"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       // If a valid server session already exists, skip the login screen.
@@ -116,21 +131,36 @@
       document.getElementById('loginError').classList.add('d-none');
     });
 
-    function handlePasswordReset() {
-      // 1. Prompt for email address
-      const email = prompt("Please enter your email address to reset your password:");
+    const forgotBtn = document.getElementById('forgotPasswordToggle');
+    const resetPanel = document.getElementById('passwordResetPanel');
+    const resetForm = document.getElementById('resetRequestForm');
+    const resetError = document.getElementById('resetError');
+    const resetSuccess = document.getElementById('resetSuccess');
 
-      // 2. Simulate validation and sending flow
-      if (email === null) {
-        return; // User cancelled
-      } else if (email.trim() === "") {
-        alert("Error: Please enter a valid email address.");
-      } else {
-        // 3. Confirm simulation
-        alert(`Success! A password reset link has been sent to: ${email}\n\nPlease check your inbox.`);
-        console.log(`Password reset flow simulated for: ${email}`);
+    forgotBtn?.addEventListener('click', () => {
+      const open = resetPanel.classList.toggle('d-none');
+      const nowOpen = !open;
+      forgotBtn.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+      if (nowOpen) {
+        resetPanel.focus();
+        document.getElementById('resetEmail')?.focus();
       }
-    }
+    });
+
+    resetForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      resetError.classList.add('d-none');
+      resetSuccess.classList.add('d-none');
+      const email = document.getElementById('resetEmail')?.value?.trim() || '';
+      if (!email || !document.getElementById('resetEmail').checkValidity()) {
+        resetError.textContent = 'Enter a valid email address.';
+        resetError.classList.remove('d-none');
+        return;
+      }
+      console.log('Password reset flow simulated for:', email);
+      resetSuccess.textContent = 'If that email is registered, a reset link would be sent. (Demo: request recorded for ' + email + '.)';
+      resetSuccess.classList.remove('d-none');
+    });
 
   </script>
 </body>

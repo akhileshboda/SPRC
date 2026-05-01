@@ -44,19 +44,26 @@
 
           <div class="profile-section-card">
             <h3 class="profile-section-title">Support Context</h3>
-            <div id="participantSupportReadonlyBanner" class="mb-3"></div>
+            <p id="participantSupportContextIntro" class="form-text mb-3">
+              Share what helps you participate comfortably. Guardians and Kindred administrators can edit this section too—keeping information accurate is a shared responsibility.
+            </p>
             <div class="row g-3">
               <div class="col-md-4">
-                <label for="participantSpecialNeedsReadonly" class="form-label">Support Needs</label>
-                <textarea class="form-control" id="participantSpecialNeedsReadonly" rows="4" readonly></textarea>
+                <label for="participantSpecialNeedsInput" class="form-label">Support Needs</label>
+                <textarea class="form-control" id="participantSpecialNeedsInput" rows="4" maxlength="8000"
+                  autocomplete="off" aria-describedby="participantSupportContextIntro"></textarea>
               </div>
               <div class="col-md-4">
-                <label for="participantMedicalReadonly" class="form-label">Medical Notes</label>
-                <textarea class="form-control" id="participantMedicalReadonly" rows="4" readonly></textarea>
+                <label for="participantMedicalNotesInput" class="form-label">Medical Notes</label>
+                <textarea class="form-control" id="participantMedicalNotesInput" rows="4" maxlength="8000"
+                  autocomplete="off" aria-describedby="participantSupportContextIntro"
+                  placeholder="Allergies, medications, or health considerations staff should know (optional)."></textarea>
               </div>
               <div class="col-md-4">
-                <label for="participantSensoryReadonly" class="form-label">Sensory Notes</label>
-                <textarea class="form-control" id="participantSensoryReadonly" rows="4" readonly></textarea>
+                <label for="participantSensoryNotesInput" class="form-label">Sensory Notes</label>
+                <textarea class="form-control" id="participantSensoryNotesInput" rows="4" maxlength="8000"
+                  autocomplete="off" aria-describedby="participantSupportContextIntro"
+                  placeholder="Noise, lighting, transitions, or other sensory preferences (optional)."></textarea>
               </div>
             </div>
           </div>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About — Kindred</title>
+  <meta name="description" content="Learn about Kindred's mission to connect individuals with special needs, their guardians, volunteers, and community organizations through a unified resource platform.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    :root {
+      --k-indigo: #4F62B0;
+      --k-indigo-dk: #3a4a8a;
+      --k-indigo-lt: #eef0fa;
+      --k-teal: #2BB5A0;
+      --k-teal-lt: #e4f7f4;
+      --k-amber: #F5A623;
+      --k-amber-lt: #fef6e7;
+      --k-surface: #f7f8fc;
+      --k-border: #e2e6f3;
+      --k-text: #1a1d2e;
+      --k-muted: #6b7280;
+      --radius-card: 1rem;
+      --radius-pill: 2rem;
+      --shadow-card: 0 2px 16px rgba(79, 98, 176, 0.09);
+      --shadow-card-hover: 0 8px 32px rgba(79, 98, 176, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--k-surface);
+      color: var(--k-text);
+      min-height: 100vh;
+    }
+
+    /* ── Page header ─────────────────────────────────────────── */
+    #page-header {
+      background: linear-gradient(135deg, #f0f2fc 0%, #e8f4f1 100%);
+      border-bottom: 1px solid var(--k-border);
+      padding: 3.5rem 0 3rem;
+    }
+
+    .page-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--k-indigo);
+      background: var(--k-indigo-lt);
+      border-radius: var(--radius-pill);
+      padding: 0.3rem 0.8rem;
+      border: 1px solid rgba(79, 98, 176, 0.2);
+      margin-bottom: 0.75rem;
+    }
+
+    .page-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: var(--k-text);
+      margin-bottom: 0.5rem;
+    }
+
+    .page-sub {
+      font-size: 1rem;
+      color: var(--k-muted);
+      max-width: 560px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    /* ── Sections ─────────────────────────────────────────────── */
+    .about-section {
+      padding: 4.5rem 0;
+    }
+
+    .about-section + .about-section {
+      border-top: 1px solid var(--k-border);
+    }
+
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--k-indigo);
+      background: var(--k-indigo-lt);
+      border-radius: var(--radius-pill);
+      padding: 0.3rem 0.8rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.6px;
+      color: var(--k-text);
+      margin-bottom: 0.5rem;
+    }
+
+    .section-sub {
+      font-size: 0.975rem;
+      color: var(--k-muted);
+      max-width: 540px;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    /* ── Mission callout ──────────────────────────────────────── */
+    .mission-callout {
+      background: linear-gradient(135deg, var(--k-indigo) 0%, #3a4a8a 100%);
+      border-radius: 1.25rem;
+      padding: 2.5rem;
+      color: #fff;
+    }
+
+    .mission-callout blockquote {
+      font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+      font-weight: 700;
+      line-height: 1.5;
+      letter-spacing: -0.4px;
+      margin: 0;
+      color: #fff;
+    }
+
+    .mission-callout cite {
+      display: block;
+      margin-top: 1rem;
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.65);
+      font-style: normal;
+    }
+
+    /* ── Values cards ─────────────────────────────────────────── */
+    .value-card {
+      background: #fff;
+      border: 1.5px solid var(--k-border);
+      border-radius: var(--radius-card);
+      padding: 1.75rem;
+      height: 100%;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .value-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-card-hover);
+    }
+
+    .value-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 0.875rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+    }
+
+    .value-card h3 {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.4rem;
+    }
+
+    .value-card p {
+      font-size: 0.85rem;
+      color: var(--k-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* ── Audience grid ────────────────────────────────────────── */
+    .audience-card {
+      background: #fff;
+      border: 1.5px solid var(--k-border);
+      border-radius: var(--radius-card);
+      padding: 1.5rem 1.75rem;
+      height: 100%;
+    }
+
+    .audience-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      margin-bottom: 0.875rem;
+    }
+
+    .audience-card h3 {
+      font-size: 0.96rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.35rem;
+    }
+
+    .audience-card p {
+      font-size: 0.84rem;
+      color: var(--k-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* ── How it works timeline ────────────────────────────────── */
+    .hiw-step {
+      display: flex;
+      gap: 1.25rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid var(--k-border);
+    }
+
+    .hiw-step:last-child {
+      border-bottom: none;
+    }
+
+    .hiw-num {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--k-indigo-lt);
+      border: 2px solid rgba(79,98,176,0.25);
+      color: var(--k-indigo);
+      font-size: 0.85rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .hiw-step h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.25rem;
+    }
+
+    .hiw-step p {
+      font-size: 0.855rem;
+      color: var(--k-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* ── Contact CTA ──────────────────────────────────────────── */
+    .contact-card {
+      background: #fff;
+      border: 1.5px solid var(--k-border);
+      border-radius: var(--radius-card);
+      padding: 2rem 2.25rem;
+      box-shadow: var(--shadow-card);
+    }
+
+    .btn-primary-k {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.6rem;
+      border-radius: var(--radius-pill);
+      background: var(--k-indigo);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-decoration: none;
+      border: none;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    }
+
+    .btn-primary-k:hover {
+      background: var(--k-indigo-dk);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(79,98,176,0.35);
+    }
+
+    .btn-ghost-k {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.6rem;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      color: var(--k-indigo);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      border: 1.5px solid rgba(79,98,176,0.35);
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .btn-ghost-k:hover {
+      background: var(--k-indigo-lt);
+      border-color: var(--k-indigo);
+      color: var(--k-indigo);
+    }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .footer-logo {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--k-indigo);
+    }
+
+    .footer-logo span { color: var(--k-teal); }
+  </style>
+</head>
+
+<body>
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#main-content">Skip to content</a>
+  <div id="nav-root"></div>
+
+  <!-- ════════════ PAGE HEADER ════════════ -->
+  <header id="page-header" aria-labelledby="page-title">
+    <div class="container">
+      <div class="page-eyebrow"><i class="bi bi-heart-pulse"></i> Our Story</div>
+      <h1 class="page-title" id="page-title">About Kindred</h1>
+      <p class="page-sub">
+        A community-centered platform built to bridge the gap between individuals with special needs
+        and the resources, opportunities, and people who can support them.
+      </p>
+    </div>
+  </header>
+
+  <main id="main-content">
+
+    <!-- ════════════ MISSION ════════════ -->
+    <section class="about-section" aria-labelledby="mission-heading">
+      <div class="container">
+        <div class="row align-items-center g-5">
+          <div class="col-lg-5">
+            <div class="section-label"><i class="bi bi-star"></i> Mission</div>
+            <h2 class="section-title" id="mission-heading">Why Kindred exists</h2>
+            <p class="section-sub">
+              Individuals with special needs and their families often navigate a fragmented landscape of programs,
+              providers, and opportunities — with no central point of access. Kindred changes that by bringing
+              everything into one coordinated platform, managed by trained coordinators who know the community.
+            </p>
+          </div>
+          <div class="col-lg-7">
+            <div class="mission-callout">
+              <blockquote>
+                "Kindred exists to bridge the gap between individuals with special needs and the resources
+                their community offers — connecting participants, families, volunteers, and organizations
+                through a single, trusted platform."
+              </blockquote>
+              <cite>— Kindred Program Mission Statement</cite>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ VALUES ════════════ -->
+    <section class="about-section" style="background:#fff;" aria-labelledby="values-heading">
+      <div class="container">
+        <div class="text-center mb-5">
+          <div class="section-label mx-auto"><i class="bi bi-gem"></i> Our Approach</div>
+          <h2 class="section-title" id="values-heading">What guides us</h2>
+          <p class="section-sub mx-auto">
+            Three principles shape every decision we make about how the platform is designed and how coordinators serve the community.
+          </p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+          <div class="col-md-4">
+            <div class="value-card">
+              <div class="value-icon" style="background:#eef0fa; color:#4F62B0;">
+                <i class="bi bi-person-heart"></i>
+              </div>
+              <h3>Person-Centered</h3>
+              <p>Every participant is a whole person, not a diagnosis. Profiles capture individual interests, goals, and accessibility needs so that opportunities are matched to the person — not the other way around.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="value-card">
+              <div class="value-icon" style="background:#e4f7f4; color:#2BB5A0;">
+                <i class="bi bi-diagram-3"></i>
+              </div>
+              <h3>Coordinated Access</h3>
+              <p>A trained coordinator manages onboarding, account creation, and matching. This ensures families are supported throughout — not left to navigate the system alone — and that every connection is verified and appropriate.</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="value-card">
+              <div class="value-icon" style="background:#fef6e7; color:#F5A623;">
+                <i class="bi bi-people"></i>
+              </div>
+              <h3>Community-Driven</h3>
+              <p>Kindred's events and opportunities come from local organizations, employers, and volunteers who are part of the same community as the participants they serve. Every listing is published by a coordinator who vets it first.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ WHO WE SERVE ════════════ -->
+    <section class="about-section" aria-labelledby="serve-heading">
+      <div class="container">
+        <div class="text-center mb-5">
+          <div class="section-label mx-auto"><i class="bi bi-people"></i> Who We Serve</div>
+          <h2 class="section-title" id="serve-heading">Everyone in the circle of support</h2>
+          <p class="section-sub mx-auto">
+            Kindred is built for four groups of people — all of whom play a role in the life of a participant.
+          </p>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-3">
+            <div class="audience-card">
+              <div class="audience-icon" style="background:#eef0fa; color:#4F62B0;">
+                <i class="bi bi-person-check-fill"></i>
+              </div>
+              <h3>Participants</h3>
+              <p>Individuals with special needs who are connected to the platform by their guardians and coordinators. Participants can browse events and job opportunities, save interests, and view their weekly newsletter through a personal portal.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="audience-card">
+              <div class="audience-icon" style="background:#e4f7f4; color:#2BB5A0;">
+                <i class="bi bi-heart-pulse-fill"></i>
+              </div>
+              <h3>Guardians &amp; Families</h3>
+              <p>Parents, legal guardians, and family members who manage participant profiles, document accessibility and medical needs, and approve or reject event and job interest requests on behalf of their participants.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="audience-card">
+              <div class="audience-icon" style="background:#fef6e7; color:#F5A623;">
+                <i class="bi bi-hand-thumbs-up-fill"></i>
+              </div>
+              <h3>Volunteers</h3>
+              <p>Community members who lend their time and skills to support events and programs. Volunteers register their availability and interests, complete background check clearance, and receive assignments through their portal.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-3">
+            <div class="audience-card">
+              <div class="audience-icon" style="background:#e6f4e7; color:#2E7D32;">
+                <i class="bi bi-building-fill"></i>
+              </div>
+              <h3>Organizations &amp; Employers</h3>
+              <p>Community organizations, nonprofits, and employers who partner with Kindred to post events, vocational programs, and employment opportunities. Coordinators verify and publish all listings on their behalf.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ HOW IT WORKS ════════════ -->
+    <section class="about-section" style="background:#fff;" aria-labelledby="hiw-heading">
+      <div class="container">
+        <div class="row g-5 align-items-start">
+          <div class="col-lg-4">
+            <div class="section-label"><i class="bi bi-signpost-2"></i> Getting Started</div>
+            <h2 class="section-title" id="hiw-heading">How to join Kindred</h2>
+            <p class="section-sub">
+              Everything starts with the <strong>Sign Up form</strong>. Submit your application and a
+              Kindred coordinator will take it from there — reviewing your submission, reaching out, and
+              guiding your family through onboarding at every step.
+            </p>
+            <div class="mt-4">
+              <a href="register.html" class="btn-primary-k">
+                <i class="bi bi-person-plus"></i> Start Your Application
+              </a>
+            </div>
+          </div>
+
+          <div class="col-lg-8">
+            <div class="hiw-step">
+              <div class="hiw-num">1</div>
+              <div>
+                <h4>Submit an application <span style="font-weight:400;color:var(--k-muted);font-size:0.82rem;">&mdash; takes about 5 minutes</span></h4>
+                <p>Click <strong>Sign Up</strong> in the navigation bar and fill out the short application form. Tell us who you are, your role (participant, guardian, or volunteer), and a bit about what you're looking for. No account or login is needed to apply.</p>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-num">2</div>
+              <div>
+                <h4>A coordinator reviews your application</h4>
+                <p>Your submission goes directly to a Kindred coordinator. They'll review it and reach out within a few business days to discuss next steps, answer questions, and confirm whether Kindred is the right fit for your family.</p>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-num">3</div>
+              <div>
+                <h4>Your coordinator creates your account</h4>
+                <p>Once enrolled, the coordinator sets up login credentials for you and any linked participants, then sends them to you directly. There is no public self-registration — your account is created and verified by Kindred staff before you ever sign in.</p>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-num">4</div>
+              <div>
+                <h4>Sign in and build your profile</h4>
+                <p>Use the credentials your coordinator provided to log in for the first time. Guardians complete the participant profile — documenting accessibility needs, sensory preferences, interests, and vocational goals — so Kindred can surface the most relevant opportunities.</p>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-num">5</div>
+              <div>
+                <h4>Explore events and jobs; guardians approve</h4>
+                <p>Browse the verified events and job board, flag anything you're interested in, and the guardian approves it. Coordinators track all activity through a work queue and follow up as needed.</p>
+              </div>
+            </div>
+            <div class="hiw-step">
+              <div class="hiw-num">6</div>
+              <div>
+                <h4>Stay connected through your portal</h4>
+                <p>Your personal portal keeps everything in one place — a weekly newsletter of new opportunities, notifications from coordinators, and a record of your interests and past activity. Check in whenever you're ready.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════ GET STARTED / CONTACT ════════════ -->
+    <section class="about-section" aria-labelledby="contact-heading">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-lg-8">
+            <div class="contact-card">
+              <div class="row align-items-center g-4">
+                <div class="col-md-7">
+                  <div class="section-label"><i class="bi bi-envelope"></i> Get Started</div>
+                  <h2 class="section-title mb-2" id="contact-heading" style="font-size:1.5rem;">Ready to connect with Kindred?</h2>
+                  <p style="font-size:0.9rem; color:var(--k-muted); line-height:1.7; margin-bottom:1.25rem;">
+                    Participants and guardians are onboarded by a coordinator — not through public registration. If you're interested in joining the program, submit an application and a coordinator will reach out to discuss next steps.
+                  </p>
+                  <div class="d-flex flex-wrap gap-2">
+                    <a href="register.html" class="btn-primary-k">
+                      <i class="bi bi-person-plus"></i> Submit an Application
+                    </a>
+                    <a href="events.html" class="btn-ghost-k">
+                      <i class="bi bi-calendar2-event"></i> Browse Events
+                    </a>
+                  </div>
+                </div>
+                <div class="col-md-5">
+                  <div style="background:var(--k-surface); border-radius:0.875rem; padding:1.25rem; border:1px solid var(--k-border);">
+                    <p class="small fw-semibold mb-2" style="color:var(--k-text);">Contact a coordinator</p>
+                    <p class="small mb-2" style="color:var(--k-muted);">
+                      <i class="bi bi-envelope me-1" style="color:var(--k-indigo);"></i>
+                      <a href="mailto:coordinator@example.org" class="text-decoration-none">lisawilliams@kindred.org</a>
+                    </p>
+                    <p class="small mb-0" style="color:var(--k-muted);">
+                      <i class="bi bi-geo-alt me-1" style="color:var(--k-indigo);"></i>
+                      Whispering Hills
+                    </p>
+                    <hr style="border-color:var(--k-border); margin:0.875rem 0 0.75rem;">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════ FOOTER ════════════ -->
+  <footer class="border-top bg-white">
+    <div class="container py-4 py-lg-5">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="footer-logo">Kindred<span>.</span></div>
+          <p class="small text-muted mt-2 mb-0" style="line-height:1.6;">
+            A role-based service platform connecting participants, guardians, volunteers, and coordinators in one place.
+          </p>
+        </div>
+        <div class="col-md-4">
+          <h2 class="h6 text-uppercase" style="letter-spacing:0.06em;font-size:0.72rem;color:#6b7280;">Platform</h2>
+          <div class="d-flex flex-column gap-1">
+            <a href="events.html" class="small text-muted text-decoration-none">Browse Events</a>
+            <a href="jobs.html" class="small text-muted text-decoration-none">View Jobs</a>
+            <a href="register.html" class="small text-muted text-decoration-none">Submit Application</a>
+            <a href="login.html" class="small text-muted text-decoration-none">Sign In</a>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <h2 class="h6 text-uppercase" style="letter-spacing:0.06em;font-size:0.72rem;color:#6b7280;">Legal &amp; info</h2>
+          <div class="d-flex flex-column gap-1">
+            <a href="about.html" class="small text-muted text-decoration-none fw-semibold">About Kindred</a>
+            <a href="privacy.html" class="small text-muted text-decoration-none">Privacy Policy</a>
+            <a href="terms.html" class="small text-muted text-decoration-none">Terms of Use</a>
+          </div>
+        </div>
+      </div>
+      <hr class="my-4" style="border-color:var(--k-border);">
+      <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 text-center text-md-start">
+        <small class="text-muted mb-0">CNIT 280 Term Project — Akhilesh Boda, Ken Mori, Sannidhi Sangisetti, Jayan Srinivasan</small>
+        <a href="login.html" class="small">Coordinator / staff sign in</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/nav.js"></script>
+</body>
+
+</html>

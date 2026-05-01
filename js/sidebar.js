@@ -12,18 +12,20 @@ const NAV_ITEMS = [
   { id: 'communications', label: 'Communications', icon: 'bi-megaphone',  roles: ['ADMIN'] },
   { id: 'urgent-notifications', label: 'Urgent Alerts', icon: 'bi-bell-fill', roles: ['ADMIN'] },
   { id: 'users',        label: 'Users',        icon: 'bi-person-badge',   roles: ['ADMIN'] },
+  { id: 'registrations', label: 'Applications', icon: 'bi-person-lines-fill', roles: ['ADMIN'], badge: 'regNavBadge' },
   // GUARDIAN sections
   { id: 'g-participants', label: 'My Participants', icon: 'bi-people-fill', roles: ['GUARDIAN'] },
   { id: 'g-approvals',  label: 'Approvals', icon: 'bi-shield-check', roles: ['GUARDIAN'] },
   { id: 'g-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['GUARDIAN'] },
   // PARTICIPANT discovery sections
   { id: 'p-profile',    label: 'My Profile', icon: 'bi-person-vcard', roles: ['PARTICIPANT'] },
-  { id: 'p-events',     label: 'Subscribed Events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
+  { id: 'p-events',     label: 'My saved events', icon: 'bi-calendar-event', roles: ['PARTICIPANT'] },
   { id: 'p-newsletter', label: 'Newsletter', icon: 'bi-envelope-paper', roles: ['PARTICIPANT'] },
   // VOLUNTEER sections
   { id: 'v-profile',    label: 'My Profile',       icon: 'bi-person-circle', roles: ['VOLUNTEER'] },
   { id: 'v-bgcheck',    label: 'Background Check', icon: 'bi-shield-lock', roles: ['VOLUNTEER'] },
   { id: 'v-events',     label: 'Events',       icon: 'bi-calendar-event', roles: ['VOLUNTEER'] },
+  { id: 'v-newsletter', label: 'Newsletter',   icon: 'bi-envelope-paper', roles: ['VOLUNTEER'] },
   { id: 'v-tasks',      label: 'My Tasks',     icon: 'bi-clipboard-check', roles: ['VOLUNTEER'] },
   // ADMIN task management
   { id: 'work-queue',   label: 'Work Queue',   icon: 'bi-kanban',          roles: ['ADMIN'] },
@@ -47,6 +49,7 @@ function _buildSidebarHTML(session) {
     .map(item => `
       <button class="sidebar-nav-link" data-section="${item.id}" type="button" aria-current="false">
         <i class="bi ${item.icon}"></i> ${item.label}
+        ${item.badge ? `<span class="badge bg-danger ms-auto d-none" id="${item.badge}" style="font-size:0.65rem;"></span>` : ''}
       </button>`).join('');
 
   const roleClass = {
@@ -91,6 +94,7 @@ function initSidebar(session) {
 
 function navigateTo(sectionId) {
   if (!sectionId) return;
+  const navItem = NAV_ITEMS.find(item => item.id === sectionId);
 
   // Hide all content sections
   document.querySelectorAll('.content-section').forEach(s => s.classList.add('d-none'));
@@ -104,6 +108,16 @@ function navigateTo(sectionId) {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-current', active ? 'page' : 'false');
   });
+
+  const mobileTitle = document.getElementById('mobileDashboardTitle');
+  if (mobileTitle && navItem) {
+    mobileTitle.textContent = navItem.label;
+  }
+
+  const locTitle = document.getElementById('dashboardLocationTitle');
+  if (locTitle && navItem) {
+    locTitle.textContent = navItem.label;
+  }
 
   // Scroll the main content area back to the top
   document.getElementById('mainContent').scrollTop = 0;

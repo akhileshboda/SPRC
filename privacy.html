@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Kindred</title>
+  <meta name="description" content="How Kindred collects, uses, and protects information for participants, guardians, volunteers, and coordinators.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <style>
+    :root {
+      --k-indigo: #4F62B0;
+      --k-indigo-lt: #eef0fa;
+      --k-teal: #2BB5A0;
+      --k-surface: #f7f8fc;
+      --k-border: #e2e6f3;
+      --k-text: #1a1d2e;
+      --k-muted: #6b7280;
+      --radius-pill: 2rem;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--k-surface);
+      color: var(--k-text);
+      min-height: 100vh;
+    }
+
+    #page-header {
+      background: linear-gradient(135deg, #f0f2fc 0%, #e8f4f1 100%);
+      border-bottom: 1px solid var(--k-border);
+      padding: 3rem 0 2.5rem;
+    }
+
+    .page-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--k-indigo);
+      background: var(--k-indigo-lt);
+      border-radius: var(--radius-pill);
+      padding: 0.3rem 0.8rem;
+      border: 1px solid rgba(79, 98, 176, 0.2);
+      margin-bottom: 0.75rem;
+    }
+
+    .page-title {
+      font-size: clamp(1.6rem, 3vw, 2.25rem);
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      color: var(--k-text);
+      margin-bottom: 0.4rem;
+    }
+
+    .page-sub {
+      font-size: 0.975rem;
+      color: var(--k-muted);
+      max-width: 520px;
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .policy-wrap {
+      max-width: 42rem;
+    }
+
+    .policy-section {
+      padding: 1.75rem 0;
+      border-bottom: 1px solid var(--k-border);
+    }
+
+    .policy-section:last-of-type {
+      border-bottom: none;
+    }
+
+    .policy-section h2 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--k-text);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .policy-section h2 i {
+      color: var(--k-indigo);
+      font-size: 1rem;
+    }
+
+    .policy-section p,
+    .policy-section ul {
+      font-size: 0.9rem;
+      color: #374151;
+      line-height: 1.75;
+      margin-bottom: 0.5rem;
+    }
+
+    .policy-section ul {
+      padding-left: 1.25rem;
+    }
+
+    .policy-section ul li {
+      margin-bottom: 0.3rem;
+    }
+
+    .demo-notice {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 0.75rem;
+      padding: 0.875rem 1.1rem;
+      font-size: 0.82rem;
+      color: #92400e;
+      line-height: 1.6;
+    }
+
+    .footer-logo {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--k-indigo);
+    }
+
+    .footer-logo span {
+      color: var(--k-teal);
+    }
+  </style>
+</head>
+
+<body>
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#main-content">Skip to content</a>
+  <div id="nav-root"></div>
+
+  <header id="page-header" aria-labelledby="page-title">
+    <div class="container">
+      <div class="page-eyebrow"><i class="bi bi-shield-lock"></i> Legal</div>
+      <h1 class="page-title" id="page-title">Privacy Policy</h1>
+      <p class="page-sub">How Kindred collects, uses, and protects information for all platform participants.</p>
+    </div>
+  </header>
+
+  <main id="main-content" class="container py-5 policy-wrap">
+
+    <div class="demo-notice mb-4">
+      <i class="bi bi-info-circle-fill me-1"></i>
+      <strong>Demo deployment notice:</strong> This site is a term project prototype (CNIT 280, Purdue University). Some deployments use browser localStorage for demonstration purposes. A production system should use secure servers, encryption in transit, and a legally reviewed policy tailored to your jurisdiction.
+    </div>
+
+    <p class="text-muted small mb-0">Last updated: April 2026.</p>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-collection"></i> 1. Information We Collect</h2>
+      <p>Kindred collects information necessary to operate the platform and connect participants with community resources. This includes:</p>
+      <ul>
+        <li><strong>Account information</strong> — name, email address, and role (participant, guardian, volunteer, or coordinator).</li>
+        <li><strong>Participant profile data</strong> — date of birth, contact details, special needs, medical notes, sensory preferences, interests, and vocational goals. This information is entered by guardians or coordinators on behalf of participants.</li>
+        <li><strong>Volunteer information</strong> — availability, skill interests, and background check status.</li>
+        <li><strong>Activity data</strong> — event sign-ups, job interests, approval workflows, newsletter preferences, and coordinator-issued notifications.</li>
+        <li><strong>Communications</strong> — messages, inquiries, and work queue items exchanged through the platform.</li>
+      </ul>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-gear"></i> 2. How We Use Your Information</h2>
+      <p>Information collected through Kindred is used solely to operate the platform and deliver services. Specifically, we use it to:</p>
+      <ul>
+        <li>Create and manage coordinator-issued accounts for participants, guardians, and volunteers.</li>
+        <li>Match participants with appropriate community events, vocational programs, and employment opportunities.</li>
+        <li>Facilitate guardian approval workflows for participant event and job interests.</li>
+        <li>Generate weekly newsletters summarizing available opportunities.</li>
+        <li>Send service-related notifications and urgent alerts from coordinators.</li>
+        <li>Maintain an audit log for administrative oversight and accountability.</li>
+      </ul>
+      <p>We do not use your information for advertising, profiling, or any purpose beyond the services described above.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-people"></i> 3. Data Sharing</h2>
+      <p>Kindred does not sell or rent personal information to third parties. Data is shared only in the following limited circumstances:</p>
+      <ul>
+        <li><strong>Within the platform</strong> — coordinators and administrators can view records necessary to manage the service. Role-based access controls restrict what each user type can see.</li>
+        <li><strong>Guardians and participants</strong> — guardians can view and manage profile information for linked participants.</li>
+        <li><strong>Legal requirements</strong> — we may disclose information if required by law or to protect the safety of individuals in the program.</li>
+      </ul>
+      <p>There is no third-party advertising, analytics resale, or data brokerage associated with this platform.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-lock"></i> 4. Data Security</h2>
+      <p>We take reasonable steps to protect the information stored on this platform. In this demonstration deployment, data is stored in your browser's localStorage and is not transmitted to a remote server. For a production deployment, Kindred should implement:</p>
+      <ul>
+        <li>Encryption in transit (HTTPS/TLS) and at rest.</li>
+        <li>Server-side authentication with hashed credentials.</li>
+        <li>Role-based access controls enforced server-side.</li>
+        <li>Regular security reviews and vulnerability assessments.</li>
+      </ul>
+      <p>No system is perfectly secure. If you believe your account has been compromised, contact your Kindred coordinator immediately.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-clock-history"></i> 5. Data Retention</h2>
+      <p>Account and profile records are retained for as long as the account is active or as needed to provide services. When a participant, guardian, or volunteer is offboarded from the program:</p>
+      <ul>
+        <li>Active records are marked inactive by a coordinator.</li>
+        <li>Historical data (audit logs, past event sign-ups) may be retained for program reporting purposes.</li>
+        <li>Requests for full deletion should be directed to a Kindred coordinator.</li>
+      </ul>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-person-check"></i> 6. Your Rights</h2>
+      <p>Depending on your role and applicable law, you may have the right to:</p>
+      <ul>
+        <li><strong>Access</strong> — request a summary of the personal information held about you.</li>
+        <li><strong>Correction</strong> — ask your coordinator to update inaccurate or incomplete profile information.</li>
+        <li><strong>Deletion</strong> — request that your account and associated data be removed from the platform.</li>
+        <li><strong>Portability</strong> — request a copy of your data in a commonly used format.</li>
+      </ul>
+      <p>To exercise any of these rights, contact your Kindred coordinator directly using the contact information provided when you were onboarded.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-people-fill"></i> 7. Children's Privacy</h2>
+      <p>Kindred serves individuals with special needs, some of whom may be minors. We take the following steps to protect minors' information:</p>
+      <ul>
+        <li>Participant accounts for minors are created and managed by coordinators, not the minor directly.</li>
+        <li>A guardian must be linked to every minor participant's record and provides consent for event and job interest actions.</li>
+        <li>Guardians have oversight of all profile data and opportunity interactions on behalf of the minor.</li>
+        <li>Coordinators do not collect more information about minors than is necessary for the services provided.</li>
+      </ul>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-arrow-repeat"></i> 8. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time to reflect changes in our practices or applicable law. When we make material changes, we will update the "Last updated" date at the top of this page. Continued use of the platform after changes are posted constitutes acceptance of the revised policy.</p>
+      <p>For significant changes affecting how participant data is handled, coordinators will notify families directly.</p>
+    </div>
+
+    <div class="policy-section">
+      <h2><i class="bi bi-envelope"></i> 9. Contact</h2>
+      <p>Questions or concerns about this Privacy Policy or how your information is handled should be directed to your Kindred coordinator. For general inquiries:</p>
+      <p>
+        <i class="bi bi-envelope me-1" style="color:var(--k-indigo);"></i>
+        <a href="mailto:coordinator@example.org">coordinator@example.org</a>
+        <span class="text-muted small">(example — replace with your team's contact)</span>
+      </p>
+      <p class="mb-0"><a href="index.html" class="link-primary"><i class="bi bi-arrow-left me-1"></i>Back to home</a></p>
+    </div>
+
+  </main>
+
+  <footer class="border-top bg-white mt-2">
+    <div class="container py-4">
+      <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-2 text-center text-md-start">
+        <div class="footer-logo">Kindred<span>.</span></div>
+        <div class="d-flex gap-3 small">
+          <a href="about.html" class="text-muted text-decoration-none">About</a>
+          <a href="privacy.html" class="text-muted text-decoration-none fw-semibold">Privacy</a>
+          <a href="terms.html" class="text-muted text-decoration-none">Terms</a>
+          <a href="index.html" class="text-muted text-decoration-none">Home</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/nav.js"></script>
+</body>
+
+</html>

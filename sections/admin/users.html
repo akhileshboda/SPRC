@@ -3,20 +3,54 @@
 
   <!-- LIST sub-view (default) -->
   <div id="view-users-list">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="text-primary fw-semibold mb-0">System Users</h5>
-      <button id="newUserBtn" class="btn btn-primary btn-sm" type="button">
-        <i class="bi bi-plus-lg me-1"></i>New User
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+      <div>
+        <h5 class="admin-section-title">System Users</h5>
+        <p class="text-muted small mb-0">Manage login accounts, roles, and access status.</p>
+      </div>
+      <button id="newUserBtn" class="btn btn-k-primary align-self-start align-self-lg-center" type="button">
+        <i class="bi bi-plus-lg"></i>New User
       </button>
     </div>
+    <div class="admin-search-wrap">
+      <i class="bi bi-search admin-search-icon"></i>
+      <input type="search" class="admin-search-input" id="usersTableSearch" placeholder="Filter by name, email, or role" autocomplete="off" aria-label="Filter users">
+    </div>
+    <div class="admin-filter-bar">
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Role</span>
+        <button class="admin-filter-chip active" data-users-filter="role" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-users-filter="role" data-value="ADMIN" type="button">Admin</button>
+        <button class="admin-filter-chip" data-users-filter="role" data-value="GUARDIAN" type="button">Guardian</button>
+        <button class="admin-filter-chip" data-users-filter="role" data-value="PARTICIPANT" type="button">Participant</button>
+        <button class="admin-filter-chip" data-users-filter="role" data-value="VOLUNTEER" type="button">Volunteer</button>
+      </div>
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Access</span>
+        <button class="admin-filter-chip active" data-users-filter="access" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-users-filter="access" data-value="ACTIVE" type="button">Active</button>
+        <button class="admin-filter-chip" data-users-filter="access" data-value="REVOKED" type="button">Revoked</button>
+      </div>
+      <div class="ms-auto d-flex align-items-center gap-2">
+        <span class="admin-filter-label">Sort</span>
+        <select class="admin-sort-select" id="usersSortSelect">
+          <option value="added-desc" selected>Newest added</option>
+          <option value="added-asc">Oldest added</option>
+          <option value="name-asc">Name A→Z</option>
+          <option value="name-desc">Name Z→A</option>
+        </select>
+      </div>
+    </div>
+
     <div class="card shadow-sm">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
+          <thead class="admin-thead">
             <tr>
               <th scope="col" class="ps-3">Name</th>
               <th scope="col">Email</th>
               <th scope="col">Role</th>
+              <th scope="col">Access</th>
               <th scope="col">Date Added</th>
               <th scope="col" class="text-end pe-3" style="width: 1%; white-space: nowrap;">Actions</th>
             </tr>
@@ -33,7 +67,7 @@
       <button id="backToUsersBtn" class="btn btn-outline-secondary btn-sm me-3" type="button">
         <i class="bi bi-arrow-left me-1"></i>Back
       </button>
-      <h5 class="text-primary fw-semibold mb-0" id="userFormTitle">New User</h5>
+      <h5 class="admin-section-title mb-0" id="userFormTitle">New User</h5>
     </div>
     <div class="card shadow-sm">
       <div class="card-body">
@@ -79,18 +113,124 @@
               <div class="invalid-feedback">Please select a role.</div>
             </div>
 
-            <div class="col-md-6 d-none" id="userParticipantLinkWrap">
-              <label for="userParticipantLinkId" class="form-label">Link To Existing Participant Record</label>
-              <select class="form-select" id="userParticipantLinkId">
-                <option value="" selected>No participant record link</option>
-              </select>
+            <div class="col-md-6 d-none" id="userGuardianDobWrap">
+              <label for="regGuardianDateOfBirth" class="form-label">Account holder date of birth <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" id="regGuardianDateOfBirth" max="">
+              <div class="form-text">Guardian logins are limited to users who are 18 or older.</div>
             </div>
 
-            <div class="col-md-6 d-none" id="userVolunteerLinkWrap">
-              <label for="userVolunteerLinkId" class="form-label">Link To Existing Volunteer Profile</label>
-              <select class="form-select" id="userVolunteerLinkId">
-                <option value="" selected>No volunteer profile link</option>
-              </select>
+            <div class="col-12 d-none" id="userParticipantRecordWrap">
+              <div class="border rounded p-3 bg-light">
+                <h6 class="fw-semibold mb-3 text-success">Participant Record</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="userParticipantDateOfBirth" class="form-label">Date of Birth</label>
+                    <input type="date" class="form-control" id="userParticipantDateOfBirth">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantGuardianIds" class="form-label">Linked Guardians</label>
+                    <select class="form-select" id="userParticipantGuardianIds" multiple size="4"></select>
+                    <div class="invalid-feedback">Choose at least one guardian login.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantContactEmail" class="form-label">Primary Contact Email</label>
+                    <input type="email" class="form-control" id="userParticipantContactEmail" placeholder="guardian@email.com">
+                    <div class="invalid-feedback">A valid contact email is required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantContactPhone" class="form-label">Contact Phone</label>
+                    <input type="tel" class="form-control" id="userParticipantContactPhone" placeholder="e.g. (555) 555-0101">
+                    <div class="invalid-feedback">Contact phone is required.</div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Participant Interests</label>
+                    <div id="userParticipantInterestsChips"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantJobGoals" class="form-label">Job Goals</label>
+                    <textarea class="form-control" id="userParticipantJobGoals" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantBio" class="form-label">Bio</label>
+                    <textarea class="form-control" id="userParticipantBio" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantSpecialNeeds" class="form-label">Support Needs</label>
+                    <textarea class="form-control" id="userParticipantSpecialNeeds" rows="3"></textarea>
+                    <div class="invalid-feedback">Support needs are required.</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantMedicalNotes" class="form-label">Medical Notes</label>
+                    <textarea class="form-control" id="userParticipantMedicalNotes" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantSensoryNotes" class="form-label">Sensory Notes</label>
+                    <textarea class="form-control" id="userParticipantSensoryNotes" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userParticipantGuardianNotes" class="form-label">Guardian / Admin Notes</label>
+                    <textarea class="form-control" id="userParticipantGuardianNotes" rows="3"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 d-none" id="userVolunteerProfileWrap">
+              <div class="border rounded p-3 bg-light">
+                <h6 class="fw-semibold mb-3 text-info">Volunteer Profile</h6>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="userVolunteerPhone" class="form-label">Phone Number</label>
+                    <input type="tel" class="form-control" id="userVolunteerPhone" placeholder="e.g. (555) 555-0101">
+                    <div class="invalid-feedback">Phone number is required.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="userVolunteerPronounsSubject" class="form-label">Pronouns (Subject)</label>
+                    <select class="form-select" id="userVolunteerPronounsSubject">
+                      <option value="">Prefer not to say</option>
+                      <option value="he">he</option>
+                      <option value="she">she</option>
+                      <option value="they">they</option>
+                      <option value="ze">ze</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3">
+                    <label for="userVolunteerPronounsObject" class="form-label">Pronouns (Object)</label>
+                    <select class="form-select" id="userVolunteerPronounsObject">
+                      <option value="">Prefer not to say</option>
+                      <option value="him">him</option>
+                      <option value="her">her</option>
+                      <option value="them">them</option>
+                      <option value="zir">zir</option>
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Interests</label>
+                    <div id="userVolunteerInterestsChips"></div>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label">Languages Spoken</label>
+                    <div id="userVolunteerLanguagesChips"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerAvailability" class="form-label">Schedule Preferences</label>
+                    <textarea class="form-control" id="userVolunteerAvailability" rows="3"></textarea>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerPreferredLocation" class="form-label">Preferred Location</label>
+                    <input type="text" class="form-control" id="userVolunteerPreferredLocation">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="userVolunteerBackgroundCheck" class="form-label">Background Check Status</label>
+                    <select class="form-select" id="userVolunteerBackgroundCheck">
+                      <option value="Not Started">Not Started</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Cleared">Cleared</option>
+                      <option value="Revoked">Revoked</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="col-12">

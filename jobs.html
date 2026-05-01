@@ -64,6 +64,7 @@
   </style>
 </head>
 <body>
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#main-jobs" style="z-index:2000;">Skip to main content</a>
   <div id="nav-root"></div>
 
   <header class="border-bottom bg-light">
@@ -73,7 +74,7 @@
     </div>
   </header>
 
-  <main class="container py-4">
+  <main id="main-jobs" class="container py-4" tabindex="-1">
     <section id="guardianTargetPanel" class="mb-4 d-none">
       <div class="card border-primary-subtle">
         <div class="card-body">
@@ -96,21 +97,34 @@
       </div>
     </section>
 
-    <div class="row g-3 align-items-center mb-3">
-      <div class="col-md-6">
-        <input type="search" id="jobSearchInput" class="form-control" placeholder="Search title, employer, location...">
-      </div>
-      <div class="col-md-3">
-        <select id="jobTypeFilter" class="form-select">
-          <option value="All">All Types</option>
-          <option value="Full-time">Full-time</option>
-          <option value="Part-time">Part-time</option>
-          <option value="Casual">Casual</option>
-          <option value="Gig">Gig</option>
-        </select>
-      </div>
-      <div class="col-md-3 text-md-end">
-        <small id="jobsCountText" class="text-muted"></small>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+          <div>
+            <h2 class="h6 text-dark mb-0"><i class="bi bi-funnel me-1 text-primary" aria-hidden="true"></i>Find a job</h2>
+            <p class="text-muted small mb-0">Search and filter the same way as on the Events page—refine the list, then open a card for full details.</p>
+          </div>
+        </div>
+        <div class="row g-3 align-items-center">
+          <div class="col-md-6">
+            <label for="jobSearchInput" class="form-label small text-muted mb-1">Search</label>
+            <input type="search" id="jobSearchInput" class="form-control" placeholder="Search title, employer, location..." aria-describedby="jobSearchHelp">
+            <p id="jobSearchHelp" class="visually-hidden">Filters job cards by matching title, employer, location, or requirements</p>
+          </div>
+          <div class="col-md-3">
+            <label for="jobTypeFilter" class="form-label small text-muted mb-1">Job type</label>
+            <select id="jobTypeFilter" class="form-select" aria-label="Filter by job type">
+              <option value="All">All Types</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Casual">Casual</option>
+              <option value="Gig">Gig</option>
+            </select>
+          </div>
+          <div class="col-md-3 text-md-end d-flex align-items-end justify-content-md-end min-h-100">
+            <p class="small text-muted mb-0" id="jobsCountText" aria-live="polite"></p>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -119,7 +133,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="js/nav.js"></script>
-  <script src="js/auth.js?v=13"></script>
+  <script src="js/auth.js?v=22"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       const gridEl = document.getElementById('jobsGrid');
@@ -148,6 +162,12 @@
           .replace(/'/g, '&#39;');
       }
 
+      function jobMinAgeLabel(job) {
+        const min = Auth.minAgeForRequirement(job.ageRequirement);
+        if (min === 0) return 'All ages';
+        return `${min}+`;
+      }
+
       async function refreshStatuses() {
         if (!session || session.role !== 'PARTICIPANT') {
           jobStatuses = {};
@@ -172,27 +192,12 @@
         const status = jobStatuses[String(job.id)];
         if (status === 'PENDING') {
           return `<button class="btn btn-outline-warning btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
-            <i class="bi bi-hourglass-split me-1"></i>Pending approval
+            <i class="bi bi-hourglass-split me-1"></i>Cancel request
           </button>`;
         }
-        if (status === 'APPLIED') {
-          return `<button class="btn btn-outline-primary btn-sm" disabled>
-            <i class="bi bi-clock me-1"></i>Under Review
-          </button>`;
-        }
-        if (status === 'INTERVIEW') {
-          return `<button class="btn btn-outline-info btn-sm" disabled>
-            <i class="bi bi-calendar-check me-1"></i>Interview Stage
-          </button>`;
-        }
-        if (status === 'OFFER') {
-          return `<button class="btn btn-outline-success btn-sm" disabled>
-            <i class="bi bi-envelope-open me-1"></i>Offer Received
-          </button>`;
-        }
-        if (status === 'STARTED') {
-          return `<button class="btn btn-success btn-sm" disabled>
-            <i class="bi bi-check-circle-fill me-1"></i>Confirmed
+        if (['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(status)) {
+          return `<button class="btn btn-outline-danger btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+            <i class="bi bi-x-circle me-1"></i>Withdraw
           </button>`;
         }
         if (status === 'REJECTED') {
@@ -232,6 +237,10 @@
         const cost = jobCostSummary(job);
         return `
           <div class="opportunity-expectation mb-3">
+            <div class="opportunity-expectation-row">
+              <span class="opportunity-expectation-label"><i class="bi bi-person-bounding-box"></i>Minimum age</span>
+              <span class="opportunity-expectation-value">${esc(jobMinAgeLabel(job))}</span>
+            </div>
             <div class="opportunity-expectation-row">
               <span class="opportunity-expectation-label"><i class="bi bi-cash-coin"></i>Pay</span>
               <span class="opportunity-expectation-value">${esc(jobPayText(job))}</span>
@@ -297,7 +306,8 @@
           INTERVIEW: 'text-bg-info',
           OFFER:     'text-bg-success',
           STARTED:   'text-bg-success',
-          REJECTED:  'text-bg-danger'
+          REJECTED:  'text-bg-danger',
+          APPROVED:  'text-bg-success'
         };
         const statusLabel = {
           PENDING:   'Pending Approval',
@@ -305,12 +315,14 @@
           INTERVIEW: 'Interview',
           OFFER:     'Offer',
           STARTED:   'Started',
-          REJECTED:  'Not Proceeding'
+          REJECTED:  'Not Proceeding',
+          APPROVED:  'Approved'
         };
         savedListEl.innerHTML = `<div class="list-group">
           ${saved.map((job) => {
             const st = jobStatuses[String(job.id)];
-            const canWithdraw = st === 'PENDING';
+            const canLeave = st === 'PENDING' || ['APPLIED', 'INTERVIEW', 'OFFER', 'STARTED', 'APPROVED'].includes(st);
+            const leaveLabel = st === 'PENDING' ? 'Cancel' : 'Withdraw';
             return `
             <div class="list-group-item d-flex justify-content-between align-items-start gap-2">
               <div>
@@ -322,8 +334,8 @@
                 </div>
                 <div class="small mt-1"><span class="badge ${statusBadgeClass[st] || 'text-bg-secondary'}">${esc(statusLabel[st] || st)}</span></div>
               </div>
-              ${canWithdraw ? `<button class="btn btn-outline-secondary btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
-                <i class="bi bi-x-circle me-1"></i>Cancel
+              ${canLeave && st !== 'REJECTED' && st !== 'WITHDRAWN' ? `<button class="btn btn-outline-secondary btn-sm js-remove-interest-btn" data-job-id="${esc(job.id)}">
+                <i class="bi bi-x-circle me-1"></i>${esc(leaveLabel)}
               </button>` : ''}
             </div>`;
           }).join('')}

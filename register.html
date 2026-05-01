@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply to Join - Kindred</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="register-page">
+
+  <a class="visually-hidden-focusable position-absolute top-0 start-0 p-2 m-2 btn btn-sm btn-primary" href="#registerCard" style="z-index:2000;">Skip to registration form</a>
+
+  <div id="nav-root"></div>
+
+  <main class="register-wrapper">
+    <section id="registerCard" class="register-card" tabindex="-1" aria-labelledby="registerTitle">
+
+      <div id="successState" class="register-success d-none text-center">
+        <div class="register-success-icon">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h1 class="fw-bold mb-2">Application Submitted</h1>
+        <p class="text-muted mb-4">Thank you for your interest in Kindred. A coordinator will review your application and reach out at the email address you provided.</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="index.html" class="btn btn-outline-secondary">Back to Home</a>
+          <a href="events.html" class="btn btn-k-primary">Browse Events</a>
+        </div>
+      </div>
+
+      <div id="formState">
+        <div class="register-heading">
+          <p class="register-kicker">Kindred applications</p>
+          <h1 id="registerTitle">Apply to Join Kindred</h1>
+          <p>Tell us about the account you need and the participant or volunteer record a coordinator should review.</p>
+        </div>
+
+        <ol class="register-stepper" aria-label="Application progress">
+          <li class="active" data-step-indicator="0"><span>1</span>Role</li>
+          <li data-step-indicator="1"><span>2</span>User Info</li>
+          <li data-step-indicator="2"><span>3</span>Record Info</li>
+          <li data-step-indicator="3"><span>4</span>Review</li>
+        </ol>
+
+        <div id="submitError" class="alert alert-danger d-none mb-3" role="alert"></div>
+
+        <form id="appForm" class="register-panel" novalidate>
+          <fieldset class="register-step" data-step="0">
+            <legend>I am interested in joining as a <span class="text-danger">*</span></legend>
+            <div class="register-role-grid">
+              <button type="button" class="role-card" id="roleCardParticipant" aria-pressed="false" data-role="PARTICIPANT">
+                <span class="role-icon"><i class="bi bi-person-heart"></i></span>
+                <span class="role-title">Participant</span>
+                <span class="role-copy">I am interested in events, job coaching, and community programs.</span>
+              </button>
+              <button type="button" class="role-card" id="roleCardVolunteer" aria-pressed="false" data-role="VOLUNTEER">
+                <span class="role-icon"><i class="bi bi-heart-fill"></i></span>
+                <span class="role-title">Volunteer</span>
+                <span class="role-copy">I would like to support the community through mentoring, events, or coaching.</span>
+              </button>
+            </div>
+            <div id="roleError" class="text-danger small mt-2 d-none">Please select a role to continue.</div>
+          </fieldset>
+
+          <fieldset class="register-step d-none" data-step="1">
+            <legend>User information</legend>
+            <p class="register-step-copy">This is the contact information an administrator will use to create your login.</p>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label for="appFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="appFirstName" placeholder="e.g. Jamie" required autocomplete="given-name">
+                <div class="invalid-feedback">First name is required.</div>
+              </div>
+              <div class="col-sm-6">
+                <label for="appLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="appLastName" placeholder="e.g. Rivera" required autocomplete="family-name">
+                <div class="invalid-feedback">Last name is required.</div>
+              </div>
+              <div class="col-sm-6">
+                <label for="appEmail" class="form-label">Email Address <span class="text-danger">*</span></label>
+                <input type="email" class="form-control" id="appEmail" placeholder="you@example.com" required autocomplete="email">
+                <div class="invalid-feedback">A valid email address is required.</div>
+              </div>
+              <div class="col-sm-6">
+                <label for="appPhone" class="form-label">Phone <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="tel" class="form-control" id="appPhone" placeholder="e.g. (555) 555-0101" autocomplete="tel">
+              </div>
+              <div class="col-12">
+                <label for="appMessage" class="form-label">Anything else we should know? <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appMessage" rows="3" placeholder="Share context, questions, or preferred ways to reach you."></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="register-step d-none" data-step="2" id="participantRecordStep">
+            <legend>Participant record information</legend>
+            <p class="register-step-copy">These details help a coordinator prepare a participant profile.</p>
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label for="appDob" class="form-label">Date of Birth <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="date" class="form-control" id="appDob" autocomplete="bday">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Participant Interests <span class="text-muted fw-normal">(optional)</span></label>
+                <div class="interest-chip-group" data-chip-group="participant">
+                  <button type="button" class="interest-chip" data-interest="Mentoring">Mentoring</button>
+                  <button type="button" class="interest-chip" data-interest="Educational Programs">Educational Programs</button>
+                  <button type="button" class="interest-chip" data-interest="Community Events">Community Events</button>
+                  <button type="button" class="interest-chip" data-interest="Sports & Recreation">Sports &amp; Recreation</button>
+                  <button type="button" class="interest-chip" data-interest="Job Coaching">Job Coaching</button>
+                  <button type="button" class="interest-chip" data-interest="Other">Other</button>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="appJobGoals" class="form-label">Goals or Job Interests <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appJobGoals" rows="3" placeholder="Structured tasks, customer service, library work"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label for="appBio" class="form-label">Bio <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appBio" rows="3" placeholder="Strengths, preferences, or a short introduction."></textarea>
+              </div>
+              <div class="col-md-6">
+                <label for="appSpecialNeeds" class="form-label">Support Needs <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="appSpecialNeeds" rows="3" placeholder="Accommodations, communication support, or safety considerations."></textarea>
+                <div class="invalid-feedback">Support needs are required for participant applications.</div>
+              </div>
+              <div class="col-md-6">
+                <label for="appMedicalNotes" class="form-label">Medical Notes <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appMedicalNotes" rows="3" placeholder="Medication, allergies, or health considerations."></textarea>
+              </div>
+              <div class="col-md-6">
+                <label for="appSensoryNotes" class="form-label">Sensory Notes <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appSensoryNotes" rows="3" placeholder="Noise, lighting, transition, or environment preferences."></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="register-step d-none" data-step="2" id="volunteerRecordStep">
+            <legend>Volunteer record information</legend>
+            <p class="register-step-copy">These details help administrators match you with the right opportunities.</p>
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label">Volunteer Interests <span class="text-muted fw-normal">(optional)</span></label>
+                <div class="interest-chip-group" data-chip-group="volunteer">
+                  <button type="button" class="interest-chip" data-interest="Mentoring">Mentoring</button>
+                  <button type="button" class="interest-chip" data-interest="Educational Programs">Educational Programs</button>
+                  <button type="button" class="interest-chip" data-interest="Community Events">Community Events</button>
+                  <button type="button" class="interest-chip" data-interest="Sports & Recreation">Sports &amp; Recreation</button>
+                  <button type="button" class="interest-chip" data-interest="Administrative Support">Administrative Support</button>
+                  <button type="button" class="interest-chip" data-interest="Job Coaching">Job Coaching</button>
+                  <button type="button" class="interest-chip" data-interest="Other">Other</button>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label for="appAvailability" class="form-label">Schedule Availability <span class="text-muted fw-normal">(optional)</span></label>
+                <textarea class="form-control" id="appAvailability" rows="3" placeholder="e.g. Weekday evenings and Saturday mornings"></textarea>
+              </div>
+              <div class="col-md-6">
+                <label for="appPreferredLocation" class="form-label">Preferred Location <span class="text-muted fw-normal">(optional)</span></label>
+                <input type="text" class="form-control" id="appPreferredLocation" placeholder="e.g. Downtown Community Center">
+              </div>
+              <div class="col-md-6">
+                <label for="appBackgroundCheckStatus" class="form-label">Background Check Status <span class="text-muted fw-normal">(optional)</span></label>
+                <select class="form-select" id="appBackgroundCheckStatus">
+                  <option value="Not Started" selected>Not Started</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Cleared">Cleared</option>
+                </select>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="register-step d-none" data-step="3">
+            <legend>Review application</legend>
+            <p class="register-step-copy">Check your application before sending it to a coordinator.</p>
+            <div id="reviewSummary" class="register-review-grid"></div>
+          </fieldset>
+
+          <div class="register-actions">
+            <a href="index.html" class="btn btn-outline-secondary" id="cancelLink">Cancel</a>
+            <button type="button" class="btn btn-outline-secondary d-none" id="backBtn">
+              <i class="bi bi-arrow-left me-1"></i>Back
+            </button>
+            <button type="button" class="btn btn-k-primary" id="nextBtn">
+              Next<i class="bi bi-arrow-right ms-1"></i>
+            </button>
+            <button type="submit" class="btn btn-k-primary d-none" id="appSubmitBtn">
+              <i class="bi bi-send me-1"></i>Submit Application
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/auth.js?v=24"></script>
+  <script>
+    (() => {
+      let selectedRole = null;
+      let currentStep = 0;
+      const maxStep = 3;
+      const form = document.getElementById('appForm');
+      const errorEl = document.getElementById('submitError');
+      const nextBtn = document.getElementById('nextBtn');
+      const backBtn = document.getElementById('backBtn');
+      const submitBtn = document.getElementById('appSubmitBtn');
+      const cancelLink = document.getElementById('cancelLink');
+
+      const fields = {
+        firstName: document.getElementById('appFirstName'),
+        lastName: document.getElementById('appLastName'),
+        email: document.getElementById('appEmail'),
+        phone: document.getElementById('appPhone'),
+        message: document.getElementById('appMessage'),
+        dateOfBirth: document.getElementById('appDob'),
+        jobGoals: document.getElementById('appJobGoals'),
+        bio: document.getElementById('appBio'),
+        specialNeeds: document.getElementById('appSpecialNeeds'),
+        medicalNotes: document.getElementById('appMedicalNotes'),
+        sensoryNotes: document.getElementById('appSensoryNotes'),
+        availability: document.getElementById('appAvailability'),
+        preferredLocation: document.getElementById('appPreferredLocation'),
+        backgroundCheckStatus: document.getElementById('appBackgroundCheckStatus'),
+      };
+
+      function showError(message) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('d-none');
+        errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function clearError() {
+        errorEl.classList.add('d-none');
+        errorEl.textContent = '';
+      }
+
+      function visibleStepBlocks() {
+        return [...document.querySelectorAll('.register-step')].filter(step => {
+          if (step.id === 'participantRecordStep') return selectedRole === 'PARTICIPANT';
+          if (step.id === 'volunteerRecordStep') return selectedRole === 'VOLUNTEER';
+          return true;
+        });
+      }
+
+      function renderStep() {
+        document.querySelectorAll('.register-step').forEach(step => step.classList.add('d-none'));
+        visibleStepBlocks()
+          .filter(step => Number(step.dataset.step) === currentStep)
+          .forEach(step => step.classList.remove('d-none'));
+
+        document.querySelectorAll('[data-step-indicator]').forEach(item => {
+          const step = Number(item.dataset.stepIndicator);
+          item.classList.toggle('active', step === currentStep);
+          item.classList.toggle('complete', step < currentStep);
+        });
+
+        backBtn.classList.toggle('d-none', currentStep === 0);
+        cancelLink.classList.toggle('d-none', currentStep !== 0);
+        nextBtn.classList.toggle('d-none', currentStep === maxStep);
+        submitBtn.classList.toggle('d-none', currentStep !== maxStep);
+        if (currentStep === maxStep) renderReview();
+        document.getElementById('registerCard').focus({ preventScroll: true });
+      }
+
+      function setRole(role) {
+        selectedRole = role;
+        document.querySelectorAll('.role-card').forEach(card => {
+          const selected = card.dataset.role === role;
+          card.classList.toggle('selected', selected);
+          card.setAttribute('aria-pressed', String(selected));
+        });
+        document.getElementById('roleError').classList.add('d-none');
+        fields.specialNeeds.required = role === 'PARTICIPANT';
+      }
+
+      document.querySelectorAll('.role-card').forEach(card => {
+        card.addEventListener('click', () => setRole(card.dataset.role));
+      });
+
+      document.querySelectorAll('.interest-chip').forEach(chip => {
+        chip.addEventListener('click', () => chip.classList.toggle('active'));
+      });
+
+      function getSelectedInterests() {
+        const group = selectedRole === 'VOLUNTEER' ? 'volunteer' : 'participant';
+        return [...document.querySelectorAll(`[data-chip-group="${group}"] .interest-chip.active`)]
+          .map(chip => chip.dataset.interest);
+      }
+
+      function validateCurrentStep() {
+        clearError();
+        if (currentStep === 0 && !selectedRole) {
+          document.getElementById('roleError').classList.remove('d-none');
+          return false;
+        }
+        if (currentStep === 1) {
+          const required = [fields.firstName, fields.lastName, fields.email];
+          const valid = required.every(input => input.checkValidity());
+          if (!valid) {
+            required.forEach(input => input.reportValidity());
+            return false;
+          }
+        }
+        if (currentStep === 2 && selectedRole === 'PARTICIPANT') {
+          fields.specialNeeds.required = true;
+          if (!fields.specialNeeds.checkValidity()) {
+            fields.specialNeeds.reportValidity();
+            return false;
+          }
+        }
+        return true;
+      }
+
+      function valueOrDash(value) {
+        return String(value || '').trim() || 'Not provided';
+      }
+
+      function reviewItem(label, value) {
+        return `<div class="register-review-item"><span>${label}</span><strong>${valueOrDash(value)}</strong></div>`;
+      }
+
+      function renderReview() {
+        const interests = getSelectedInterests();
+        const roleLabel = selectedRole === 'VOLUNTEER' ? 'Volunteer' : 'Participant';
+        const roleSpecific = selectedRole === 'VOLUNTEER'
+          ? [
+              reviewItem('Availability', fields.availability.value),
+              reviewItem('Preferred location', fields.preferredLocation.value),
+              reviewItem('Background check', fields.backgroundCheckStatus.value),
+            ]
+          : [
+              reviewItem('Date of birth', fields.dateOfBirth.value),
+              reviewItem('Goals', fields.jobGoals.value),
+              reviewItem('Bio', fields.bio.value),
+              reviewItem('Support needs', fields.specialNeeds.value),
+              reviewItem('Medical notes', fields.medicalNotes.value),
+              reviewItem('Sensory notes', fields.sensoryNotes.value),
+            ];
+        document.getElementById('reviewSummary').innerHTML = [
+          reviewItem('Application type', roleLabel),
+          reviewItem('Name', `${fields.firstName.value.trim()} ${fields.lastName.value.trim()}`.trim()),
+          reviewItem('Email', fields.email.value),
+          reviewItem('Phone', fields.phone.value),
+          reviewItem('Interests', interests.join(', ')),
+          reviewItem('Message', fields.message.value),
+          ...roleSpecific
+        ].join('');
+      }
+
+      function buildPayload() {
+        return {
+          type: selectedRole,
+          firstName: fields.firstName.value.trim(),
+          lastName: fields.lastName.value.trim(),
+          email: fields.email.value.trim(),
+          phone: fields.phone.value.trim(),
+          message: fields.message.value.trim(),
+          interests: getSelectedInterests(),
+          dateOfBirth: selectedRole === 'PARTICIPANT' ? fields.dateOfBirth.value : '',
+          jobGoals: selectedRole === 'PARTICIPANT' ? fields.jobGoals.value.trim() : '',
+          bio: selectedRole === 'PARTICIPANT' ? fields.bio.value.trim() : '',
+          specialNeeds: selectedRole === 'PARTICIPANT' ? fields.specialNeeds.value.trim() : '',
+          medicalNotes: selectedRole === 'PARTICIPANT' ? fields.medicalNotes.value.trim() : '',
+          sensoryNotes: selectedRole === 'PARTICIPANT' ? fields.sensoryNotes.value.trim() : '',
+          availability: selectedRole === 'VOLUNTEER' ? fields.availability.value.trim() : '',
+          preferredLocation: selectedRole === 'VOLUNTEER' ? fields.preferredLocation.value.trim() : '',
+          backgroundCheckStatus: selectedRole === 'VOLUNTEER' ? fields.backgroundCheckStatus.value : 'Not Started',
+        };
+      }
+
+      nextBtn.addEventListener('click', () => {
+        if (!validateCurrentStep()) return;
+        currentStep = Math.min(maxStep, currentStep + 1);
+        renderStep();
+      });
+
+      backBtn.addEventListener('click', () => {
+        currentStep = Math.max(0, currentStep - 1);
+        clearError();
+        renderStep();
+      });
+
+      form.addEventListener('input', clearError);
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!validateCurrentStep()) return;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting';
+
+        const result = await Auth.submitRegistration(buildPayload());
+        if (result.success) {
+          document.getElementById('formState').classList.add('d-none');
+          document.getElementById('successState').classList.remove('d-none');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+
+        showError(result.message || 'Something went wrong. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-send me-1"></i>Submit Application';
+      });
+
+      renderStep();
+    })();
+  </script>
+
+</body>
+</html>
