@@ -25,6 +25,7 @@ const Auth = (() => {
   const VOLUNTEER_EVENT_ASSIGNMENTS_KEY = 'kindred_volunteer_event_assignments';
   const REGISTRATIONS_KEY = 'kindred_registrations';
   const PENDING_IMPORT_KEY = 'kindred_pending_import';
+  const EVENT_COMMENTS_KEY = 'kindred_event_comments';
 
   const BG_CHECK_STATUSES = ['Not Started', 'Pending', 'Cleared', 'Denied', 'Expired', 'Revoked'];
 
@@ -448,6 +449,148 @@ const Auth = (() => {
     }).format(new Date(timestamp));
   }
 
+  const EVENT_SCHEDULE_TYPE = { ONE_OFF: 'ONE_OFF', RECURRING: 'RECURRING' };
+  const RECURRENCE_FREQUENCY = { WEEKLY: 'WEEKLY', MONTHLY: 'MONTHLY' };
+  const RECURRENCE_END_TYPE = { NEVER: 'NEVER', ON_DATE: 'ON_DATE', AFTER_COUNT: 'AFTER_COUNT' };
+
+  function parsePositiveInt(value, fallback = 1) {
+    const n = parseInt(String(value ?? '').trim(), 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  }
+
+  function addMonthsClamped(date, months) {
+    const next = new Date(date);
+    const day = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + months);
+    const last = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+    next.setDate(Math.min(day, last));
+    return next;
+  }
+
+  function normalizeEventSchedule(payload = {}) {
+    const type = String(payload.eventScheduleType || payload.scheduleType || EVENT_SCHEDULE_TYPE.ONE_OFF).toUpperCase() === EVENT_SCHEDULE_TYPE.RECURRING
+      ? EVENT_SCHEDULE_TYPE.RECURRING
+      : EVENT_SCHEDULE_TYPE.ONE_OFF;
+    if (type !== EVENT_SCHEDULE_TYPE.RECURRING) {
+      return {
+        eventScheduleType: EVENT_SCHEDULE_TYPE.ONE_OFF,
+        recurrenceFrequency: '',
+        recurrenceInterval: 1,
+        recurrenceEndType: RECURRENCE_END_TYPE.NEVER,
+        recurrenceEndDate: '',
+        recurrenceCount: null
+      };
+    }
+
+    const rawFrequency = String(payload.recurrenceFrequency || RECURRENCE_FREQUENCY.WEEKLY).toUpperCase();
+    const recurrenceFrequency = rawFrequency === RECURRENCE_FREQUENCY.MONTHLY
+      ? RECURRENCE_FREQUENCY.MONTHLY
+      : RECURRENCE_FREQUENCY.WEEKLY;
+    const recurrenceInterval = Math.min(parsePositiveInt(payload.recurrenceInterval, 1), 52);
+    const rawEndType = String(payload.recurrenceEndType || RECURRENCE_END_TYPE.NEVER).toUpperCase();
+    const recurrenceEndType = Object.values(RECURRENCE_END_TYPE).includes(rawEndType)
+      ? rawEndType
+      : RECURRENCE_END_TYPE.NEVER;
+    const recurrenceEndDate = recurrenceEndType === RECURRENCE_END_TYPE.ON_DATE
+      ? String(payload.recurrenceEndDate || '').slice(0, 10)
+      : '';
+    const recurrenceCount = recurrenceEndType === RECURRENCE_END_TYPE.AFTER_COUNT
+      ? Math.min(parsePositiveInt(payload.recurrenceCount, 6), 104)
+      : null;
+
+    return {
+      eventScheduleType: EVENT_SCHEDULE_TYPE.RECURRING,
+      recurrenceFrequency,
+      recurrenceInterval,
+      recurrenceEndType,
+      recurrenceEndDate,
+      recurrenceCount
+    };
+  }
+
+  function isRecurringEvent(event) {
+    return String(event?.eventScheduleType || '').toUpperCase() === EVENT_SCHEDULE_TYPE.RECURRING;
+  }
+
+  function formatRecurrenceSummary(event) {
+    if (!isRecurringEvent(event)) return 'One-off event';
+    const interval = parsePositiveInt(event.recurrenceInterval, 1);
+    const unit = event.recurrenceFrequency === RECURRENCE_FREQUENCY.MONTHLY ? 'month' : 'week';
+    const cadence = interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
+    const start = event.dateTime ? ` starting ${formatEventDateTime(event.dateTime)}` : '';
+    if (event.recurrenceEndType === RECURRENCE_END_TYPE.ON_DATE && event.recurrenceEndDate) {
+      return `${cadence}${start} until ${formatDateLabel(new Date(`${event.recurrenceEndDate}T12:00:00`))}`;
+    }
+    if (event.recurrenceEndType === RECURRENCE_END_TYPE.AFTER_COUNT && event.recurrenceCount) {
+      return `${cadence}${start} for ${event.recurrenceCount} occurrence${Number(event.recurrenceCount) === 1 ? '' : 's'}`;
+    }
+    return `${cadence}${start}`;
+  }
+
+  function getEventOccurrences(event, options = {}) {
+    const startTs = getEventTimestamp(event?.dateTime);
+    if (startTs === null) return [];
+    const start = new Date(startTs);
+    const fromMs = Number.isFinite(options.fromMs) ? options.fromMs : -Infinity;
+    const max = Math.min(parsePositiveInt(options.limit, 24), 250);
+    const occurrences = [];
+
+    if (!isRecurringEvent(event)) {
+      if (startTs >= fromMs || options.includePast) {
+        occurrences.push({ timestamp: startTs, dateTime: event.dateTime, label: formatEventDateTime(event.dateTime), index: 1 });
+      }
+      return occurrences;
+    }
+
+    const schedule = normalizeEventSchedule(event);
+    const hardLimit = schedule.recurrenceEndType === RECURRENCE_END_TYPE.AFTER_COUNT
+      ? schedule.recurrenceCount
+      : Math.max(max * 4, 2000);
+    const endTs = schedule.recurrenceEndType === RECURRENCE_END_TYPE.ON_DATE && schedule.recurrenceEndDate
+      ? new Date(`${schedule.recurrenceEndDate}T23:59:59`).getTime()
+      : Infinity;
+
+    for (let i = 0; i < hardLimit && occurrences.length < max; i += 1) {
+      const occurrenceDate = schedule.recurrenceFrequency === RECURRENCE_FREQUENCY.MONTHLY
+        ? addMonthsClamped(start, i * schedule.recurrenceInterval)
+        : new Date(start.getTime() + (i * schedule.recurrenceInterval * 7 * 24 * 60 * 60 * 1000));
+      const timestamp = occurrenceDate.getTime();
+      if (timestamp > endTs) break;
+      if (timestamp >= fromMs || options.includePast) {
+        occurrences.push({
+          timestamp,
+          dateTime: occurrenceDate.toISOString().slice(0, 16),
+          label: formatEventDateTime(occurrenceDate.toISOString()),
+          index: i + 1
+        });
+      }
+    }
+    return occurrences;
+  }
+
+  function getPrimaryEventOccurrence(event) {
+    const upcoming = getEventOccurrences(event, { fromMs: Date.now(), limit: 1 });
+    if (upcoming.length) return upcoming[0];
+    return getEventOccurrences(event, { includePast: true, limit: 250 }).slice(-1)[0] || null;
+  }
+
+  function decorateEventSchedule(event) {
+    const schedule = normalizeEventSchedule(event);
+    const normalized = { ...event, ...schedule };
+    const primary = getPrimaryEventOccurrence(normalized);
+    const next = getEventOccurrences(normalized, { fromMs: Date.now(), limit: 1 })[0] || null;
+    return {
+      ...normalized,
+      eventTimestamp: getEventTimestamp(normalized.dateTime),
+      dateTimeLabel: primary ? primary.label : formatEventDateTime(normalized.dateTime),
+      nextOccurrenceTimestamp: next?.timestamp ?? null,
+      nextOccurrenceLabel: next?.label || '',
+      hasUpcomingOccurrence: Boolean(next),
+      recurrenceSummary: formatRecurrenceSummary(normalized)
+    };
+  }
+
   function getWeekStartDate(date = new Date()) {
     const normalized = new Date(date);
     normalized.setHours(0, 0, 0, 0);
@@ -484,6 +627,10 @@ const Auth = (() => {
 
   function getRawEvents() {
     return parseJson(EVENTS_KEY, []);
+  }
+
+  function getRawEventComments() {
+    return parseJson(EVENT_COMMENTS_KEY, []);
   }
 
   function getRawEventSignups() {
@@ -924,7 +1071,7 @@ const Auth = (() => {
     );
     setJson(VOLUNTEER_PROFILES_KEY, normalizedVolunteerProfiles);
 
-    const mergedEvents = refreshSeedEventDates(mergeSeedEventsRaw(getRawEvents()));
+    const mergedEvents = refreshSeedEventDates(mergeSeedEventsRaw(getRawEvents())).map(decorateEventSchedule);
     setJson(EVENTS_KEY, mergedEvents);
 
     const mergedJobs = mergeSeedJobsRaw(getRawJobs());
@@ -944,6 +1091,7 @@ const Auth = (() => {
     if (!localStorage.getItem(JOB_APPLICATIONS_KEY)) setJson(JOB_APPLICATIONS_KEY, []);
     if (!localStorage.getItem(VOLUNTEER_EVENT_ASSIGNMENTS_KEY)) setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, []);
     if (!localStorage.getItem(REGISTRATIONS_KEY)) setJson(REGISTRATIONS_KEY, []);
+    if (!localStorage.getItem(EVENT_COMMENTS_KEY)) setJson(EVENT_COMMENTS_KEY, []);
   }
 
   /** Run once per full page load; merges bundled seeds into localStorage before reads. */
@@ -1851,21 +1999,18 @@ const Auth = (() => {
   async function getEvents() {
     const now = Date.now();
     return getRawEvents()
+      .map(decorateEventSchedule)
       .slice()
       .sort((a, b) => {
-        const aTs = a.eventTimestamp ?? null;
-        const bTs = b.eventTimestamp ?? null;
-        const aUpcoming = aTs !== null && aTs >= now;
-        const bUpcoming = bTs !== null && bTs >= now;
+        const aTs = a.nextOccurrenceTimestamp ?? a.eventTimestamp ?? null;
+        const bTs = b.nextOccurrenceTimestamp ?? b.eventTimestamp ?? null;
+        const aUpcoming = Boolean(a.hasUpcomingOccurrence) || (aTs !== null && aTs >= now);
+        const bUpcoming = Boolean(b.hasUpcomingOccurrence) || (bTs !== null && bTs >= now);
         if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
         if (aUpcoming && bUpcoming && aTs !== bTs) return aTs - bTs;
         if (!aUpcoming && !bUpcoming && aTs !== bTs) return (bTs || 0) - (aTs || 0);
         return (b.createdAtMs || 0) - (a.createdAtMs || 0);
-      })
-      .map((event) => ({
-        ...event,
-        dateTimeLabel: formatEventDateTime(event.dateTime)
-      }));
+      });
   }
 
   function parseNonNegativeNumber(val) {
@@ -1942,12 +2087,15 @@ const Auth = (() => {
     }
     const programFee = parseNonNegativeNumber(payload.programFee);
     const materialsCost = parseNonNegativeNumber(payload.materialsCost);
+    const schedule = normalizeEventSchedule(payload);
     events.push({
       id: makeId('o'),
       title: String(payload.title || '').trim(),
       category: String(payload.category || '').trim(),
       dateTime: String(payload.dateTime || '').trim(),
       eventTimestamp: getEventTimestamp(payload.dateTime),
+      ...schedule,
+      recurrenceSummary: formatRecurrenceSummary({ ...payload, ...schedule }),
       location: String(payload.location || '').trim(),
       programFee,
       materialsCost,
@@ -1971,12 +2119,15 @@ const Auth = (() => {
     }
     const programFee = parseNonNegativeNumber(payload.programFee);
     const materialsCost = parseNonNegativeNumber(payload.materialsCost);
+    const schedule = normalizeEventSchedule(payload);
     events[idx] = {
       ...events[idx],
       title: String(payload.title || '').trim(),
       category: String(payload.category || '').trim(),
       dateTime: String(payload.dateTime || '').trim(),
       eventTimestamp: getEventTimestamp(payload.dateTime),
+      ...schedule,
+      recurrenceSummary: formatRecurrenceSummary({ ...events[idx], ...payload, ...schedule }),
       location: String(payload.location || '').trim(),
       programFee,
       materialsCost,
@@ -1995,6 +2146,8 @@ const Auth = (() => {
     if (filtered.length === events.length) return { success: false, message: 'Event not found.' };
     setJson(EVENTS_KEY, filtered);
     setJson(EVENT_SIGNUPS_KEY, getRawEventSignups().filter((entry) => String(entry.eventId) !== String(id)));
+    setJson(VOLUNTEER_EVENT_ASSIGNMENTS_KEY, getRawVolunteerEventAssignments().filter((entry) => String(entry.eventId) !== String(id)));
+    setJson(EVENT_COMMENTS_KEY, getRawEventComments().filter((c) => String(c.eventId) !== String(id)));
     return { success: true };
   }
 
@@ -2560,7 +2713,11 @@ const Auth = (() => {
     weekEnd.setDate(weekEnd.getDate() + 6);
     const weekLabel = `Week of ${formatDateLabel(weekStart)}`;
     const eventLines = events.length
-      ? events.map((event) => `- ${event.title} (${formatEventDateTime(event.dateTime)}) at ${event.location}. ${event.cost}.`).join('\n')
+      ? events.map((event) => {
+        const decorated = decorateEventSchedule(event);
+        const recurrence = isRecurringEvent(decorated) ? ` ${decorated.recurrenceSummary}.` : '';
+        return `- ${decorated.title} (${decorated.nextOccurrenceLabel || decorated.dateTimeLabel}) at ${decorated.location}. ${decorated.cost}.${recurrence}`;
+      }).join('\n')
       : '- No new community events are scheduled right now. Please check the dashboard for rolling updates.';
     const jobLines = jobs.length
       ? jobs.map((job) => `- ${job.title} at ${job.employer} in ${job.location || 'the local area'}${job.salary ? ` (${job.salary})` : ''}.`).join('\n')
@@ -3093,7 +3250,7 @@ const Auth = (() => {
 
   function isUrgentEvent(event) {
     if (event.isUrgent) return true;
-    const ts = getEventTimestamp(event.dateTime);
+    const ts = event.nextOccurrenceTimestamp ?? getEventOccurrences(event, { fromMs: Date.now(), limit: 1 })[0]?.timestamp ?? getEventTimestamp(event.dateTime);
     if (ts === null) return false;
     const delta = ts - Date.now();
     return delta >= 0 && delta <= URGENT_WINDOW_MS;
@@ -3187,7 +3344,8 @@ const Auth = (() => {
         ``,
         `📅 ${opportunity.title}`,
         `📍 ${opportunity.location}`,
-        `🗓 ${formatEventDateTime(opportunity.dateTime)}`,
+        `🗓 ${decorateEventSchedule(opportunity).nextOccurrenceLabel || formatEventDateTime(opportunity.dateTime)}`,
+        isRecurringEvent(opportunity) ? `🔁 ${formatRecurrenceSummary(opportunity)}` : '',
         `💰 ${opportunity.cost}`,
         ``,
         `Details & Accommodations:`,
@@ -3197,7 +3355,7 @@ const Auth = (() => {
         ``,
         `Warm regards,`,
         `Kindred Administration`
-      ].join('\n');
+      ].filter((line) => line !== '').join('\n');
     } else if (opportunityType === 'job') {
       opportunity = getRawJobs().find((job) => String(job.id) === String(opportunityId));
       if (!opportunity) return { success: false, message: 'Job opportunity not found.' };
@@ -3907,6 +4065,116 @@ const Auth = (() => {
 
   // ─── End Registrations ────────────────────────────────────────────────────
 
+  // ─── Event Comments ───────────────────────────────────────────────────────
+
+  async function getEventComments(eventId) {
+    return getRawEventComments()
+      .filter((c) => String(c.eventId) === String(eventId))
+      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+  }
+
+  async function addEventComment(eventId, text, options = {}) {
+    const session = await getSession();
+    if (!session || session.role !== 'PARTICIPANT') {
+      return { success: false, message: 'Only registered participants can post comments.' };
+    }
+    const participant = getParticipantRecordByUserIdInternal(session.userId);
+    if (!participant) {
+      return { success: false, message: 'No participant profile is linked to this account.' };
+    }
+    if (participant.commentingEnabled === false) {
+      return { success: false, message: 'A guardian has restricted commenting for this account.' };
+    }
+    const event = getRawEvents().find((ev) => String(ev.id) === String(eventId));
+    if (!event) return { success: false, message: 'Event not found.' };
+    const body = String(text || '').trim();
+    if (!body) return { success: false, message: 'Comment text cannot be empty.' };
+    if (body.length > 1000) return { success: false, message: 'Comment must be 1000 characters or fewer.' };
+
+    const useAlias = Boolean(options.useAlias);
+    const aliasName = String(options.aliasName || '').trim();
+    const displayName = useAlias
+      ? (aliasName || 'Anonymous')
+      : (session.name || session.email || 'Participant');
+
+    const comments = getRawEventComments();
+    comments.push({
+      id: makeId('ec'),
+      eventId: String(eventId),
+      userId: session.userId,
+      displayName,
+      useAlias,
+      text: body,
+      createdAtMs: Date.now(),
+    });
+    setJson(EVENT_COMMENTS_KEY, comments);
+    return { success: true };
+  }
+
+  async function deleteEventComment(commentId) {
+    const session = await getSession();
+    if (!session) return { success: false, message: 'Not signed in.' };
+    const comments = getRawEventComments();
+    const target = comments.find((c) => String(c.id) === String(commentId));
+    if (!target) return { success: false, message: 'Comment not found.' };
+    if (session.role !== 'ADMIN' && String(target.userId) !== String(session.userId)) {
+      return { success: false, message: 'You can only delete your own comments.' };
+    }
+    setJson(EVENT_COMMENTS_KEY, comments.filter((c) => String(c.id) !== String(commentId)));
+    return { success: true };
+  }
+
+  async function updateEventRecap(eventId, recap) {
+    const session = await getSession();
+    if (!session || session.role !== 'ADMIN') {
+      return { success: false, message: 'Only administrators can update event recaps.' };
+    }
+    const events = getRawEvents();
+    const idx = events.findIndex((e) => String(e.id) === String(eventId));
+    if (idx === -1) return { success: false, message: 'Event not found.' };
+
+    const photoUrls = (Array.isArray(recap.photoUrls) ? recap.photoUrls : [])
+      .map((u) => String(u || '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
+    const testimonies = (Array.isArray(recap.testimonies) ? recap.testimonies : [])
+      .map((t) => ({ name: String(t.name || '').trim(), quote: String(t.quote || '').trim() }))
+      .filter((t) => t.name || t.quote)
+      .slice(0, 3);
+
+    events[idx] = {
+      ...events[idx],
+      recap: { text: String(recap.text || '').trim(), photoUrls, testimonies },
+    };
+    setJson(EVENTS_KEY, events);
+    return { success: true };
+  }
+
+  async function getEventRecap(eventId) {
+    const ev = getRawEvents().find((e) => String(e.id) === String(eventId));
+    return ev?.recap || null;
+  }
+
+  async function setParticipantCommentingEnabled(participantId, enabled) {
+    const session = await getSession();
+    if (!session || session.role !== 'GUARDIAN') {
+      return { success: false, message: 'Only guardians can change commenting permissions.' };
+    }
+    const participants = getRawParticipants();
+    const idx = participants.findIndex((p) => String(p.id) === String(participantId));
+    if (idx === -1) return { success: false, message: 'Participant not found.' };
+    const record = participants[idx];
+    const guardianIds = (record.guardianUserIds || []).map(String);
+    if (!guardianIds.includes(String(session.userId))) {
+      return { success: false, message: 'You are not linked as a guardian for this participant.' };
+    }
+    participants[idx] = { ...record, commentingEnabled: Boolean(enabled) };
+    setJson(PARTICIPANTS_KEY, participants);
+    return { success: true };
+  }
+
+  // ─── End Event Comments ───────────────────────────────────────────────────
+
   ensureStoresHydrated();
 
   return {
@@ -3950,6 +4218,11 @@ const Auth = (() => {
     getEventVolunteers,
     getMyVolunteerEvents,
     isSignedUpForEvent,
+    normalizeEventSchedule,
+    getEventOccurrences,
+    getPrimaryEventOccurrence,
+    formatRecurrenceSummary,
+    isRecurringEvent,
     getEvents,
     addEvent,
     updateEvent,
@@ -4019,5 +4292,11 @@ const Auth = (() => {
     updateRegistrationStatus,
     writePendingImport,
     consumePendingImport,
+    getEventComments,
+    addEventComment,
+    deleteEventComment,
+    updateEventRecap,
+    getEventRecap,
+    setParticipantCommentingEnabled,
   };
 })();

@@ -104,9 +104,11 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   function buildEventCard(event, options = {}) {
-    const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
-    const isPast = !isNaN(ts) && ts < Date.now();
+    const isPast = event.hasUpcomingOccurrence === false;
     const allowUnsave = Boolean(options.allowUnsave);
+    const scheduleBadge = event.eventScheduleType === 'RECURRING'
+      ? '<span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Recurring</span>'
+      : '<span class="badge bg-light text-dark border"><i class="bi bi-calendar-event me-1"></i>One-off</span>';
     return `
       <div class="col">
         <div class="portal-card h-100${isPast ? ' portal-card--past' : ''}">
@@ -115,7 +117,8 @@ document.addEventListener('sections:ready', async (e) => {
             ${eventCategoryBadge(event.category)}
           </div>
           <div class="portal-card-meta">
-            <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}</span>
+            <span><i class="bi bi-clock me-1"></i>${escHtml(event.nextOccurrenceLabel || event.dateTimeLabel || event.dateTime)}</span>
+            ${event.eventScheduleType === 'RECURRING' ? `<span><i class="bi bi-arrow-repeat me-1"></i>${escHtml(event.recurrenceSummary || 'Recurring event')}</span>` : ''}
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
             <span><i class="bi bi-person-bounding-box me-1"></i>${escHtml(eventMinAgeLabel(event))}</span>
           </div>
@@ -124,6 +127,7 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
           <div class="portal-card-footer">
             ${buildCostBreakdown(event)}
+            ${scheduleBadge}
             ${allowUnsave
               ? `<button class="btn btn-outline-danger btn-sm js-participant-event-toggle" data-event-id="${escHtml(event.id)}" data-event-title="${escHtml(event.title)}">
                   <i class="bi bi-x-circle me-1"></i>Not interested
@@ -266,18 +270,14 @@ document.addEventListener('sections:ready', async (e) => {
     const events = await Auth.getEvents();
     const subscribedIds = new Set(await Auth.getInterestedEventIds());
     const subscribed = events.filter((e) => subscribedIds.has(String(e.id)));
-    const now = Date.now();
-    const upcomingSubscribed = subscribed.filter((e) => {
-      const ts = e.eventTimestamp ?? new Date(e.dateTime).getTime();
-      return !isNaN(ts) && ts >= now;
-    });
+    const upcomingSubscribed = subscribed.filter((e) => e.hasUpcomingOccurrence);
     const jobs = await Auth.getJobs();
     const statuses = await Auth.getMyJobInterestStatuses();
     const savedJobCount = jobs.filter((j) => statuses[String(j.id)]).length;
     const pendingGuardianJobs = Object.values(statuses).filter((s) => s === 'PENDING').length;
     const nextEvent = upcomingSubscribed
       .slice()
-      .sort((a, b) => (a.eventTimestamp ?? 0) - (b.eventTimestamp ?? 0))[0];
+      .sort((a, b) => ((a.nextOccurrenceTimestamp ?? a.eventTimestamp) || 0) - ((b.nextOccurrenceTimestamp ?? b.eventTimestamp) || 0))[0];
     el.innerHTML = `
       <div class="card border-0 shadow-sm mb-0" style="background: linear-gradient(135deg, rgba(25,135,84,0.09), rgba(13,110,253,0.06));">
         <div class="card-body py-3">
@@ -288,7 +288,7 @@ document.addEventListener('sections:ready', async (e) => {
                 <div><span class="text-muted">Saved events</span><br><strong>${subscribed.length}</strong> total · <strong>${upcomingSubscribed.length}</strong> upcoming</div>
                 <div><span class="text-muted">Job interests</span><br><strong>${savedJobCount}</strong> ${savedJobCount === 1 ? 'job pending' : 'jobs pending'}</div>
                 <div><span class="text-muted">Awaiting guardian</span><br><strong>${pendingGuardianJobs}</strong> pending</div>
-                ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
+                ${nextEvent ? `<div class="flex-grow-1"><span class="text-muted">Next upcoming</span><br><strong>${escHtml(nextEvent.title)}</strong> <span class="text-muted">(${escHtml(nextEvent.nextOccurrenceLabel || nextEvent.dateTimeLabel || nextEvent.dateTime)})</span></div>` : '<div class="text-muted"><span class="text-muted">Next upcoming</span><br>— subscribe to events from the public Events page</div>'}
               </div>
             </div>
             <div class="col-md-4 text-md-end d-flex flex-wrap gap-2 justify-content-md-end">
@@ -483,10 +483,7 @@ document.addEventListener('sections:ready', async (e) => {
     const container = document.getElementById('p-dashboard-events');
     if (!container) return;
     const events = await Auth.getEvents();
-    const upcoming = events.filter((event) => {
-      const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
-      return !isNaN(ts) && ts >= Date.now();
-    }).slice(0, 3);
+    const upcoming = events.filter((event) => event.hasUpcomingOccurrence).slice(0, 3);
     container.innerHTML = upcoming.length
       ? `<div class="row row-cols-1 row-cols-md-3 g-3">${upcoming.map((event) => buildEventCard(event)).join('')}</div>`
       : emptyState('bi-calendar-x', 'No upcoming events right now. Check back soon!');
@@ -600,6 +597,19 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
         </div>
 
+        <div class="mt-3 pt-3 border-top">
+          <div class="form-check form-switch">
+            <input class="form-check-input js-commenting-toggle" type="checkbox"
+                   id="commentingToggle_${escHtml(participant.id)}"
+                   data-participant-id="${escHtml(participant.id)}"
+                   ${participant.commentingEnabled !== false ? 'checked' : ''}>
+            <label class="form-check-label small text-muted" for="commentingToggle_${escHtml(participant.id)}">
+              Allow <strong>${escHtml(participant.firstName || participant.fullName || 'this participant')}</strong> to comment on events
+            </label>
+          </div>
+          <div class="js-commenting-feedback text-muted small d-none" data-participant-id="${escHtml(participant.id)}" role="status" aria-live="polite"></div>
+        </div>
+
         <div class="profile-rail-block mt-3">
           <h4 class="profile-rail-title">Linked Contacts</h4>
           ${linkedContacts}
@@ -608,6 +618,7 @@ document.addEventListener('sections:ready', async (e) => {
   }
 
   let guardianSupportSaveBound = false;
+  let guardianCommentingToggleBound = false;
 
   function fillGuardianParticipantTextareas(participants) {
     const root = document.getElementById('guardianParticipantsList');
@@ -667,6 +678,46 @@ document.addEventListener('sections:ready', async (e) => {
         feed.classList.add('text-muted', 'text-success');
         clearTimeout(feed._hideT);
         feed._hideT = setTimeout(() => feed.classList.add('d-none'), 4000);
+      }
+    });
+  }
+
+  function bindGuardianCommentingToggles() {
+    if (guardianCommentingToggleBound) return;
+    const root = document.getElementById('guardianParticipantsList');
+    if (!root) return;
+    guardianCommentingToggleBound = true;
+    root.addEventListener('change', async (e) => {
+      const toggle = e.target.closest('.js-commenting-toggle');
+      if (!toggle || !root.contains(toggle)) return;
+      const participantId = toggle.dataset.participantId;
+      const feedback = toggle.closest('.guardian-participant-card')?.querySelector('.js-commenting-feedback');
+      const previous = !toggle.checked;
+      toggle.disabled = true;
+      if (feedback) {
+        feedback.textContent = 'Saving commenting setting...';
+        feedback.classList.remove('d-none', 'text-danger', 'text-success');
+        feedback.classList.add('text-muted');
+      }
+      const result = await Auth.setParticipantCommentingEnabled(participantId, toggle.checked);
+      toggle.disabled = false;
+      if (!result.success) {
+        toggle.checked = previous;
+        if (feedback) {
+          feedback.textContent = result.message || 'Could not update commenting setting.';
+          feedback.classList.remove('d-none', 'text-muted', 'text-success');
+          feedback.classList.add('text-danger');
+        } else {
+          alert(result.message || 'Could not update commenting setting.');
+        }
+        return;
+      }
+      if (feedback) {
+        feedback.textContent = toggle.checked ? 'Event commenting enabled.' : 'Event commenting restricted.';
+        feedback.classList.remove('d-none', 'text-danger', 'text-muted');
+        feedback.classList.add('text-success');
+        clearTimeout(feedback._hideT);
+        feedback._hideT = setTimeout(() => feedback.classList.add('d-none'), 4000);
       }
     });
   }
@@ -757,6 +808,7 @@ document.addEventListener('sections:ready', async (e) => {
         ? participants.map(participantCard).join('')
         : emptyState('bi-people', 'No participants are linked to your guardian account yet.');
       fillGuardianParticipantTextareas(participants);
+      bindGuardianCommentingToggles();
     }
 
     const guardianParticipantsHeader = document.getElementById('guardianParticipantsHeader');
