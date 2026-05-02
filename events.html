@@ -555,6 +555,28 @@
                     <button class="filter-btn" data-timing="all" aria-pressed="false">
                         <i class="bi bi-calendar3"></i> All Events
                     </button>
+
+                    <span class="text-muted mx-1" aria-hidden="true" style="font-size:0.8rem;">|</span>
+
+                    <button class="filter-btn active" data-schedule="All" aria-pressed="true">
+                        <i class="bi bi-layers"></i> Any Schedule
+                    </button>
+                    <button class="filter-btn" data-schedule="ONE_OFF" aria-pressed="false">
+                        <i class="bi bi-calendar-event"></i> One-off
+                    </button>
+                    <button class="filter-btn" data-schedule="RECURRING" aria-pressed="false">
+                        <i class="bi bi-arrow-repeat"></i> Recurring
+                    </button>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <label for="eventsSortSelect" class="text-muted mb-0" style="font-size:0.78rem;white-space:nowrap;">Sort</label>
+                    <select id="eventsSortSelect" class="form-select form-select-sm" style="width:auto;font-size:0.78rem;border-radius:var(--radius-pill);border-color:var(--k-border);" aria-label="Sort events">
+                        <option value="date-asc" selected>Date ↑ soonest</option>
+                        <option value="date-desc">Date ↓ latest</option>
+                        <option value="added-desc">Newest added</option>
+                        <option value="title-asc">Title A→Z</option>
+                    </select>
                 </div>
 
             </div>
@@ -582,6 +604,19 @@
                     <select id="guardianEventParticipantSelect" class="form-select"></select>
                 </div>
             </div>
+
+            <section id="savedEventsPanel" class="mb-4 d-none" aria-label="My saved events">
+                <div class="card" style="border-color:#a3cfbb;">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h2 class="h6 mb-0" style="color:#146c43;"><i class="bi bi-bookmark-check me-1"></i>My Saved Events</h2>
+                            <small id="savedEventsCountText" class="text-muted"></small>
+                        </div>
+                        <div id="savedEventsList"></div>
+                    </div>
+                </div>
+            </section>
+
             <p id="resultsCount" class="mb-3" aria-live="polite" aria-atomic="true"></p>
             <div id="eventsGrid" role="list" aria-label="Community events"></div>
         </div>
@@ -616,10 +651,21 @@
         let allEvents = [];
         let activeFilter = 'All';
         let activeTimingFilter = 'upcoming';
+        let activeScheduleFilter = 'All';
+        let activeSortOrder = 'date-asc';
         let searchQuery = '';
         let currentSession = null;
         let interestedEventIds = new Set();
         let guardianParticipantSelectEl = null;
+
+        function applyEventSort(events, sortVal) {
+            const sorted = [...events];
+            if (sortVal === 'date-asc')    sorted.sort((a, b) => ((a.nextOccurrenceTimestamp ?? a.eventTimestamp) || 0) - ((b.nextOccurrenceTimestamp ?? b.eventTimestamp) || 0));
+            else if (sortVal === 'date-desc')   sorted.sort((a, b) => ((b.nextOccurrenceTimestamp ?? b.eventTimestamp) || 0) - ((a.nextOccurrenceTimestamp ?? a.eventTimestamp) || 0));
+            else if (sortVal === 'added-desc')  sorted.sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+            else if (sortVal === 'title-asc')   sorted.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            return sorted;
+        }
 
         function escapeHtml(str) {
             return String(str ?? '')
@@ -634,10 +680,7 @@
         }
 
         function isUpcoming(event) {
-            try {
-                const ts = new Date(String(event.dateTime || '')).getTime();
-                return !isNaN(ts) && ts >= Date.now();
-            } catch { return false; }
+            return Boolean(event.hasUpcomingOccurrence) || ((event.nextOccurrenceTimestamp ?? event.eventTimestamp) || 0) >= Date.now();
         }
 
         function actionButton(event, upcoming) {
@@ -672,12 +715,17 @@
             const catCls = event.category ? `cat-${event.category}` : 'cat-default';
             const catIcon = { Social: 'bi-people-fill', Educational: 'bi-book-fill', Vocational: 'bi-briefcase-fill' }[event.category] || 'bi-calendar2-event';
             const upcoming = isUpcoming(event);
+            const pastCls = !upcoming ? ' portal-card--past' : '';
+            const recurringBadge = event.eventScheduleType === 'RECURRING'
+                ? `<span class="event-cost-chip" title="${escapeHtml(event.recurrenceSummary || 'Recurring event')}"><i class="bi bi-arrow-repeat"></i>Recurring</span>`
+                : `<span class="event-cost-chip" title="One-off event"><i class="bi bi-calendar-event"></i>One-off</span>`;
             const statusChip = upcoming
                 ? `<span class="upcoming-chip"><span class="dot"></span>Upcoming</span>`
                 : `<span class="past-chip">Past</span>`;
+            const detailLink = `<a class="btn btn-sm btn-outline-secondary" style="border-radius:2rem;font-size:0.75rem;padding:0.25rem 0.85rem;" href="event-detail.html?id=${escapeHtml(event.id)}"><i class="bi bi-info-circle me-1"></i>View Details</a>`;
 
             return `
-        <article class="event-card fade-in" role="listitem" aria-label="${escapeHtml(event.title)}">
+        <article class="event-card fade-in${escapeHtml(pastCls)}" role="listitem" aria-label="${escapeHtml(event.title)}">
           <div class="event-card-header">
             <span class="event-cat-badge ${escapeHtml(catCls)}">
               <i class="bi ${escapeHtml(catIcon)}"></i>
@@ -689,7 +737,8 @@
           <div class="event-card-title">${escapeHtml(event.title)}</div>
 
           <div class="d-flex flex-column gap-1">
-            ${event.dateTimeLabel ? `<div class="event-meta-row"><i class="bi bi-calendar3"></i><span class="event-meta-text">${escapeHtml(event.dateTimeLabel)}</span></div>` : ''}
+            ${(event.nextOccurrenceLabel || event.dateTimeLabel) ? `<div class="event-meta-row"><i class="bi bi-calendar3"></i><span class="event-meta-text">${escapeHtml(event.nextOccurrenceLabel || event.dateTimeLabel)}</span></div>` : ''}
+            ${event.eventScheduleType === 'RECURRING' ? `<div class="event-meta-row"><i class="bi bi-arrow-repeat"></i><span class="event-meta-text">${escapeHtml(event.recurrenceSummary || '')}</span></div>` : ''}
             ${event.location ? `<div class="event-meta-row"><i class="bi bi-geo-alt"></i><span class="event-meta-text">${escapeHtml(event.location)}</span></div>` : ''}
           </div>
 
@@ -702,13 +751,44 @@
             <div class="event-card-footer">
             <div class="event-card-footer-meta">
               <span class="event-cost-chip" title="Minimum participant age"><i class="bi bi-person-bounding-box"></i>${escapeHtml(eventMinAgeLabel(event))}</span>
+              ${recurringBadge}
               ${event.cost ? `<span class="event-cost-chip"><i class="bi bi-tag"></i>${escapeHtml(event.cost)}</span>` : '<span class="event-cost-chip"><i class="bi bi-tag"></i>Free</span>'}
               ${(event.programFee != null && event.programFee > 0) || (event.materialsCost != null && event.materialsCost > 0) ? `<span class="text-muted" style="font-size:0.72rem;">(${event.programFee > 0 ? 'Fee: $' + Number(event.programFee).toFixed(2) : ''}${event.programFee > 0 && event.materialsCost > 0 ? ' + ' : ''}${event.materialsCost > 0 ? 'Materials: $' + Number(event.materialsCost).toFixed(2) : ''})</span>` : ''}
               <span class="event-added-date">Added ${escapeHtml(event.dateAdded || '')}</span>
             </div>
-            ${actionButton(event, upcoming)}
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              ${detailLink}
+              ${actionButton(event, upcoming)}
+            </div>
           </div>
         </article>`;
+        }
+
+        function renderSavedEvents() {
+            const panel = document.getElementById('savedEventsPanel');
+            const list = document.getElementById('savedEventsList');
+            const countEl = document.getElementById('savedEventsCountText');
+            if (!panel || !list || !countEl) return;
+            if (!currentSession || currentSession.role !== 'PARTICIPANT') {
+                panel.classList.add('d-none');
+                return;
+            }
+            const saved = allEvents.filter(ev => interestedEventIds.has(String(ev.id)));
+            panel.classList.remove('d-none');
+            countEl.textContent = `${saved.length} saved`;
+            if (!saved.length) {
+                list.innerHTML = '<div class="text-muted small">No saved events yet. Click "I\'m Interested" on any upcoming event.</div>';
+                return;
+            }
+            list.innerHTML = `<div class="list-group list-group-flush">${saved.map(ev => `
+              <div class="list-group-item px-0 d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <div class="fw-semibold small">${escapeHtml(ev.title)}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">${escapeHtml(ev.nextOccurrenceLabel || ev.dateTimeLabel || '')}${ev.eventScheduleType === 'RECURRING' ? ' · Recurring' : ''}${ev.location ? ' · ' + escapeHtml(ev.location) : ''}</div>
+                </div>
+                <a href="event-detail.html?id=${escapeHtml(ev.id)}" class="btn btn-sm btn-outline-primary flex-shrink-0" style="font-size:0.72rem;border-radius:2rem;">View Details</a>
+              </div>`).join('')}
+            </div>`;
         }
 
         async function refreshInterestedEventIds() {
@@ -755,6 +835,7 @@
             const filtered = allEvents.filter(ev => {
                 if (activeFilter !== 'All' && ev.category !== activeFilter) return false;
                 if (activeTimingFilter === 'upcoming' && !isUpcoming(ev)) return false;
+                if (activeScheduleFilter !== 'All' && String(ev.eventScheduleType || 'ONE_OFF') !== activeScheduleFilter) return false;
                 if (!query) return true;
                 return (
                     (ev.title || '').toLowerCase().includes(query) ||
@@ -764,7 +845,9 @@
                 );
             });
 
-            if (filtered.length === 0) {
+            const sorted = applyEventSort(filtered, activeSortOrder);
+
+            if (sorted.length === 0) {
                 grid.innerHTML = allEvents.length === 0
                     ? `<div class="events-empty">
                <div class="empty-icon"><i class="bi bi-calendar2-x"></i></div>
@@ -778,10 +861,30 @@
              </div>`;
                 countEl.textContent = '';
             } else {
-                grid.innerHTML = filtered.map(renderEventCard).join('');
+                if (activeTimingFilter === 'all') {
+                    const upcoming = sorted.filter(ev => isUpcoming(ev));
+                    const past = sorted.filter(ev => !isUpcoming(ev));
+                    let html = upcoming.map(renderEventCard).join('');
+                    if (past.length > 0) {
+                        if (upcoming.length > 0) {
+                            html += `<div style="grid-column:1/-1;display:flex;align-items:center;gap:0.75rem;margin:0.5rem 0;">
+                                <hr style="flex:1;margin:0;border-color:var(--k-border);">
+                                <span style="font-size:0.75rem;font-weight:600;letter-spacing:0.05em;color:var(--k-muted);white-space:nowrap;">
+                                  <i class="bi bi-clock-history me-1"></i>PAST EVENTS
+                                </span>
+                                <hr style="flex:1;margin:0;border-color:var(--k-border);">
+                              </div>`;
+                        }
+                        html += past.map(renderEventCard).join('');
+                    }
+                    grid.innerHTML = html;
+                } else {
+                    grid.innerHTML = sorted.map(renderEventCard).join('');
+                }
                 const label = activeFilter === 'All' ? 'event' : activeFilter.toLowerCase() + ' event';
-                countEl.textContent = `Showing ${filtered.length} ${label}${filtered.length !== 1 ? 's' : ''}${query ? ` for "${searchQuery}"` : ''}`;
+                countEl.textContent = `Showing ${sorted.length} ${label}${sorted.length !== 1 ? 's' : ''}${query ? ` for "${searchQuery}"` : ''}`;
             }
+            renderSavedEvents();
             wireEventToggleButtons();
         }
 
@@ -847,6 +950,26 @@
                     btn.setAttribute('aria-pressed', 'true');
                     filterAndRender();
                 });
+            });
+
+            // Wire schedule filters
+            document.querySelectorAll('.filter-btn[data-schedule]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    activeScheduleFilter = btn.dataset.schedule;
+                    document.querySelectorAll('.filter-btn[data-schedule]').forEach(b => {
+                        b.classList.remove('active');
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+                    btn.classList.add('active');
+                    btn.setAttribute('aria-pressed', 'true');
+                    filterAndRender();
+                });
+            });
+
+            // Wire sort
+            document.getElementById('eventsSortSelect')?.addEventListener('change', (e) => {
+                activeSortOrder = e.target.value;
+                filterAndRender();
             });
 
             filterAndRender();

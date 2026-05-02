@@ -41,6 +41,12 @@
         <button class="admin-filter-chip" data-events-filter="timing" data-value="UPCOMING" type="button">Upcoming</button>
         <button class="admin-filter-chip" data-events-filter="timing" data-value="PAST" type="button">Past</button>
       </div>
+      <div class="admin-filter-group">
+        <span class="admin-filter-label">Schedule</span>
+        <button class="admin-filter-chip active" data-events-filter="schedule" data-value="ALL" type="button">All</button>
+        <button class="admin-filter-chip" data-events-filter="schedule" data-value="ONE_OFF" type="button">One-off</button>
+        <button class="admin-filter-chip" data-events-filter="schedule" data-value="RECURRING" type="button">Recurring</button>
+      </div>
       <div class="ms-auto d-flex align-items-center gap-2">
         <span class="admin-filter-label">Sort</span>
         <select class="admin-sort-select" id="eventsSortSelect">
@@ -141,6 +147,46 @@
               <div class="invalid-feedback">Date and time are required.</div>
             </div>
 
+            <div class="col-12">
+              <label class="form-label d-block">Schedule</label>
+              <div class="btn-group btn-group-sm" role="group" aria-label="Event schedule type">
+                <input type="radio" class="btn-check" name="eventScheduleType" id="eventScheduleOneOff" value="ONE_OFF" autocomplete="off" checked>
+                <label class="btn btn-outline-primary" for="eventScheduleOneOff">One-off</label>
+                <input type="radio" class="btn-check" name="eventScheduleType" id="eventScheduleRecurring" value="RECURRING" autocomplete="off">
+                <label class="btn btn-outline-primary" for="eventScheduleRecurring">Recurring</label>
+              </div>
+              <div id="eventRecurrenceControls" class="row g-2 align-items-end mt-2 d-none">
+                <div class="col-md-3">
+                  <label for="eventRecurrenceFrequency" class="form-label small mb-1">Frequency</label>
+                  <select class="form-select form-select-sm" id="eventRecurrenceFrequency">
+                    <option value="WEEKLY">Weekly</option>
+                    <option value="MONTHLY">Monthly</option>
+                  </select>
+                </div>
+                <div class="col-md-2">
+                  <label for="eventRecurrenceInterval" class="form-label small mb-1">Every</label>
+                  <input type="number" class="form-control form-control-sm" id="eventRecurrenceInterval" min="1" max="52" value="1">
+                </div>
+                <div class="col-md-3">
+                  <label for="eventRecurrenceEndType" class="form-label small mb-1">Ends</label>
+                  <select class="form-select form-select-sm" id="eventRecurrenceEndType">
+                    <option value="NEVER">Never</option>
+                    <option value="ON_DATE">On date</option>
+                    <option value="AFTER_COUNT">After count</option>
+                  </select>
+                </div>
+                <div class="col-md-2 d-none" id="eventRecurrenceEndDateWrap">
+                  <label for="eventRecurrenceEndDate" class="form-label small mb-1">End date</label>
+                  <input type="date" class="form-control form-control-sm" id="eventRecurrenceEndDate">
+                </div>
+                <div class="col-md-2 d-none" id="eventRecurrenceCountWrap">
+                  <label for="eventRecurrenceCount" class="form-label small mb-1">Occurrences</label>
+                  <input type="number" class="form-control form-control-sm" id="eventRecurrenceCount" min="1" max="104" value="6">
+                </div>
+              </div>
+              <div id="eventRecurrencePreview" class="form-text mt-2">One-off event.</div>
+            </div>
+
             <div class="col-md-6">
               <label for="eventLocation" class="form-label">Location</label>
               <input type="text" class="form-control" id="eventLocation" placeholder="e.g. 145 Elm St, Indianapolis" required>
@@ -197,6 +243,54 @@
         <div id="eventVolunteersList">
           <p class="text-muted small mb-0">No volunteers assigned yet.</p>
         </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-4 d-none" id="eventRecapPanel">
+      <div class="card-header fw-semibold d-flex align-items-center gap-2">
+        <i class="bi bi-camera-reels text-primary"></i>Event Recap
+        <span class="badge bg-secondary ms-1" style="font-size:0.68rem;font-weight:600;">Visible after event date</span>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Write a recap of how the event went. It will be shown to visitors on the event detail page only after the event date has passed — you can save a draft at any time.
+        </p>
+        <div id="eventRecapError" class="alert alert-danger d-none" role="alert"></div>
+
+        <div class="mb-3">
+          <label for="recapText" class="form-label fw-semibold small">Summary</label>
+          <textarea class="form-control" id="recapText" rows="4"
+            placeholder="A brief description of how the event went…"></textarea>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Photo URLs <span class="text-muted fw-normal">(up to 3 direct image links)</span></label>
+          <input type="url" class="form-control form-control-sm mb-2" id="recapPhoto1" placeholder="https://…">
+          <input type="url" class="form-control form-control-sm mb-2" id="recapPhoto2" placeholder="https://…">
+          <input type="url" class="form-control form-control-sm"       id="recapPhoto3" placeholder="https://…">
+          <div class="form-text">Paste direct image URLs. They will appear as linked photos on the event detail page.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">Participant Testimonies <span class="text-muted fw-normal">(up to 3)</span></label>
+          <div class="row g-2 mb-2">
+            <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="recapT1Name"  placeholder="Name or alias"></div>
+            <div class="col-md-8"><input type="text" class="form-control form-control-sm" id="recapT1Quote" placeholder="Quote…"></div>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="recapT2Name"  placeholder="Name or alias"></div>
+            <div class="col-md-8"><input type="text" class="form-control form-control-sm" id="recapT2Quote" placeholder="Quote…"></div>
+          </div>
+          <div class="row g-2">
+            <div class="col-md-4"><input type="text" class="form-control form-control-sm" id="recapT3Name"  placeholder="Name or alias"></div>
+            <div class="col-md-8"><input type="text" class="form-control form-control-sm" id="recapT3Quote" placeholder="Quote…"></div>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-sm" id="saveRecapBtn">
+          <i class="bi bi-floppy me-1"></i>Save Recap
+        </button>
+        <span id="recapSavedFeedback" class="text-success small ms-2 d-none">Saved!</span>
       </div>
     </div>
   </div>

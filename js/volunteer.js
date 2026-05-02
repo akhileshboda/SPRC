@@ -88,8 +88,8 @@ document.addEventListener('sections:ready', async (e) => {
     const showMatch = Boolean(options.showMatchBadge);
     const signedUp = Boolean(options.signedUp);
     const now = Date.now();
-    const ts = event.eventTimestamp ?? new Date(event.dateTime).getTime();
-    const isPast = !isNaN(ts) && ts < now;
+    const ts = event.nextOccurrenceTimestamp ?? event.eventTimestamp ?? new Date(event.dateTime).getTime();
+    const isPast = event.hasUpcomingOccurrence === false;
     const rel = !isPast ? relativeTimeLabel(ts) : '';
     const meta = EVENT_BADGE[event.category] || { cls: 'bg-secondary', icon: 'bi-calendar' };
     const urgent = Boolean(event.isUrgent);
@@ -113,7 +113,8 @@ document.addEventListener('sections:ready', async (e) => {
             </div>
           </div>
           <div class="portal-card-meta flex-column align-items-start">
-            <span><i class="bi bi-clock me-1"></i>${escHtml(event.dateTimeLabel || event.dateTime)}${rel ? ` <span class="text-muted">(${rel})</span>` : ''}</span>
+            <span><i class="bi bi-clock me-1"></i>${escHtml(event.nextOccurrenceLabel || event.dateTimeLabel || event.dateTime)}${rel ? ` <span class="text-muted">(${rel})</span>` : ''}</span>
+            ${event.eventScheduleType === 'RECURRING' ? `<span><i class="bi bi-arrow-repeat me-1"></i>${escHtml(event.recurrenceSummary || 'Recurring event')}</span>` : ''}
             <span><i class="bi bi-geo-alt me-1"></i>${escHtml(event.location)}</span>
           </div>
           <div class="portal-card-body">
@@ -121,6 +122,7 @@ document.addEventListener('sections:ready', async (e) => {
           </div>
           <div class="portal-card-footer">
             ${buildCostBreakdown(event)}
+            ${event.eventScheduleType === 'RECURRING' ? '<span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i>Recurring</span>' : '<span class="badge bg-light text-dark border"><i class="bi bi-calendar-event me-1"></i>One-off</span>'}
             ${isPast ? '<span class="portal-past-label">Past event</span>' : ''}
             ${signupBtn}
           </div>
@@ -184,11 +186,7 @@ document.addEventListener('sections:ready', async (e) => {
     if (!el) return;
     const profile = await Auth.getVolunteerProfile(session.email);
     const events = await Auth.getEvents();
-    const now = Date.now();
-    const upcoming = events.filter((e) => {
-      const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
-      return !isNaN(t) && t >= now;
-    });
+    const upcoming = events.filter((e) => e.hasUpcomingOccurrence);
     const matched = profile ? computeVolunteerMatches(profile, events) : [];
     const bg = await Auth.getMyBgCheckRecord();
     const bgLabel = bg?.status || 'Not Started';
@@ -227,7 +225,6 @@ document.addEventListener('sections:ready', async (e) => {
       Auth.getEvents(),
       Auth.getMyVolunteerEvents()
     ]);
-    const now = Date.now();
     const myEventIds = new Set(myVolunteerEvents.map((e) => String(e.id)));
 
     if (!events.length) {
@@ -236,10 +233,7 @@ document.addEventListener('sections:ready', async (e) => {
       return;
     }
 
-    const upcomingCount = events.filter((e) => {
-      const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
-      return !isNaN(t) && t >= now;
-    }).length;
+    const upcomingCount = events.filter((e) => e.hasUpcomingOccurrence).length;
 
     const scored = events.map((event) => ({
       event,
@@ -302,10 +296,7 @@ document.addEventListener('sections:ready', async (e) => {
     let list = scored.map((s) => s.event);
     if (volunteerEventFilter === 'upcoming') {
       list = scored
-        .filter((s) => {
-          const t = s.event.eventTimestamp ?? new Date(s.event.dateTime).getTime();
-          return !isNaN(t) && t >= now;
-        })
+        .filter((s) => s.event.hasUpcomingOccurrence)
         .map((s) => s.event);
     } else if (volunteerEventFilter === 'matched') {
       list = scored

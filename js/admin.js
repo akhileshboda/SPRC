@@ -165,8 +165,8 @@ document.addEventListener('sections:ready', async (e) => {
       case 'title-desc':  a.sort((x, y) => (y.title || '').localeCompare(x.title || '')); break;
       case 'added-asc':   a.sort((x, y) => (x.createdAtMs || 0) - (y.createdAtMs || 0)); break;
       case 'added-desc':  a.sort((x, y) => (y.createdAtMs || 0) - (x.createdAtMs || 0)); break;
-      case 'date-asc':    a.sort((x, y) => (x.eventTimestamp || 0) - (y.eventTimestamp || 0)); break;
-      case 'date-desc':   a.sort((x, y) => (y.eventTimestamp || 0) - (x.eventTimestamp || 0)); break;
+      case 'date-asc':    a.sort((x, y) => ((x.nextOccurrenceTimestamp ?? x.eventTimestamp) || 0) - ((y.nextOccurrenceTimestamp ?? y.eventTimestamp) || 0)); break;
+      case 'date-desc':   a.sort((x, y) => ((y.nextOccurrenceTimestamp ?? y.eventTimestamp) || 0) - ((x.nextOccurrenceTimestamp ?? x.eventTimestamp) || 0)); break;
       case 'pay-asc':     a.sort((x, y) => (x.payRate || 0) - (y.payRate || 0)); break;
       case 'pay-desc':    a.sort((x, y) => (y.payRate || 0) - (x.payRate || 0)); break;
       case 'age-asc':     a.sort((x, y) => Number(x.age || 0) - Number(y.age || 0)); break;
@@ -589,7 +589,92 @@ document.addEventListener('sections:ready', async (e) => {
     if (submitBtn) submitBtn.textContent = 'Publish Event';
     const urgentCheck = document.getElementById('eventIsUrgent');
     if (urgentCheck) urgentCheck.checked = false;
+    populateEventScheduleFields({});
     document.getElementById('eventVolunteersPanel')?.classList.add('d-none');
+    clearEventRecapFields();
+  }
+
+  function clearEventRecapFields() {
+    document.getElementById('eventRecapPanel')?.classList.add('d-none');
+    ['recapText','recapPhoto1','recapPhoto2','recapPhoto3',
+     'recapT1Name','recapT1Quote','recapT2Name','recapT2Quote','recapT3Name','recapT3Quote']
+      .forEach((id) => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('recapSavedFeedback')?.classList.add('d-none');
+    document.getElementById('eventRecapError')?.classList.add('d-none');
+  }
+
+  function populateEventRecapFields(event) {
+    const recapPanel = document.getElementById('eventRecapPanel');
+    if (!recapPanel) return;
+    recapPanel.classList.remove('d-none');
+    document.getElementById('recapSavedFeedback')?.classList.add('d-none');
+    document.getElementById('eventRecapError')?.classList.add('d-none');
+    const recap = event?.recap || {};
+    document.getElementById('recapText').value = recap.text || '';
+    const photos = recap.photoUrls || [];
+    document.getElementById('recapPhoto1').value = photos[0] || '';
+    document.getElementById('recapPhoto2').value = photos[1] || '';
+    document.getElementById('recapPhoto3').value = photos[2] || '';
+    const testimonies = recap.testimonies || [];
+    document.getElementById('recapT1Name').value = (testimonies[0] || {}).name || '';
+    document.getElementById('recapT1Quote').value = (testimonies[0] || {}).quote || '';
+    document.getElementById('recapT2Name').value = (testimonies[1] || {}).name || '';
+    document.getElementById('recapT2Quote').value = (testimonies[1] || {}).quote || '';
+    document.getElementById('recapT3Name').value = (testimonies[2] || {}).name || '';
+    document.getElementById('recapT3Quote').value = (testimonies[2] || {}).quote || '';
+  }
+
+  function collectEventSchedulePayload() {
+    const scheduleType = document.querySelector('input[name="eventScheduleType"]:checked')?.value || 'ONE_OFF';
+    return {
+      eventScheduleType: scheduleType,
+      recurrenceFrequency: document.getElementById('eventRecurrenceFrequency')?.value || 'WEEKLY',
+      recurrenceInterval: document.getElementById('eventRecurrenceInterval')?.value || '1',
+      recurrenceEndType: document.getElementById('eventRecurrenceEndType')?.value || 'NEVER',
+      recurrenceEndDate: document.getElementById('eventRecurrenceEndDate')?.value || '',
+      recurrenceCount: document.getElementById('eventRecurrenceCount')?.value || ''
+    };
+  }
+
+  function syncEventRecurrenceControls() {
+    const schedule = collectEventSchedulePayload();
+    const isRecurring = schedule.eventScheduleType === 'RECURRING';
+    document.getElementById('eventRecurrenceControls')?.classList.toggle('d-none', !isRecurring);
+    document.getElementById('eventRecurrenceEndDateWrap')?.classList.toggle('d-none', !isRecurring || schedule.recurrenceEndType !== 'ON_DATE');
+    document.getElementById('eventRecurrenceCountWrap')?.classList.toggle('d-none', !isRecurring || schedule.recurrenceEndType !== 'AFTER_COUNT');
+    const preview = document.getElementById('eventRecurrencePreview');
+    if (!preview) return;
+    if (!isRecurring) {
+      preview.textContent = 'One-off event.';
+      return;
+    }
+    const normalized = Auth.normalizeEventSchedule({
+      ...schedule,
+      dateTime: document.getElementById('eventDateTime')?.value || ''
+    });
+    preview.textContent = Auth.formatRecurrenceSummary({
+      ...normalized,
+      dateTime: document.getElementById('eventDateTime')?.value || ''
+    });
+  }
+
+  function populateEventScheduleFields(event = {}) {
+    const schedule = Auth.normalizeEventSchedule(event);
+    const oneOff = document.getElementById('eventScheduleOneOff');
+    const recurring = document.getElementById('eventScheduleRecurring');
+    if (oneOff) oneOff.checked = schedule.eventScheduleType !== 'RECURRING';
+    if (recurring) recurring.checked = schedule.eventScheduleType === 'RECURRING';
+    const freq = document.getElementById('eventRecurrenceFrequency');
+    const interval = document.getElementById('eventRecurrenceInterval');
+    const endType = document.getElementById('eventRecurrenceEndType');
+    const endDate = document.getElementById('eventRecurrenceEndDate');
+    const count = document.getElementById('eventRecurrenceCount');
+    if (freq) freq.value = schedule.recurrenceFrequency || 'WEEKLY';
+    if (interval) interval.value = schedule.recurrenceInterval || 1;
+    if (endType) endType.value = schedule.recurrenceEndType || 'NEVER';
+    if (endDate) endDate.value = schedule.recurrenceEndDate || '';
+    if (count) count.value = schedule.recurrenceCount || 6;
+    syncEventRecurrenceControls();
   }
 
   function renderParticipantAdminRail(participant) {
@@ -1593,6 +1678,7 @@ document.addEventListener('sections:ready', async (e) => {
     const catFilter     = readChip('events', 'category');
     const ageFilter     = readChip('events', 'age');
     const timingFilter  = readChip('events', 'timing');
+    const scheduleFilter= readChip('events', 'schedule');
     const sortVal       = document.getElementById('eventsSortSelect')?.value || 'added-desc';
     const now           = Date.now();
 
@@ -1608,8 +1694,9 @@ document.addEventListener('sections:ready', async (e) => {
       if (ageFilter === 'ALL_ONLY') events = events.filter((e) => String(Auth.normalizeAgeRequirement(e.ageRequirement)) === 'ALL');
       else events = events.filter((e) => String(Auth.normalizeAgeRequirement(e.ageRequirement)) === ageFilter);
     }
-    if (timingFilter === 'UPCOMING') events = events.filter((e) => (e.eventTimestamp || 0) >= now);
-    if (timingFilter === 'PAST')     events = events.filter((e) => (e.eventTimestamp || 0) < now);
+    if (timingFilter === 'UPCOMING') events = events.filter((e) => e.hasUpcomingOccurrence || ((e.nextOccurrenceTimestamp ?? e.eventTimestamp) || 0) >= now);
+    if (timingFilter === 'PAST')     events = events.filter((e) => !e.hasUpcomingOccurrence && ((e.nextOccurrenceTimestamp ?? e.eventTimestamp) || 0) < now);
+    if (scheduleFilter !== 'ALL') events = events.filter((e) => String(e.eventScheduleType || 'ONE_OFF') === scheduleFilter);
     events = applySort(events, sortVal);
 
     if (!events.length) {
@@ -1626,7 +1713,11 @@ document.addEventListener('sections:ready', async (e) => {
         <td class="ps-3"><div class="fw-semibold">${escapeHtml(event.title)}</div></td>
         <td><span class="badge ${EVENT_CATEGORY_BADGE[event.category] || 'bg-secondary'}">${escapeHtml(event.category)}</span></td>
         <td class="small text-muted text-nowrap">${escapeHtml(formatAgeReqLabel(event.ageRequirement))}</td>
-        <td class="small text-muted">${escapeHtml(event.dateTimeLabel)}</td>
+        <td class="small text-muted">
+          <div>${escapeHtml(event.nextOccurrenceLabel || event.dateTimeLabel)}</div>
+          <span class="badge ${event.eventScheduleType === 'RECURRING' ? 'bg-info text-dark' : 'bg-light text-dark border'} mt-1">${event.eventScheduleType === 'RECURRING' ? 'Recurring' : 'One-off'}</span>
+          <div class="text-muted" style="font-size:0.72rem;">${escapeHtml(event.recurrenceSummary || '')}</div>
+        </td>
         <td class="small">${escapeHtml(event.location)}</td>
         <td class="small">
           <div class="fw-semibold">${totalCost}</div>
@@ -1667,10 +1758,13 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('eventAccommodations').value = event.accommodations || '';
         const urgentCheck = document.getElementById('eventIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
+        populateEventScheduleFields(event);
         editingEventId = event.id;
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         showEventsFormView(true, true);
         await renderEventVolunteersPanel(event.id);
+
+        populateEventRecapFields(event);
       });
     });
 
@@ -2238,6 +2332,7 @@ document.addEventListener('sections:ready', async (e) => {
       category: document.getElementById('eventCategory').value,
       dateTime: document.getElementById('eventDateTime').value,
       location: document.getElementById('eventLocation').value,
+      ...collectEventSchedulePayload(),
       programFee: programFeeInput.value,
       materialsCost: materialsCostInput.value,
       accommodations: document.getElementById('eventAccommodations').value,
@@ -2258,6 +2353,65 @@ document.addEventListener('sections:ready', async (e) => {
   });
 
   eventForm?.addEventListener('input', () => eventError?.classList.add('d-none'));
+
+  document.getElementById('saveRecapBtn')?.addEventListener('click', async () => {
+    const errorEl = document.getElementById('eventRecapError');
+    const feedbackEl = document.getElementById('recapSavedFeedback');
+    const saveBtn = document.getElementById('saveRecapBtn');
+    if (!editingEventId) {
+      if (errorEl) {
+        errorEl.textContent = 'Open an existing event before saving a recap.';
+        errorEl.classList.remove('d-none');
+      }
+      return;
+    }
+    errorEl?.classList.add('d-none');
+    feedbackEl?.classList.add('d-none');
+    const recap = {
+      text: document.getElementById('recapText')?.value || '',
+      photoUrls: [
+        document.getElementById('recapPhoto1')?.value || '',
+        document.getElementById('recapPhoto2')?.value || '',
+        document.getElementById('recapPhoto3')?.value || ''
+      ],
+      testimonies: [
+        {
+          name: document.getElementById('recapT1Name')?.value || '',
+          quote: document.getElementById('recapT1Quote')?.value || ''
+        },
+        {
+          name: document.getElementById('recapT2Name')?.value || '',
+          quote: document.getElementById('recapT2Quote')?.value || ''
+        },
+        {
+          name: document.getElementById('recapT3Name')?.value || '',
+          quote: document.getElementById('recapT3Quote')?.value || ''
+        }
+      ]
+    };
+    const originalHtml = saveBtn?.innerHTML;
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Saving';
+    }
+    const result = await Auth.updateEventRecap(editingEventId, recap);
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalHtml;
+    }
+    if (!result.success) {
+      if (errorEl) {
+        errorEl.textContent = result.message || 'Unable to save event recap.';
+        errorEl.classList.remove('d-none');
+      } else {
+        showToast(result.message || 'Unable to save event recap.');
+      }
+      return;
+    }
+    feedbackEl?.classList.remove('d-none');
+    showToast('Event recap saved.');
+    await renderEventsTable();
+  });
 
   jobForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -2478,6 +2632,15 @@ document.addEventListener('sections:ready', async (e) => {
     document.getElementById('eventSubmitBtn').classList.remove('d-none');
     document.getElementById('eventFormEditBtn').classList.add('d-none');
   });
+
+  ['eventScheduleOneOff', 'eventScheduleRecurring', 'eventRecurrenceFrequency', 'eventRecurrenceInterval',
+   'eventRecurrenceEndType', 'eventRecurrenceEndDate', 'eventRecurrenceCount', 'eventDateTime']
+    .forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', syncEventRecurrenceControls);
+      el.addEventListener('change', syncEventRecurrenceControls);
+    });
   document.getElementById('newJobBtn')?.addEventListener('click', () => {
     resetJobFormState();
     showJobsFormView(false);
@@ -2668,12 +2831,13 @@ document.addEventListener('sections:ready', async (e) => {
           <div class="flex-grow-1">
             <div class="fw-semibold small">${escapeHtml(event.title)}</div>
             <div class="text-muted" style="font-size:0.78rem;">
-              <i class="bi bi-calendar2 me-1"></i>${escapeHtml(event.dateTimeLabel)}
+              <i class="bi bi-calendar2 me-1"></i>${escapeHtml(event.nextOccurrenceLabel || event.dateTimeLabel)}
             </div>
             <div class="text-muted" style="font-size:0.78rem;">
               <i class="bi bi-geo-alt me-1"></i>${escapeHtml(event.location)}
             </div>
             <span class="badge bg-light text-dark border mt-1" style="font-size:0.65rem;">${escapeHtml(event.category)}</span>
+            ${event.eventScheduleType === 'RECURRING' ? '<span class="badge bg-info text-dark mt-1" style="font-size:0.65rem;">Recurring</span>' : ''}
           </div>
         </div>
         <div class="d-flex gap-2 mt-2">
@@ -2785,12 +2949,14 @@ document.addEventListener('sections:ready', async (e) => {
         document.getElementById('eventAccommodations').value = event.accommodations || '';
         const urgentCheck = document.getElementById('eventIsUrgent');
         if (urgentCheck) urgentCheck.checked = Boolean(event.isUrgent);
+        populateEventScheduleFields(event);
         editingEventId = event.id;
         eventsEditOrigin = 'urgent-notifications';
         document.getElementById('eventSubmitBtn').textContent = 'Update Event';
         navigateTo('events');
         showEventsFormView(true);
         await renderEventVolunteersPanel(event.id);
+        populateEventRecapFields(event);
       });
     });
 
@@ -3627,11 +3793,7 @@ document.addEventListener('sections:ready', async (e) => {
         Auth.getJobs(),
         Auth.getPendingApprovals()
       ]);
-      const now = Date.now();
-      const upcomingCount = events.filter((e) => {
-        const t = e.eventTimestamp ?? new Date(e.dateTime).getTime();
-        return !isNaN(t) && t >= now;
-      }).length;
+      const upcomingCount = events.filter((e) => e.hasUpcomingOccurrence).length;
       const openJobs = jobs.filter((j) => (j.status || 'Open') === 'Open').length;
       const pendingApprovalCount = approvals.filter((a) => a.status === 'PENDING').length;
       el.innerHTML = `
